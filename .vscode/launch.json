@@ -12,7 +12,7 @@
       "deviceCore": "Cortex-M7",
       "serverShared": true,
       "serverHaltAllCores": true,
-      "svdPath": "${env:STM32CLT_PATH}/STMicroelectronics_CMSIS_SVD/STM32H745_CM7.svd",
+      "svdPath": "${workspaceFolder}/third_party/cmsis-svd/STM32H745_CM7.svd",
       "imagesAndSymbols": [
         {
           "imageFileName": "${workspaceFolder}/build/Debug/firmware-m4.elf"
@@ -35,7 +35,7 @@
       "serverApID": "3",
       "serverPort": "61239",
       "serverReset": "None",
-      "svdPath": "${env:STM32CLT_PATH}/STMicroelectronics_CMSIS_SVD/STM32H745_CM4.svd",
+      "svdPath": "${workspaceFolder}/third_party/cmsis-svd/STM32H745_CM4.svd",
       "imagesAndSymbols": [
         {
           "symbolFileName": "${workspaceFolder}/build/Debug/firmware-m4.elf"

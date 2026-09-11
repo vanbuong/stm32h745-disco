@@ -25,8 +25,9 @@ Policy (locked in `doc/Architecture.md` §3.1):
 | `stm32-wm8994/` | [stm32-wm8994](https://github.com/STMicroelectronics/stm32-wm8994) | v3.0.3 |
 | `stm32-lan8742/` | [stm32-lan8742](https://github.com/STMicroelectronics/stm32-lan8742) | v1.0.4 |
 | `lwip/` | [lwip-tcpip/lwip](https://github.com/lwip-tcpip/lwip) | STABLE-2_2_1_RELEASE |
+| `cmsis-svd/` | [STM32H7xx_DFP](https://github.com/Open-CMSIS-Pack/STM32H7xx_DFP) `CMSIS/SVD/` | STM32H745_CM7 / CM4 (debug only) |
 
-`stm32h7xx-hal-driver` is both HAL (`stm32h7xx_hal_*.c`) and LL (`stm32h7xx_ll_*.c`, `USE_FULL_LL_DRIVER`). Panel timings are header-only; FT5336 is compiled in the M7 image with I2C4 in our BSP. FatFs `ff.c` is compiled on M7; `diskio` and `ffconf.h` are ours (`firmware/src/bsp/.../emmc.c`, `firmware/src/port/fatfs/`). LVGL is compiled on M7 and in the Sprint 5b `host-sim` SDL binary; `lv_conf.h` lives in `firmware/src/port/lvgl/` (MCU) and `firmware/src/port/lvgl_sim/` (PC). Apps never include `lvgl.h`. Helix is compiled on M4 and in host-tests/host-sim (C fallback in `firmware/src/svc/vendor/helix_generic_asm.h`). WM8994 is compiled on M7; SAI DMA ping-pong is our BSP on M4. LAN8742 + LwIP (`NO_SYS`, UDP/DHCP/ICMP, no TCP) are compiled on **M7 only**; `ethernetif` is our port.
+`stm32h7xx-hal-driver` is both HAL (`stm32h7xx_hal_*.c`) and LL (`stm32h7xx_ll_*.c`, `USE_FULL_LL_DRIVER`). Panel timings are header-only; FT5336 is compiled in the M7 image with I2C4 in our BSP. FatFs `ff.c` is compiled on M7; `diskio` and `ffconf.h` are ours (`firmware/src/bsp/.../emmc.c`, `firmware/src/port/fatfs/`). LVGL is compiled on M7 and in the Sprint 5b `host-sim` SDL binary; `lv_conf.h` lives in `firmware/src/port/lvgl/` (MCU) and `firmware/src/port/lvgl_sim/` (PC). Apps never include `lvgl.h`. Helix is compiled on M4 and in host-tests/host-sim (C fallback in `firmware/src/svc/vendor/helix_generic_asm.h`). WM8994 is compiled on M7; SAI DMA ping-pong is our BSP on M4. LAN8742 + LwIP (`NO_SYS`, UDP/DHCP/ICMP, no TCP) are compiled on **M7 only**; `ethernetif` is our port. `cmsis-svd/` is debug-only (VS Code register view); it is not linked.
 
 ```
 git submodule update --init --recursive

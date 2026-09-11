@@ -92,7 +92,7 @@ Install the [STM32CubeIDE for Visual Studio Code](https://marketplace.visualstud
 4. Select the **Debug (M7 + M4)** CMake preset
 5. Build, then debug with **CM7_Debug** (flashes both ELFs) and optionally **DualCore_Debug**
 
-Device is `STM32H745XIH6` on **STM32H745I-DISCO** (`.settings/ide.store.json`). Apps still never include HAL; only `firmware/src/port/cube` and `firmware/src/bsp` do.
+Register view uses in-tree SVD files (`third_party/cmsis-svd/`), not CubeCLT. Device is `STM32H745XIH6` on **STM32H745I-DISCO** (`.settings/ide.store.json`). Apps still never include HAL; only `firmware/src/port/cube` and `firmware/src/bsp` do.
 
 CI: format, layering, cppcheck, clang-tidy, coverage, and both ELF images — see `doc/CICD.md`.
 

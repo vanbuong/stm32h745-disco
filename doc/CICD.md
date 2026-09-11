@@ -69,7 +69,7 @@ cmake/
   ArmGnu.cmake
   Coverage.cmake
 .settings/ide.store.json    # STM32 VS Code device (STM32H745XIH6)
-.vscode/                    # CMake Tools presets + ST-LINK debug
+.vscode/                    # CMake Tools presets + ST-LINK debug (in-tree SVD)
 scripts/
   ci/
     check-layering.sh
