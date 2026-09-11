@@ -37,7 +37,7 @@ The first implementation is **FreeRTOS + LVGL + STM32Cube HAL/LL**. The board BS
 
 # Build
 
-Host tests (no board):
+Host tests (no board) use **Unity** (`third_party/unity`):
 
 ```
 cmake --preset host-tests

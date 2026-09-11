@@ -1,4 +1,12 @@
+set(UNITY_ROOT ${CMAKE_SOURCE_DIR}/third_party/unity)
+if(NOT EXISTS ${UNITY_ROOT}/src/unity.c)
+    message(FATAL_ERROR
+        "Missing Unity at ${UNITY_ROOT}.\n"
+        "Run: git submodule update --init --recursive")
+endif()
+
 set(HOST_SRC
+    ${UNITY_ROOT}/src/unity.c
     ${CMAKE_SOURCE_DIR}/firmware/src/ipc/ipc_ring.c
     ${CMAKE_SOURCE_DIR}/firmware/src/ipc/ipc_link.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/vfs_path.c
@@ -45,10 +53,12 @@ target_include_directories(host_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/tests/host
     ${CMAKE_SOURCE_DIR}/tests/host/data
 )
+target_include_directories(host_tests SYSTEM PRIVATE ${UNITY_ROOT}/src)
 target_compile_options(host_tests PRIVATE -Wall -Wextra -Werror -Wno-unused-parameter)
 set_source_files_properties(
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/tjpgd/tjpgd.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/puff/puff.c
+    ${UNITY_ROOT}/src/unity.c
     PROPERTIES COMPILE_FLAGS "-w"
 )
 target_link_libraries(host_tests PRIVATE pthread)

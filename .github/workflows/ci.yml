@@ -25,6 +25,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - run: sudo apt-get update && sudo apt-get install -y cmake gcovr
       - run: cmake --preset host-tests
       - run: cmake --build --preset host-tests
@@ -52,6 +54,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - run: sudo apt-get update && sudo apt-get install -y cmake cppcheck clang-tidy
       - run: cmake --preset host-tests
       - run: cmake --build --preset host-tests
@@ -64,6 +68,7 @@ jobs:
             --suppress=missingIncludeSystem \
             --std=c11 \
             -i tests \
+            -i third_party \
             -i firmware/src/svc/vendor
       - name: clang-tidy
         run: |

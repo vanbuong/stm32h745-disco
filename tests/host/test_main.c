@@ -1,9 +1,12 @@
-#include "test.h"
+#include "unity.h"
 
-#include <stdio.h>
+void setUp(void)
+{
+}
 
-int g_fails;
-int g_checks;
+void tearDown(void)
+{
+}
 
 void test_ipc_run(void);
 void test_vfs_run(void);
@@ -18,6 +21,7 @@ void test_image_run(void);
 
 int main(void)
 {
+    UNITY_BEGIN();
     test_ipc_run();
     test_vfs_run();
     test_znp_run();
@@ -28,6 +32,5 @@ int main(void)
     test_files_run();
     test_text_run();
     test_image_run();
-    printf("%d checks, %d failed\n", g_checks, g_fails);
-    return g_fails == 0 ? 0 : 1;
+    return UNITY_END();
 }

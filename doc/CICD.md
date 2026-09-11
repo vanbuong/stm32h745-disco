@@ -77,7 +77,7 @@ scripts/
 .cppcheck
 ```
 
-Host tests **must not** link STM32 HAL, LVGL, SDL, or FatFS. They compile `src/svc`, `src/ipc`, `src/game` with `src/osal/posix` (or a tiny stub). The Sprint 5b `host-sim` target is the only host binary allowed to link LVGL + SDL2.
+Host tests **must not** link STM32 HAL, LVGL, SDL, or FatFs. They compile `src/svc`, `src/ipc`, `src/game` with `src/osal/posix` (or a tiny stub) and run under **Unity** (`third_party/unity`, v2.6.1). The Sprint 5b `host-sim` target is the only host binary allowed to link LVGL + SDL2.
 
 ## 4. Toolchain versions (pin in CI)
 

@@ -147,7 +147,7 @@ firmware/
     port/cube/               STM32Cube HAL/LL glue (later: port/zephyr/)
     port/lvgl/               lv_conf.h (MCU); lv_conf_sim.h (Sprint 5b PC)
 tests/
-  host/          PC unit tests, no HAL, no LVGL
+  host/          PC unit tests (Unity), no HAL, no LVGL
   host/sim/      Sprint 5b: host_sim main + host-folder VFS (not unit tests)
   hil/           on-target scripts and fixtures
 third_party/
@@ -158,6 +158,7 @@ third_party/
   stm32-rk043fn48h/          ST component (now)
   fatfs/                     elm-chan FatFs R0.15b (now)
   lvgl/                      upstream LVGL v9.5.0 (now)
+  unity/                     ThrowTheSwitch Unity v2.6.1 (host unit tests)
   tinyusb/                   upstream TinyUSB (later USB MSC sprint)
   stm32-mt25tl01g/           ST component (QSPI commands, when needed)
   stm32-wm8994/              ST component (Sprint 8)

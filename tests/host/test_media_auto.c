@@ -1,4 +1,4 @@
-#include "test.h"
+#include "unity.h"
 
 #include "svc/auto.h"
 #include "svc/media.h"
@@ -7,19 +7,19 @@
 
 static void test_media(void)
 {
-    CHECK(media_probe_ext("a.mp3") == MEDIA_KIND_AUDIO);
-    CHECK(media_probe_ext("a.WAV") == MEDIA_KIND_AUDIO);
-    CHECK(media_probe_ext("x.jpg") == MEDIA_KIND_IMAGE);
-    CHECK(media_probe_ext("x.jpeg") == MEDIA_KIND_IMAGE);
-    CHECK(media_probe_ext("x.png") == MEDIA_KIND_IMAGE);
-    CHECK(media_probe_ext("x.bmp") == MEDIA_KIND_IMAGE);
-    CHECK(media_probe_ext("n.txt") == MEDIA_KIND_TEXT);
-    CHECK(media_probe_ext("n.md") == MEDIA_KIND_TEXT);
-    CHECK(media_probe_ext("n.c") == MEDIA_KIND_TEXT);
-    CHECK(media_probe_ext("n.h") == MEDIA_KIND_TEXT);
-    CHECK(media_probe_ext("n.log") == MEDIA_KIND_TEXT);
-    CHECK(media_probe_ext("n.bin") == MEDIA_KIND_NONE);
-    CHECK(media_probe_ext(NULL) == MEDIA_KIND_NONE);
+    TEST_ASSERT_TRUE(media_probe_ext("a.mp3") == MEDIA_KIND_AUDIO);
+    TEST_ASSERT_TRUE(media_probe_ext("a.WAV") == MEDIA_KIND_AUDIO);
+    TEST_ASSERT_TRUE(media_probe_ext("x.jpg") == MEDIA_KIND_IMAGE);
+    TEST_ASSERT_TRUE(media_probe_ext("x.jpeg") == MEDIA_KIND_IMAGE);
+    TEST_ASSERT_TRUE(media_probe_ext("x.png") == MEDIA_KIND_IMAGE);
+    TEST_ASSERT_TRUE(media_probe_ext("x.bmp") == MEDIA_KIND_IMAGE);
+    TEST_ASSERT_TRUE(media_probe_ext("n.txt") == MEDIA_KIND_TEXT);
+    TEST_ASSERT_TRUE(media_probe_ext("n.md") == MEDIA_KIND_TEXT);
+    TEST_ASSERT_TRUE(media_probe_ext("n.c") == MEDIA_KIND_TEXT);
+    TEST_ASSERT_TRUE(media_probe_ext("n.h") == MEDIA_KIND_TEXT);
+    TEST_ASSERT_TRUE(media_probe_ext("n.log") == MEDIA_KIND_TEXT);
+    TEST_ASSERT_TRUE(media_probe_ext("n.bin") == MEDIA_KIND_NONE);
+    TEST_ASSERT_TRUE(media_probe_ext(NULL) == MEDIA_KIND_NONE);
 }
 
 static void test_auto(void)
@@ -35,15 +35,16 @@ static void test_auto(void)
     r.trig_ieee[0] = 0x11;
     d.ieee[0] = 0x11;
     d.on = 1;
-    CHECK(auto_add(&r) == ERR_OK);
-    CHECK(auto_eval(&d) == ERR_OK);
-    CHECK(auto_last_id() == 7);
+    TEST_ASSERT_TRUE(auto_add(&r) == ERR_OK);
+    TEST_ASSERT_TRUE(auto_eval(&d) == ERR_OK);
+    TEST_ASSERT_TRUE(auto_last_id() == 7);
     d.on = 0;
-    CHECK(auto_eval(&d) == ERR_NOENT);
+    TEST_ASSERT_TRUE(auto_eval(&d) == ERR_NOENT);
 }
 
 void test_media_auto_run(void)
 {
-    test_media();
-    test_auto();
+    UnitySetTestFile(__FILE__);
+    RUN_TEST(test_media);
+    RUN_TEST(test_auto);
 }
