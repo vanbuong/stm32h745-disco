@@ -45,9 +45,7 @@ err_t auto_eval(const home_device_t *changed)
         if (!ieee_eq(r->trig_ieee, changed->ieee)) {
             continue;
         }
-        if (r->trig == AUTO_TRIG_ON && changed->on) {
-            match = 1;
-        } else if (r->trig == AUTO_TRIG_OCCUPIED && changed->on) {
+        if ((r->trig == AUTO_TRIG_ON || r->trig == AUTO_TRIG_OCCUPIED) && changed->on) {
             match = 1;
         }
         if (match) {
