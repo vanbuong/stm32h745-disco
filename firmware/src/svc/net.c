@@ -2,7 +2,7 @@
 
 #include <string.h>
 
-#define NET_ETH_LEASE 0xC0A80132u /* 192.168.1.50 */
+#define NET_ETH_LEASE 0xC0A80132u  /* 192.168.1.50 */
 #define NET_WIFI_LEASE 0xC0A80402u /* 192.168.4.2 */
 
 static uint8_t g_ready;

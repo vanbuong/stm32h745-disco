@@ -43,7 +43,16 @@ extern "C" {
 #define IPC_AUDIO_PIPE_OFF (IPC_SHM_CTRL + (2u * IPC_SHM_RING))
 #define IPC_AUDIO_PIPE_BYTES 16384u
 
-typedef struct __attribute__((packed)) {
+#if defined(_MSC_VER)
+#pragma pack(push, 1)
+#define IPC_PACKED
+#elif defined(__GNUC__)
+#define IPC_PACKED __attribute__((packed))
+#else
+#define IPC_PACKED
+#endif
+
+typedef struct IPC_PACKED {
     uint8_t kind;
     uint8_t channels;
     uint8_t bits;
@@ -51,7 +60,7 @@ typedef struct __attribute__((packed)) {
     uint32_t sample_hz;
 } ipc_audio_fmt_t;
 
-typedef struct __attribute__((packed)) {
+typedef struct IPC_PACKED {
     uint32_t elapsed_ms;
     uint32_t duration_ms;
     uint16_t underruns;
@@ -71,7 +80,7 @@ typedef struct __attribute__((packed)) {
 #define IPC_ROLE_M7 0u
 #define IPC_ROLE_M4 1u
 
-typedef struct __attribute__((packed)) {
+typedef struct IPC_PACKED {
     uint16_t magic;
     uint8_t ver;
     uint8_t src;
@@ -81,6 +90,10 @@ typedef struct __attribute__((packed)) {
     uint16_t seq;
     uint16_t len;
 } ipc_msg_hdr_t;
+
+#if defined(_MSC_VER)
+#pragma pack(pop)
+#endif
 
 #ifdef __cplusplus
 }
