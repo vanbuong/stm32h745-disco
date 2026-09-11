@@ -140,14 +140,16 @@ firmware/
     app/           launcher, files, image, text, player, game, home, settings
     shell/
     svc/
-    ui/backend_lvgl/
+    ui/backend_lvgl/     ui_lvgl.c (MCU + PC sim); lv_port is BSP- or SDL-specific
     ipc/
     osal/freertos/           later: osal/zephyr/
     bsp/stm32h745i_disco/
     port/cube/               STM32Cube HAL/LL glue (later: port/zephyr/)
-  tests/
-    host/          PC unit tests, no HAL
-    hil/           on-target scripts and fixtures
+    port/lvgl/               lv_conf.h (MCU); lv_conf_sim.h (Sprint 5b PC)
+tests/
+  host/          PC unit tests, no HAL, no LVGL
+  host/sim/      Sprint 5b: host_sim main + host-folder VFS (not unit tests)
+  hil/           on-target scripts and fixtures
 third_party/
   stm32h7xx-hal-driver/      ST HAL + LL (submodule, now)
   cmsis-device-h7/
@@ -456,6 +458,8 @@ Shell owns:
 
 The LVGL backend draws those models. A future backend can draw the same models. **Do not** call `lv_*` from `src/app`.
 
+**PC simulator (Sprint 5b):** same `ui_lvgl.c` on Ubuntu and Windows via LVGL’s SDL2 driver. Do not fork a Win32 UI or an X11 UI. Only the display/input/tick port, `lv_conf_sim.h` (host heap), and a host-folder `vfs_*` differ. The `host-sim` CMake target is separate from `host-tests`.
+
 See `UI_Design.md` for layout and screens.
 
 ## 9. Services
@@ -488,10 +492,11 @@ Network ownership: pick **one** core at build time (default M4 if audio+net isol
 
 ## 11. Build, log, test, CI
 
-- CMake presets: `Debug` / `Release` (Ninja, both cores; STM32 VS Code default), `m7-debug`, `m4-debug`, `host-tests`.
+- CMake presets: `Debug` / `Release` (Ninja, both cores; STM32 VS Code default), `m7-debug`, `m4-debug`, `host-tests`, and (Sprint 5b) `host-sim`.
 - STM32Cube: `third_party/stm32h7xx-hal-driver` (HAL + LL), only included from `src/port/cube` and `src/bsp`. STM32CubeIDE for VS Code uses `.settings/ide.store.json` and `.vscode/launch.json`.
 - Logs: UART3 115200 8N1, tagged `core,lvl,mod,msg`. No `printf` to ITM as the only log.
-- Host tests compile `svc` + `ipc` protocol + `game_sim` + `znp_mt` + `auto` + **shell/nav** with a POSIX OSAL stub. They must not link LVGL.
+- Host tests compile `svc` + `ipc` protocol + `game_sim` + `znp_mt` + `auto` + **shell/nav** with a POSIX OSAL stub. They must not link LVGL, SDL, or FatFs.
+- Host simulator (Sprint 5b) **does** link LVGL + SDL2. It is a developer window, not the coverage suite. Ubuntu and Windows are both required; CI only has to **link**.
 - HIL tests run on the Discovery board via VCP.
 - Pull-request CI is specified in `CICD.md`: format, layering, cppcheck, clang-tidy, gcov floors, ARM GCC link.
 

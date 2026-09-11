@@ -45,6 +45,8 @@ cmake --build --preset host-tests
 ctest --test-dir build-host --output-on-failure
 ```
 
+PC LVGL window (Sprint 5b, **not implemented yet**): same shell as the board via SDL2 on **Ubuntu and Windows**. `host-tests` will stay LVGL-free; the simulator is a separate `host-sim` preset. See `doc/Plan.md`.
+
 Cross-compile M7 / M4 (needs `gcc-arm-none-eabi` and the ST submodules):
 
 ```

@@ -34,6 +34,7 @@ Game and Home use the same `ui_app_t` contract as Files. Game logic is a host-te
 | --- | --- | --- |
 | RTOS | FreeRTOS on each core (M7 first) | Zephyr |
 | UI | LVGL over `disp_*` / `input_*` | LVGL on Zephyr |
+| Host UI sim | none (logic-only `host-tests`) | SDL2 window on **Ubuntu and Windows** (Sprint 5b) |
 | FS | FatFs (FAT) on eMMC behind `vfs_*` | Same FAT volume (Zephyr FAT or FatFs). No littlefs |
 | USB MSC | Out until a later sprint | TinyUSB device MSC; exclusive with FatFs |
 | IPC | SRAM4 rings + HSEM | OpenAMP / RPMsg |
@@ -59,7 +60,9 @@ flowchart LR
   S2 --> S3[3 VFS]
   S3 --> S4[4 LVGL shell]
   S4 --> S5[5 explorer]
+  S5 --> S5b[5b host sim]
   S5 --> S6[6 viewers]
+  S5b -.-> S6
   S4 --> S10[10 game]
   S6 --> S7[7 M4 IPC]
   S7 --> S8[8 audio]
@@ -85,6 +88,7 @@ gantt
   section Shell
   Sprint 4 LVGL                 :s4, after s3, 10d
   Sprint 5 explorer             :s5, after s4, 7d
+  Sprint 5b host sim Ubuntu+Win :s5b, after s5, 5d
   Sprint 6 viewers              :s6, after s5, 10d
   section Dual core
   Sprint 7 M4 IPC               :s7, after s6, 7d
@@ -98,7 +102,7 @@ gantt
   Sprint 13 harden CI HIL       :s13, after s8, 10d
 ```
 
-Dates are indicative; the dependency graph is normative. Game and ZNP may overlap after the shell exists.
+Dates are indicative; the dependency graph is normative. Game and ZNP may overlap after the shell exists. Sprint 5b (PC window) may overlap Sprint 6; it does not block viewers on hardware.
 
 ### Sprint 0 — Repo, contracts, CI (1–3 days)
 
@@ -155,6 +159,25 @@ Status: **done** (host-tested listing, open-with, Back restores scroll; viewers 
 - Open-with: `.txt/.md/.c/.h/.log` → text, `.jpg/.jpeg/.png/.bmp` → image, `.mp3/.wav` → player.
 - No `..` row; Back leaves the folder. Unknown files: Properties + “Open as text?”.
 - **Exit:** browse nested folders, open a file into a stub viewer, Back restores list position.
+
+### Sprint 5b — Host LVGL simulator (Ubuntu + Windows)
+
+Status: **planned** (after Sprint 5). Not implemented yet.
+
+Run the same shell on a PC so Files/launcher can be checked without a Discovery board. **Ubuntu and Windows are both first-class.** One backend, not two window toolkits.
+
+Lock:
+
+- **Windowing:** upstream LVGL v9 **SDL2** (`LV_USE_SDL`). Do not add a Win32-only backend, an X11-only backend, or a second widget tree. macOS is nice-to-have if SDL works; it is not an exit gate.
+- **Target:** CMake preset `host-sim` → `host_sim`. This is **not** `host-tests`. Unit tests stay LVGL-free (`Architecture.md` §11, `CICD.md`).
+- **Code share:** reuse `ui/backend_lvgl/ui_lvgl.c`, `src/shell`, `src/app`. Swap only the port: host `lv_port` + `lv_conf_sim.h` (malloc heap, not `LV_MEM_ADR 0x24010000`). Apps still never include `lvgl.h`.
+- **Panel:** 480×272 RGB565. Optional integer scale (2×) so the window is readable on a desktop. Mouse is the pointer (down/move/up in panel space).
+- **VFS:** map a host folder to `/user` (jail still applies). Seed tree for demo files. No FatFs, no HAL, no FreeRTOS.
+- **Out of sim:** real audio SAI, Ethernet, TI ZNP UART. Those stay stubs or `mock` until their sprints.
+- **Deps:** Ubuntu `libsdl2-dev`; Windows SDL2 via vcpkg or CMake `FetchContent`. Document both in README when the sprint lands.
+- **CI:** link `host-sim` on GitHub `ubuntu-24.04` **and** `windows-latest`. A display is not required in CI (no xvfb gate). Coverage floor does not include LVGL/SDL.
+
+- **Exit:** `cmake --preset host-sim && cmake --build --preset host-sim` produces a windowed binary on Ubuntu and on Windows; launcher opens Files against a host `/user` folder; Back restores the list; layering grep still passes.
 
 ### Sprint 6 — Text and image viewers
 
@@ -264,6 +287,9 @@ Rationale: 40 px minimum hit targets, more room for lists and images, matches LV
 | USART3 stolen for ZNP | Console stays USART3; ZNP on USART1 |
 | Permit join left open | UI countdown; auto-close; no join while locked |
 | ZNP UART vs LVGL | DMA + worker; offload to M4 if needed |
+| Host sim only on Linux | One SDL2 backend; CI links Ubuntu and Windows |
+| Sim widgets drift from the board | Same `ui_lvgl.c` + apps/shell; only `lv_port` / `lv_conf` / VFS / tick differ |
+| `host-tests` accidentally link LVGL | Keep presets separate; layering + CICD forbid LVGL in unit tests |
 | Scope (MQTT export, climate, extra games, NTP, Wi-Fi) | C/P2; do not block Files, Brick, or Zigbee OnOff |
 
 ## 7. Deliverables per milestone
@@ -272,6 +298,7 @@ Rationale: 40 px minimum hit targets, more room for lists and images, matches LV
 | --- | --- |
 | M1 (Sprint 2) | Touch paint on color bars |
 | M2 (Sprint 5) | Browse eMMC and open files |
+| M2b (Sprint 5b) | Same shell in an SDL window on Ubuntu and Windows |
 | M3 (Sprint 6) | View JPEG + UTF-8 text |
 | M4 (Sprint 8) | Play MP3 while browsing |
 | M5 (Sprint 10) | Brick playable at ≥ 30 FPS |

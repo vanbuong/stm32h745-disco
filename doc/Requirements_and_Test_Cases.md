@@ -137,6 +137,9 @@ Enable USB file transfer; PC mounts the FAT volume; explorer shows storage busy.
 | REQ-UI-07 | M | Touch down/move/up shall be delivered with coordinates in panel space. | HIL |
 | REQ-UI-08 | S | User button shall return to the launcher. | HIL |
 | REQ-UI-09 | M | Errors shall use a modal with human-readable text, never a blank screen or HAL assert in production builds. | HIL |
+| REQ-SIM-01 | S | A PC simulator shall run the LVGL shell in a 480×272 (or integer-scaled) window on Ubuntu and Windows using SDL2. | UT, INSP |
+| REQ-SIM-02 | S | The simulator shall use the same `src/app` and `src/shell` as firmware. Apps shall not include LVGL. | INSP |
+| REQ-SIM-03 | S | CI shall link the `host-sim` target on Ubuntu and Windows. A display is not required in CI. | UT |
 
 ### Tests
 
@@ -148,6 +151,12 @@ Scroll a 200-row dummy list; frame counter ≥ 20 FPS over 3 s.
 
 **TC-UI-03 (UT) — Non-blocking**  
 UI tick unit test fails the build if a stub VFS that sleeps is invoked on the UI thread.
+
+**TC-SIM-01 (UT)**  
+`cmake --preset host-sim && cmake --build --preset host-sim` succeeds on Ubuntu 24.04 and on Windows (MSVC or MinGW) with SDL2 available.
+
+**TC-SIM-02 (INSP)**  
+`host-tests` does not link LVGL or SDL. `host-sim` does not include `lvgl.h` from `src/app` or `src/shell`.
 
 ---
 
@@ -379,10 +388,11 @@ Rule: occupancy `occupied` → light On, 3 s delay → Off. Host test with mock 
 | Kind | Where | What belongs |
 | --- | --- | --- |
 | UT | PC, CMake `host-tests` | Path jail, IPC rings, UTF-8, dispatcher, mixer math, image golden, include check, **Brick sim**, **home mock**, **MT FCS**, **auto rules** |
+| SIM | PC, CMake `host-sim` (Sprint 5b) | Visual shell: launcher + Files on Ubuntu and Windows (SDL2). Link in CI; run locally |
 | IT | Board, no extra gear | Mount, display mode, QSPI map, versions |
 | HIL | Board + actions | Latency, FPS, failover, audio, throughput, **game FPS**, **ZNP join/toggle** |
 
-Host tests must not link STM32 HAL.
+Host tests must not link STM32 HAL, LVGL, or SDL. The simulator is a different target.
 
 ---
 
@@ -416,6 +426,7 @@ Host tests must not link STM32 HAL.
 | REQ-STG-07 | TC-STG-05 |
 | REQ-STG-08 | TC-STG-05 |
 | REQ-UI-01..09 | TC-UI-01, TC-UI-02, TC-UI-03 |
+| REQ-SIM-01..03 | TC-SIM-01, TC-SIM-02 |
 | REQ-FE-01..04 | TC-FE-01, TC-FE-02, TC-FE-03 |
 | REQ-IMG-01..04 | TC-IMG-01, TC-IMG-02, TC-IMG-03 |
 | REQ-IMG-05 | TC-IMG-04 |
@@ -452,6 +463,7 @@ Host tests must not link STM32 HAL.
 | REQ-CI-04 | TC-CI-04 |
 | REQ-CI-05 | TC-CI-05 |
 | REQ-CI-07 | TC-SYS-01, TC-CI-01 |
+| REQ-CI-09 | TC-SIM-01 |
 
 Sprint 13 is not done until every **M** row has a passing test or an explicit waiver recorded here. **S** rows for Game and Home are the Sprint 10–12 exit gates.
 
@@ -485,6 +497,7 @@ flowchart LR
 | REQ-CI-06 | S | CI shall run CodeQL `cpp` on PRs; high/error findings fail the job. | UT |
 | REQ-CI-07 | M | CI shall fail if `src/app` or `src/shell` include forbidden headers (REQ-SYS-02). | UT |
 | REQ-CI-08 | C | A self-hosted HIL job shall flash the Discovery board and publish JUnit; it shall not block merge until Sprint 13. | HIL |
+| REQ-CI-09 | S | After Sprint 5b, CI shall link `host-sim` on Ubuntu and Windows (SDL2). Opening a window is not required in CI. | UT |
 
 ### Tests
 

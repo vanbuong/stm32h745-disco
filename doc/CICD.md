@@ -1,6 +1,6 @@
 # CI/CD, static analysis, and coverage
 
-This document is the quality gate for firmware in `firmware/` and host tests in `tests/host`. HIL on the Discovery board is a **later, optional** pipeline on a self-hosted runner. Cloud CI never needs a board.
+This document is the quality gate for firmware in `firmware/` and host tests in `tests/host`. After Sprint 5b, CI also **links** the SDL host simulator on Ubuntu and Windows (no display required). HIL on the Discovery board is a **later, optional** pipeline on a self-hosted runner. Cloud CI never needs a board.
 
 Related: `Architecture.md` (tree and ports), `Requirements_and_Test_Cases.md` (REQ-CI-*), `Plan.md` (Sprint 0 includes the first workflow).
 
@@ -24,6 +24,7 @@ flowchart TB
     E[host tests + gcov] --> G
     F[ARM GCC: m7 + m4] --> G
     Q[CodeQL C] --> G
+    SIM[host-sim link Ubuntu+Win] --> G
   end
   G -->|yes| M[allow merge]
   G -->|no| X[block merge]
@@ -43,6 +44,7 @@ flowchart TB
 | clang-tidy | ubuntu | No | Yes (errors + selected warnings) |
 | Host tests + coverage | ubuntu gcc | No | Yes (fail + coverage floor) |
 | Cross-compile M7/M4 | ubuntu + `gcc-arm-none-eabi` | No | Yes |
+| Host sim link (Sprint 5b) | ubuntu + windows, SDL2 | No | Yes after 5b (link only) |
 | CodeQL | GitHub | No | Yes on high/critical |
 | HIL | Self-hosted + DISCO | Yes | No until Sprint 13 |
 
@@ -59,6 +61,7 @@ flowchart TB
   pull_request_template.md
 cmake/
   HostTests.cmake
+  HostSim.cmake             # Sprint 5b: LVGL + SDL2, not unit tests
   gcc-arm-none-eabi.cmake
   ArmGnu.cmake
   Coverage.cmake
@@ -74,7 +77,7 @@ scripts/
 .cppcheck
 ```
 
-Host tests **must not** link STM32 HAL, LVGL, or FatFS. They compile `src/svc`, `src/ipc`, `src/game` with `src/osal/posix` (or a tiny stub).
+Host tests **must not** link STM32 HAL, LVGL, SDL, or FatFS. They compile `src/svc`, `src/ipc`, `src/game` with `src/osal/posix` (or a tiny stub). The Sprint 5b `host-sim` target is the only host binary allowed to link LVGL + SDL2.
 
 ## 4. Toolchain versions (pin in CI)
 
@@ -201,7 +204,26 @@ CI only needs **link success** and a size report (`arm-none-eabi-size`). Flash/r
 
 Fail if flash exceeds budget. RAM warn is non-fatal until Sprint 13.
 
-### 5.7 CodeQL
+### 5.7 Host simulator (Sprint 5b)
+
+Separate from `host-tests`. After the sprint lands:
+
+```
+# Ubuntu
+sudo apt-get install -y libsdl2-dev
+cmake --preset host-sim
+cmake --build --preset host-sim
+
+# Windows (vcpkg or FetchContent SDL2)
+cmake --preset host-sim
+cmake --build --preset host-sim
+```
+
+CI jobs: `ubuntu-24.04` and `windows-latest` **link** `host_sim`. Do not require a display, xvfb, or screenshot gate. Do not fold LVGL/SDL into the gcov floor.
+
+Until Sprint 5b is implemented, this job does not exist and must not block merge.
+
+### 5.8 CodeQL
 
 GitHub `codeql-action` with `languages: cpp`. Queries: `security-and-quality`. Fail on **error** severity. Run on PR and weekly cron.
 
@@ -277,7 +299,7 @@ Deviations: one-line `cppcheck-suppress` with ticket ID, never a directory-wide 
 
 ## 11. Coverage policy
 
-- Measure **host-testable logic**, not pixels or Cube.
+- Measure **host-testable logic**, not pixels, Cube, or the SDL simulator.
 - Do not write tests that only exercise getters to chase 100%.
 - Golden files (JPEG crop, MT frames) live in `tests/host/data/`.
 - Mutation testing is out of scope.
@@ -298,6 +320,7 @@ When adding a function to `znp_mt`, `auto`, `vfs` jail, or `game_sim`, add a UT 
 | 0 | format, layering, host-tests job (may be empty), ARM GCC hello |
 | 1–3 | cppcheck errors, clang-tidy analyzer |
 | 4 | coverage floor 60% line on existing svc |
+| 5b | host-sim links on Ubuntu and Windows (SDL2) |
 | 6 | coverage floor 80% line / 60% branch |
 | 7 | CodeQL on PR |
 | 11 | znp_mt + home mock under coverage filter |
@@ -338,6 +361,9 @@ jobs:
       - gcc-arm-none-eabi
       - cmake presets m7-debug m4-debug
       - size-report
+  host-sim:   # after Sprint 5b
+    strategy: { matrix: { os: [ubuntu-latest, windows-latest] } }
+    steps: [checkout, install SDL2, cmake preset host-sim, build]
 ```
 
 Exact YAML lands in Sprint 0; this file is the spec the YAML must implement.
@@ -353,6 +379,7 @@ Exact YAML lands in Sprint 0; this file is the spec the YAML must implement.
 | REQ-CI-04 | cross m7/m4 |
 | REQ-CI-05 | format |
 | REQ-CI-06 | CodeQL |
+| REQ-CI-09, REQ-SIM-01..03 | host-sim (after Sprint 5b) |
 | REQ-IPC-04, STG jail, GAME sim, HOME MT | host-tests |
 
 See `Requirements_and_Test_Cases.md` section 16.
