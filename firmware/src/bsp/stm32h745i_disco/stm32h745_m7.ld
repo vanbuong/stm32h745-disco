@@ -5,6 +5,7 @@ MEMORY
     FLASH (rx)  : ORIGIN = 0x08000000, LENGTH = 1024K
     DTCM  (rwx) : ORIGIN = 0x20000000, LENGTH = 128K
     AXIRAM (rwx): ORIGIN = 0x24000000, LENGTH = 512K
+    SRAM3 (rwx) : ORIGIN = 0x30040000, LENGTH = 32K
 }
 
 _estack = ORIGIN(DTCM) + LENGTH(DTCM);
@@ -59,4 +60,10 @@ SECTIONS
         KEEP(*(.dma_buf))
         . = ALIGN(32);
     } > AXIRAM
+
+    .eth_dma (NOLOAD) : ALIGN(32)
+    {
+        KEEP(*(.eth_dma))
+        . = ALIGN(32);
+    } > SRAM3
 }

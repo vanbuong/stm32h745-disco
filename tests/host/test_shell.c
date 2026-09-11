@@ -2,6 +2,7 @@
 
 #include "app/apps.h"
 #include "app/files.h"
+#include "svc/time.h"
 #include "svc/vfs.h"
 #include "ui/launcher.h"
 #include "ui/nav.h"
@@ -132,6 +133,7 @@ static void test_shell_status(void)
 {
     const shell_status_t *st;
 
+    TEST_ASSERT_EQUAL_INT(ERR_OK, time_init());
     shell_init();
     shell_status_set_storage(1u);
     st = shell_status();

@@ -1,0 +1,54 @@
+#ifndef LWIPOPTS_H
+#define LWIPOPTS_H
+
+#include <stdint.h>
+
+#define NO_SYS 1
+#define SYS_LIGHTWEIGHT_PROT 0
+#define LWIP_TIMERS 1
+#define LWIP_NETCONN 0
+#define LWIP_SOCKET 0
+#define LWIP_STATS 0
+#define LWIP_DHCP 1
+#define LWIP_AUTOIP 0
+#define LWIP_ACD 0
+#define LWIP_DHCP_DOES_ACD_CHECK 0
+#define LWIP_IGMP 0
+#define LWIP_DNS 0
+#define LWIP_TCP 0
+#define LWIP_UDP 1
+#define LWIP_ICMP 1
+#define LWIP_RAW 0
+#define LWIP_ARP 1
+#define LWIP_ETHERNET 1
+#define LWIP_IPV4 1
+#define LWIP_IPV6 0
+#define LWIP_ALTCP 0
+#define LWIP_DHCP_DOES_ARP_CHECK 0
+#define LWIP_NETIF_HOSTNAME 1
+#define LWIP_NETIF_STATUS_CALLBACK 1
+#define LWIP_NETIF_LINK_CALLBACK 1
+#define LWIP_NETIF_TX_SINGLE_PBUF 1
+#define ETHARP_SUPPORT_STATIC_ENTRIES 0
+
+#define MEM_ALIGNMENT 4
+#define MEM_SIZE (10 * 1024)
+#define MEMP_MEM_MALLOC 1
+#define PBUF_POOL_SIZE 6
+#define PBUF_POOL_BUFSIZE 1528u
+#define LWIP_PBUF_CUSTOM_DATA
+
+#define CHECKSUM_GEN_IP 0
+#define CHECKSUM_GEN_UDP 0
+#define CHECKSUM_GEN_ICMP 0
+#define CHECKSUM_CHECK_IP 0
+#define CHECKSUM_CHECK_UDP 0
+#define CHECKSUM_CHECK_ICMP 0
+
+#define LWIP_PROVIDE_ERRNO 1
+#define LWIP_NO_UNISTD_H 1
+
+extern uint8_t g_lwip_ram_heap[];
+#define LWIP_RAM_HEAP_POINTER g_lwip_ram_heap
+
+#endif /* LWIPOPTS_H */

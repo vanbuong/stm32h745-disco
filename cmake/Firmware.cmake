@@ -1,4 +1,5 @@
 include(${CMAKE_SOURCE_DIR}/cmake/Helix.cmake)
+include(${CMAKE_SOURCE_DIR}/cmake/LwIP.cmake)
 include(${CMAKE_SOURCE_DIR}/cmake/Cube.cmake)
 
 function(stm32_add_firmware CORE_ID)
@@ -57,6 +58,13 @@ function(stm32_add_firmware CORE_ID)
             ${ST_ROOT}/stm32-wm8994/wm8994_reg.c
         )
         set_source_files_properties(${WM8994_SRC} PROPERTIES COMPILE_FLAGS "-w")
+        if(NOT EXISTS ${ST_ROOT}/stm32-lan8742/lan8742.c)
+            message(FATAL_ERROR
+                "Missing stm32-lan8742 at ${ST_ROOT}/stm32-lan8742.\n"
+                "Run: git submodule update --init --recursive")
+        endif()
+        set(LAN8742_SRC ${ST_ROOT}/stm32-lan8742/lan8742.c)
+        set_source_files_properties(${LAN8742_SRC} PROPERTIES COMPILE_FLAGS "-w")
         set_source_files_properties(
             ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/tjpgd/tjpgd.c
             ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/puff/puff.c
@@ -81,6 +89,9 @@ function(stm32_add_firmware CORE_ID)
             ${BSP}/hsem.c
             ${BSP}/ipc_host.c
             ${BSP}/codec.c
+            ${BSP}/eth.c
+            ${BSP}/rtc.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/port/lwip/ethernetif.c
             ${CMAKE_SOURCE_DIR}/firmware/src/bsp/mpu_map.c
             ${CMAKE_SOURCE_DIR}/firmware/src/bsp/disp_geom.c
             ${CMAKE_SOURCE_DIR}/firmware/src/svc/memtest.c
@@ -96,6 +107,8 @@ function(stm32_add_firmware CORE_ID)
             ${CMAKE_SOURCE_DIR}/firmware/src/svc/audio_mix.c
             ${CMAKE_SOURCE_DIR}/firmware/src/svc/audio_pipe.c
             ${CMAKE_SOURCE_DIR}/firmware/src/svc/audio.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/svc/net.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/svc/time.c
             ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/tjpgd/tjpgd.c
             ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/puff/puff.c
             ${CMAKE_SOURCE_DIR}/firmware/src/shell/nav.c
@@ -105,6 +118,7 @@ function(stm32_add_firmware CORE_ID)
             ${CMAKE_SOURCE_DIR}/firmware/src/app/files.c
             ${CMAKE_SOURCE_DIR}/firmware/src/app/image_view.c
             ${CMAKE_SOURCE_DIR}/firmware/src/app/player.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/app/network.c
             ${CMAKE_SOURCE_DIR}/firmware/src/ui/backend_lvgl/lv_port.c
             ${CMAKE_SOURCE_DIR}/firmware/src/ui/backend_lvgl/ui_lvgl.c
             ${CMAKE_SOURCE_DIR}/firmware/src/ipc/ipc_ring.c
@@ -113,6 +127,8 @@ function(stm32_add_firmware CORE_ID)
             ${FATFS_SRC}
             ${LVGL_SRC}
             ${WM8994_SRC}
+            ${LAN8742_SRC}
+            ${LWIP_SRC}
         )
     elseif(CORE_ID STREQUAL "M4")
         set(CPU_FLAGS -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard)
@@ -146,6 +162,7 @@ function(stm32_add_firmware CORE_ID)
         ${CMAKE_SOURCE_DIR}/firmware/src/port/fatfs
         ${CMAKE_SOURCE_DIR}/firmware/src/port/lvgl
         ${CMAKE_SOURCE_DIR}/firmware/src/ui/backend_lvgl
+        ${CMAKE_SOURCE_DIR}/firmware/src/port/lwip
         ${BSP}
     )
     target_include_directories(${TGT} SYSTEM PRIVATE
@@ -157,6 +174,8 @@ function(stm32_add_firmware CORE_ID)
         ${ST_ROOT}/fatfs/source
         ${ST_ROOT}/lvgl
         ${ST_ROOT}/stm32-wm8994
+        ${ST_ROOT}/stm32-lan8742
+        ${LWIP_DIR}/src/include
         ${HELIX_ROOT}/pub
         ${HELIX_ROOT}/real
     )

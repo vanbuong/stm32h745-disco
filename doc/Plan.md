@@ -207,11 +207,12 @@ Status: **done** (host-tested mixer, WAV/MP3 probe, bitstream pipe, player model
 
 ### Sprint 9 — Network and time
 
-- Ethernet LwIP on **one** core, link LED/status in the bar.
-- Document QSPI-bank2 vs ETH pin policy in BSP.
-- RTC on the status bar; NTP optional.
-- Optional ESP32 failover **only** if hardware is attached (compile-time).
-- **Exit:** DHCP or static IP shown; unplug RJ45 updates status < 2 s; if ESP32 enabled, failover within the REQ-NET timeout.
+Status: **done** (host-tested net service, DHCP/static, 10 s failover, RTC clock; firmware links M7 MII + LwIP + HAL RTC).
+
+- Ethernet LwIP on **M7 only** (M4 stays SAI). Status-bar ETH + RTC.
+- QSPI-bank2 vs ETH pin policy: keep default SB3/SB4 (see BSP README). MII 100 full-duplex, no CRS/COL.
+- Optional ESP32 failover **only** if `NET_WIFI` is compiled; default off (host tests inject a fake Wi-Fi link).
+- **Exit:** DHCP or static IP shown; unplug RJ45 updates status < 2 s (PHY poll 200 ms); if ESP32 enabled, failover within the REQ-NET timeout.
 
 ### Sprint 10 — Game
 

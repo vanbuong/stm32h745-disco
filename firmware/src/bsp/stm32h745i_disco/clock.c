@@ -58,6 +58,7 @@ err_t board_clock_init(void)
 
     g_sysclk_hz = HAL_RCC_GetSysClockFreq();
     g_pclk1_hz = HAL_RCC_GetPCLK1Freq();
+    __HAL_RCC_D2SRAM3_CLK_ENABLE();
     return ERR_OK;
 }
 

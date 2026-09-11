@@ -3,6 +3,7 @@
 #include "app/apps.h"
 #include "app/files.h"
 #include "app/image_view.h"
+#include "app/network.h"
 #include "app/player.h"
 #include "lv_port.h"
 #include "svc/audio.h"
@@ -22,6 +23,7 @@ static lv_obj_t *s_status;
 static lv_obj_t *s_time;
 static lv_obj_t *s_stor;
 static lv_obj_t *s_m4;
+static lv_obj_t *s_eth;
 static lv_obj_t *s_nowplay;
 static lv_obj_t *s_np_title;
 static lv_obj_t *s_np_btn;
@@ -34,8 +36,10 @@ static uint32_t s_img_gen = 0xFFFFFFFFu;
 static uint8_t s_last_min = 0xFFu;
 static uint8_t s_last_m4 = 0xFFu;
 static uint8_t s_last_stor = 0xFFu;
+static uint8_t s_last_net = 0xFFu;
 static uint8_t s_last_audio = 0xFFu;
 static uint32_t s_player_gen = 0xFFFFFFFFu;
+static uint32_t s_net_gen = 0xFFFFFFFFu;
 static lv_image_dsc_t s_img_dsc;
 
 static int32_t content_h(void)
@@ -601,6 +605,37 @@ static void build_player(void)
     }
 }
 
+static void build_network(void)
+{
+    char speed[20];
+    unsigned n;
+
+    make_bar("Network");
+    network_refresh();
+    add_label(s_content, network_path_str(), 16, THEME_APPBAR_H + 16, 200, 24, THEME_TEXT,
+              LV_FONT_DEFAULT);
+    add_label(s_content, network_link_str(), 16, THEME_APPBAR_H + 48, 200, 24, THEME_MUTED,
+              &lv_font_montserrat_12);
+    add_label(s_content, network_ip_str(), 16, THEME_APPBAR_H + 80, 240, 24, THEME_TEXT,
+              LV_FONT_DEFAULT);
+    add_label(s_content, network_mac_str(), 16, THEME_APPBAR_H + 112, 240, 24, THEME_MUTED,
+              &lv_font_montserrat_12);
+    add_label(s_content, network_mode_str(), 16, THEME_APPBAR_H + 144, 120, 24, THEME_MUTED,
+              &lv_font_montserrat_12);
+    n = (unsigned)network_speed_mbps();
+    speed[0] = (char)('0' + ((n / 100u) % 10u));
+    speed[1] = (char)('0' + ((n / 10u) % 10u));
+    speed[2] = (char)('0' + (n % 10u));
+    speed[3] = ' ';
+    speed[4] = 'M';
+    speed[5] = 'b';
+    speed[6] = '/';
+    speed[7] = 's';
+    speed[8] = '\0';
+    add_label(s_content, speed, 160, THEME_APPBAR_H + 144, 120, 24, THEME_MUTED,
+              &lv_font_montserrat_12);
+}
+
 static void build_app(const char *id, const char *title)
 {
     const char *path;
@@ -616,6 +651,10 @@ static void build_app(const char *id, const char *title)
     }
     if (id != NULL && strcmp(id, APP_ID_PLAYER) == 0) {
         build_player();
+        return;
+    }
+    if (id != NULL && strcmp(id, APP_ID_NETWORK) == 0) {
+        build_network();
         return;
     }
     make_bar((title != NULL) ? title : "");
@@ -650,6 +689,17 @@ static void rebuild_content(void)
     }
 }
 
+static uint32_t net_color(uint8_t level)
+{
+    if (level == 3u) {
+        return THEME_OK;
+    }
+    if (level == 2u) {
+        return THEME_WARN;
+    }
+    return THEME_ERR;
+}
+
 static void refresh_status(void)
 {
     const shell_status_t *st = shell_status();
@@ -665,9 +715,16 @@ static void refresh_status(void)
     lv_obj_set_style_text_color(s_stor, lv_color_hex((st->storage_ok != 0u) ? THEME_OK : THEME_ERR),
                                 0);
     lv_obj_set_style_text_color(s_m4, lv_color_hex((st->m4 != 0u) ? THEME_OK : THEME_ERR), 0);
+    if (st->net == 0u) {
+        lv_obj_add_flag(s_eth, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_remove_flag(s_eth, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_style_text_color(s_eth, lv_color_hex(net_color(st->net)), 0);
+    }
     s_last_min = st->min;
     s_last_m4 = st->m4;
     s_last_stor = st->storage_ok;
+    s_last_net = st->net;
 }
 
 err_t ui_backend_init(void)
@@ -704,6 +761,11 @@ err_t ui_backend_init(void)
     lv_label_set_text(s_m4, "M4");
     lv_obj_set_pos(s_m4, 140, 8);
     lv_obj_set_style_text_font(s_m4, &lv_font_montserrat_12, 0);
+
+    s_eth = lv_label_create(s_status);
+    lv_label_set_text(s_eth, "ETH");
+    lv_obj_set_pos(s_eth, 180, 8);
+    lv_obj_set_style_text_font(s_eth, &lv_font_montserrat_12, 0);
 
     s_nowplay = lv_obj_create(scr);
     lv_obj_set_pos(s_nowplay, 0, (int32_t)(THEME_PANEL_H - THEME_NOWPLAYING_H));
@@ -749,6 +811,7 @@ err_t ui_backend_init(void)
     s_text_gen = text_view_gen();
     s_img_gen = image_view_gen();
     s_player_gen = player_gen();
+    s_net_gen = network_gen();
     return ERR_OK;
 }
 
@@ -759,6 +822,7 @@ void ui_backend_handler(void)
     uint32_t tgen = text_view_gen();
     uint32_t igen = image_view_gen();
     uint32_t pgen = player_gen();
+    uint32_t ngen = network_gen();
     uint8_t audio = audio_active();
     const char *id = shell_top_id();
     uint8_t show_mini = (audio != 0u && (id == NULL || strcmp(id, APP_ID_PLAYER) != 0)) ? 1u : 0u;
@@ -778,17 +842,18 @@ void ui_backend_handler(void)
     }
 
     if (gen != s_gen || fgen != s_files_gen || tgen != s_text_gen || igen != s_img_gen ||
-        pgen != s_player_gen || audio != s_last_audio) {
+        pgen != s_player_gen || ngen != s_net_gen || audio != s_last_audio) {
         s_gen = gen;
         s_files_gen = fgen;
         s_text_gen = tgen;
         s_img_gen = igen;
         s_player_gen = pgen;
+        s_net_gen = ngen;
         s_last_audio = audio;
         rebuild_content();
     }
     if (shell_status()->min != s_last_min || shell_status()->m4 != s_last_m4 ||
-        shell_status()->storage_ok != s_last_stor) {
+        shell_status()->storage_ok != s_last_stor || shell_status()->net != s_last_net) {
         refresh_status();
     }
     lv_timer_handler();

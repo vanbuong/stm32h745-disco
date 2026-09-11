@@ -19,6 +19,7 @@ void test_files_run(void);
 void test_text_run(void);
 void test_image_run(void);
 void test_audio_run(void);
+void test_net_run(void);
 
 int main(void)
 {
@@ -34,5 +35,6 @@ int main(void)
     test_text_run();
     test_image_run();
     test_audio_run();
+    test_net_run();
     return UNITY_END();
 }

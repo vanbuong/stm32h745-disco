@@ -88,6 +88,8 @@ jobs:
             firmware/src/svc/audio_pipe.c \
             firmware/src/svc/audio.c \
             firmware/src/svc/audio_engine.c \
+            firmware/src/svc/net.c \
+            firmware/src/svc/time.c \
             firmware/src/svc/auto.c \
             firmware/src/svc/memtest.c \
             firmware/src/bsp/mpu_map.c \
@@ -95,7 +97,8 @@ jobs:
             firmware/src/shell/launcher_geom.c \
             firmware/src/app/files.c \
             firmware/src/app/image_view.c \
-            firmware/src/app/player.c
+            firmware/src/app/player.c \
+            firmware/src/app/network.c
 
   cross:
     runs-on: ubuntu-24.04

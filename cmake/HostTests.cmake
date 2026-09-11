@@ -24,6 +24,8 @@ set(HOST_SRC
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/audio_pipe.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/audio_engine.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/audio.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/net.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/time.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/tjpgd/tjpgd.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/puff/puff.c
     ${HELIX_SRC}
@@ -38,6 +40,7 @@ set(HOST_SRC
     ${CMAKE_SOURCE_DIR}/firmware/src/app/files.c
     ${CMAKE_SOURCE_DIR}/firmware/src/app/image_view.c
     ${CMAKE_SOURCE_DIR}/firmware/src/app/player.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/app/network.c
     ${CMAKE_SOURCE_DIR}/firmware/src/osal/posix/osal.c
     ${CMAKE_SOURCE_DIR}/tests/host/test_main.c
     ${CMAKE_SOURCE_DIR}/tests/host/test_ipc.c
@@ -51,6 +54,7 @@ set(HOST_SRC
     ${CMAKE_SOURCE_DIR}/tests/host/test_text.c
     ${CMAKE_SOURCE_DIR}/tests/host/test_image.c
     ${CMAKE_SOURCE_DIR}/tests/host/test_audio.c
+    ${CMAKE_SOURCE_DIR}/tests/host/test_net.c
     ${CMAKE_SOURCE_DIR}/tests/host/vfs_ram.c
 )
 

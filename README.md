@@ -96,12 +96,12 @@ Device is `STM32H745XIH6` on **STM32H745I-DISCO** (`.settings/ide.store.json`). 
 
 CI: format, layering, cppcheck, clang-tidy, coverage, and both ELF images — see `doc/CICD.md`.
 
-## Sprint 8 boot log (USART3 115200)
+## Sprint 9 boot log (USART3 115200)
 
-After memory, eMMC, and display bring-up the M7 starts the LVGL shell (32 px status + 3×2 launcher). Files lists `/user`; tap a folder or a known type to open the text, image, or audio player. A 36 px mini-player appears at the bottom while audio is active (not on the full player screen). Back in a folder restores the list. LD2 (PI13) still blinks. The status bar shows **M4** next to eMMC (green while the M4 heartbeat is fresh; red if M4 is halted or silent > 500 ms):
+After memory, eMMC, and display bring-up the M7 starts the LVGL shell (32 px status + 3×2 launcher). The status bar shows time from the RTC, **eMMC**, **M4**, and **ETH** (red = down, amber = link/no IPv4, green = IPv4). Files lists `/user`; tap a folder or a known type to open the text, image, or audio player. Network shows link, speed, IPv4, MAC, and dhcp/static. LD2 (PI13) still blinks:
 
 ```
-M7 stm32h745-disco s8
+M7 stm32h745-disco s9
 clk ok
 sysclk 1C9C3800
 mpu on
@@ -118,29 +118,14 @@ qspi_word FFFFFFFF
 mpu_test ok
 mpu_faults 00000001
 mpu_mmfar 2407FFE0
-emmc ok
-emmc_blocks <count>
-vfs ok
-vfs_dir ok
-vfs_ent ...
-vfs_ents N
-vfs_mk ok
-vfs_open ok
-vfs_bytes 8388608
-vfs_ms ...
-vfs_kBps ...
-vfs_mbps ok
+...
+rtc ok
+net ok
 disp ok
 input ok
 touch ok
 ui ok
 shell ready
-ui_frames ...
-ui_ms 2000
-ui_fps ...
-ui_fps ok
-m4 ready
-ipc_rtt <us> us
 ```
 
 `m4 ready` and `ipc_rtt` may appear earlier or later depending on when M4 attaches. `ipc_rtt` is a DWT ping-pong in microseconds (budget ≤ 2000). `m4: m4 ready` is the M4 log line relayed over IPC (M4 does not use USART3). Halt M4 in the debugger: the **M4** status label turns red within 1 s; the launcher stays navigable.

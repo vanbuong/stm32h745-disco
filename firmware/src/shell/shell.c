@@ -2,6 +2,8 @@
 
 #include "app/apps.h"
 #include "svc/audio.h"
+#include "svc/net.h"
+#include "svc/time.h"
 #include "ui/nav.h"
 
 #include <stddef.h>
@@ -89,12 +91,18 @@ void shell_home(void)
 
 void shell_tick(uint32_t dt_ms)
 {
-    uint32_t mins;
+    uint8_t hh;
+    uint8_t mm;
+    uint8_t ss;
 
     g_now_ms += dt_ms;
-    mins = g_now_ms / 60000u;
-    g_status.min = (uint8_t)(mins % 60u);
-    g_status.hour = (uint8_t)((mins / 60u) % 24u);
+    time_poll(dt_ms);
+    if (time_rtc_get(&hh, &mm, &ss) == ERR_OK) {
+        g_status.min = mm;
+        g_status.hour = hh;
+    }
+    net_service_poll(g_now_ms);
+    g_status.net = net_bar_level();
     if (g_top_app != NULL && g_top_app->on_tick != NULL) {
         g_top_app->on_tick(dt_ms);
     }

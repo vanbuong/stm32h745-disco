@@ -1,5 +1,7 @@
 #include "app/files.h"
 #include "bsp/board.h"
+#include "svc/net.h"
+#include "svc/time.h"
 #include "svc/vfs.h"
 #include "ui/backend.h"
 #include "ui/shell.h"
@@ -125,7 +127,11 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    board_console_puts("host-sim stm32h745-disco s7\n");
+    board_console_puts("host-sim stm32h745-disco s9\n");
+    (void)time_init();
+    (void)net_service_init();
+    net_test_set_eth_link(NET_LINK_UP, 100u, 1u);
+    net_service_poll(0u);
     shell_init();
     shell_status_set_storage(1u);
     shell_status_set_m4(1u);

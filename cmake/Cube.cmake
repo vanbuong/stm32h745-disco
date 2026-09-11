@@ -63,6 +63,10 @@ function(cube_collect_sources CORE_ID out_var)
             ${ST_HAL_DIR}/Src/stm32h7xx_hal_i2c.c
             ${ST_HAL_DIR}/Src/stm32h7xx_hal_i2c_ex.c
             ${ST_HAL_DIR}/Src/stm32h7xx_hal_mmc.c
+            ${ST_HAL_DIR}/Src/stm32h7xx_hal_eth.c
+            ${ST_HAL_DIR}/Src/stm32h7xx_hal_eth_ex.c
+            ${ST_HAL_DIR}/Src/stm32h7xx_hal_rtc.c
+            ${ST_HAL_DIR}/Src/stm32h7xx_hal_rtc_ex.c
         )
         list(APPEND ST_LL_SRC
             ${ST_HAL_DIR}/Src/stm32h7xx_ll_fmc.c

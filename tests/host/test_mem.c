@@ -49,6 +49,11 @@ static void test_mpu_map(void)
     TEST_ASSERT_EQUAL_UINT8(1, g_mpu_map[1].exec);
     TEST_ASSERT_EQUAL_HEX32(0x90000000u, g_mpu_map[2].base);
     TEST_ASSERT_EQUAL_HEX32(0x24000000u, g_mpu_map[3].base);
+    TEST_ASSERT_GREATER_OR_EQUAL_UINT(5u, g_mpu_map_n);
+    TEST_ASSERT_EQUAL_HEX32(0x30040000u, g_mpu_map[4].base);
+    TEST_ASSERT_EQUAL_UINT8(MPU_ATTR_NORMAL_NC, g_mpu_map[4].attr);
+    TEST_ASSERT_EQUAL_UINT8(0, g_mpu_map[4].exec);
+    TEST_ASSERT_EQUAL_UINT32(32768u, mpu_size_bytes(MPU_ENC_32K));
 }
 
 void test_mem_run(void)

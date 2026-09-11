@@ -164,6 +164,7 @@ third_party/
   tinyusb/                   upstream TinyUSB (later USB MSC sprint)
   stm32-mt25tl01g/           ST component (QSPI commands, when needed)
   stm32-lan8742/             ST component (Sprint 9)
+  lwip/                      upstream LwIP 2.2.1 (Sprint 9)
   lvgl/  FreeRTOS-Kernel/  fatfs/  lwip/  helix/  tinyusb/   upstream, per sprint
 .settings/                   STM32CubeIDE for VS Code device store
 .vscode/                     CMake Tools + ST-LINK launch/tasks
@@ -178,7 +179,7 @@ Two firmware images: `m7` and `m4`. They share only `include/ipc`.
           ---------                            ---------
           Shell + LVGL backend                 SAI DMA ping-pong
           VFS, JPEG, text paging               MP3/WAV decode
-          game_sim + gfx blit                  Optional LwIP / ESP32
+          ETH + LwIP (DHCP/ICMP)               (no ETH)
           zb_host + ZNP UART worker            Optional ZNP UART DMA
           home_* + local auto_*                (no framebuffer / no LVGL)
           IPC client, display, touch           IPC server
@@ -203,7 +204,7 @@ flowchart LR
   subgraph M4 [Cortex-M4 240 MHz]
     SAI[SAI DMA]
     MP3[MP3 / WAV]
-    OPT[optional ETH or ZNP UART]
+    OPT[optional ZNP UART]
   end
   UI --- HOST
   M7 -->|HSEM notify| SRAM4
@@ -224,7 +225,7 @@ flowchart LR
 | AXI SRAM | `0x24000000` | 512 KB | M7 | LVGL working set, FS cache |
 | SRAM1 | `0x30000000` | 128 KB | M4 | M4 .data/.bss/heap |
 | SRAM2 | `0x30020000` | 128 KB | M4 / DMA | Audio PCM rings if not in SRAM3 |
-| SRAM3 | `0x30040000` | 32 KB | DMA | Small DMA pools |
+| SRAM3 | `0x30040000` | 32 KB | M7 ETH DMA | Descriptors, Rx/Tx bounce, LwIP heap (MPU NC) |
 | SRAM4 | `0x38000000` | 64 KB | Shared | IPC only, non-cacheable |
 | Backup SRAM | `0x38800000` | 4 KB | Shared | Boot reason, net config flags |
 
@@ -488,14 +489,14 @@ See `UI_Design.md` for layout and screens.
 
 Audio path: M7 VFS-reads encoded bytes into the SRAM4 pipe and sends `{kind, channels, bits, volume, sample_hz}` on the control ring. The UI path string (≤ 96 bytes) stays on M7; never a `FIL*`. M4 Helix/WAV-decodes and feeds SAI DMA. Analogue volume is on the WM8994 (M7/I2C4); M4 PCM is full-scale. M7 never blocks the UI thread on decode.
 
-Network ownership: pick **one** core at build time (default M4 if audio+net isolation is wanted, M7 if the first Zephyr port should be single-core-simple). Never initialize ETH on both.
+Network ownership: **M7** runs ETH + LwIP (no RTOS; M4 owns SAI). Never initialize ETH on both cores. Apps talk only to `net_*` / `time_*`.
 
 ## 10. Pin and bus constraints
 
 - **I2C4:** FT5336 + WM8994. BSP provides a mutex; no driver talks to I2C4 directly.
 - **USART3:** ST-LINK VCP console only.
 - **USART1 (Arduino PB6/PB7):** default TI ZNP UART. Optional RESET GPIO on an Arduino pin. Do not share this UART with ESP32 AT; pick one expansion map per build.
-- **Ethernet vs QSPI bank 2:** document the chosen solder-bridge map in the BSP README. Prefer QSPI dual-flash for XiP unless Ethernet full-duplex + CRS/COL is required.
+- **Ethernet vs QSPI bank 2:** default solder map (SB3/SB4 OFF, R38/R40 ON) keeps PH2/PH3 on QSPI. Ethernet is MII **100 Mbit/s full-duplex** without CRS/COL. Documented in `firmware/src/bsp/stm32h745i_disco/README.md`.
 - **LTDC pixel clock** and SDRAM bandwidth: RGB565 double-buffer + DMA2D is the safe default at 480×272.
 - **USB OTG FS:** later TinyUSB MSC only. Do not bring up Cube USB alongside it.
 

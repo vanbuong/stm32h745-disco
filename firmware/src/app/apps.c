@@ -2,6 +2,7 @@
 
 #include "app/files.h"
 #include "app/image_view.h"
+#include "app/network.h"
 #include "app/player.h"
 #include "svc/text_view.h"
 
@@ -79,12 +80,24 @@ static void image_stop(void)
     image_view_close();
 }
 
+static void network_start(void *args)
+{
+    (void)args;
+    network_refresh();
+}
+
+static void network_tick(uint32_t dt_ms)
+{
+    (void)dt_ms;
+    network_refresh();
+}
+
 static const ui_app_t g_apps[] = {
     {APP_ID_FILES, "Files", "files", files_start, files_stop, stub_tick, stub_event},
     {APP_ID_HOME, "Home", "home", stub_start, stub_stop, stub_tick, stub_event},
     {APP_ID_GAME, "Game", "game", stub_start, stub_stop, stub_tick, stub_event},
     {APP_ID_PLAYER, "Music", "player", player_start, player_stop, stub_tick, stub_event},
-    {APP_ID_NETWORK, "Network", "network", stub_start, stub_stop, stub_tick, stub_event},
+    {APP_ID_NETWORK, "Network", "network", network_start, stub_stop, network_tick, stub_event},
     {APP_ID_SETTINGS, "Settings", "settings", stub_start, stub_stop, stub_tick, stub_event},
     {APP_ID_TEXT, "Text", "text", text_start, text_stop, stub_tick, stub_event},
     {APP_ID_IMAGE, "Image", "image", image_start, image_stop, stub_tick, stub_event},

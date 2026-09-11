@@ -5,9 +5,11 @@
 #include <string.h>
 
 /*
- * Dual QSPI NOR on STM32H745I-DISCO (ST BSP pin map). BK2 PH2/PH3 is the
- * Ethernet CRS/COL mux; Sprint 1 keeps dual-flash. Mmap smoke is 1-1-1 READ
- * of bank 1. Do not execute blank 0xFF NOR.
+ * Dual QSPI NOR on STM32H745I-DISCO. PH2/PH3 are QSPI BK2 D0/D1 and also
+ * ETH MII CRS/COL. Policy (UM2488 default SB3/SB4 OFF, R38/R40 ON): keep
+ * these pins on QSPI. Ethernet is MII 100 Mbit/s full-duplex without CRS/COL.
+ * 10 Mbit/s half-duplex needs the bridges moved and is unsupported. Mmap
+ * smoke is bank-1 1-1-1 READ. Do not execute blank 0xFF NOR.
  */
 
 static QSPI_HandleTypeDef g_qspi;

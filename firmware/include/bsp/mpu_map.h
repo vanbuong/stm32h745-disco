@@ -9,6 +9,7 @@ extern "C" {
 
 /* RASR.SIZE: region bytes = 1 << (size_enc + 1) */
 #define MPU_ENC_32B 4u
+#define MPU_ENC_32K 14u
 #define MPU_ENC_64K 15u
 #define MPU_ENC_512K 18u
 #define MPU_ENC_2M 20u

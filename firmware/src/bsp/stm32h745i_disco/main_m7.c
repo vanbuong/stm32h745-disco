@@ -2,6 +2,8 @@
 #include "hal/disp.h"
 #include "hal/input.h"
 #include "svc/memtest.h"
+#include "svc/net.h"
+#include "svc/time.h"
 #include "svc/vfs.h"
 #include "ui/backend.h"
 #include "ui/shell.h"
@@ -243,7 +245,7 @@ int main(void)
     HAL_Init();
     led_init();
     board_console_init(0);
-    board_console_puts("M7 stm32h745-disco s8\r\n");
+    board_console_puts("M7 stm32h745-disco s9\r\n");
 
     e = board_clock_init();
     board_console_init(0);
@@ -292,6 +294,11 @@ int main(void)
     log_kv("mpu_mmfar", board_mpu_last_mmfar());
 
     vfs_ok = vfs_bringup();
+
+    e = time_init();
+    log_err("rtc", e);
+    e = net_service_init();
+    log_err("net", e);
 
     e = board_disp_init();
     log_err("disp", e);
