@@ -438,5 +438,61 @@ Host tests must not link STM32 HAL.
 | REQ-HOME-13 | TC-HOME-10 |
 | REQ-HOME-14 | TC-HOME-05 |
 | REQ-CFG-01 | TC-HOME-06 |
+| REQ-CI-01 | host ctest, TC-CI-01 |
+| REQ-CI-02 | TC-CI-02 |
+| REQ-CI-03 | TC-CI-03 |
+| REQ-CI-04 | TC-CI-04 |
+| REQ-CI-05 | TC-CI-05 |
+| REQ-CI-07 | TC-SYS-01, TC-CI-01 |
 
 Sprint 13 is not done until every **M** row has a passing test or an explicit waiver recorded here. **S** rows for Game and Home are the Sprint 10–12 exit gates.
+
+---
+
+## 16. CI/CD, static analysis, coverage
+
+Normative pipeline: `CICD.md`.
+
+```mermaid
+flowchart LR
+  PR --> FMT[clang-format]
+  PR --> LAY[layering]
+  PR --> SA[cppcheck / tidy / CodeQL]
+  PR --> UT[host tests + gcov]
+  PR --> X[ARM GCC m7 m4]
+  FMT --> GATE{merge?}
+  LAY --> GATE
+  SA --> GATE
+  UT --> GATE
+  X --> GATE
+```
+
+| ID | Pri | Requirement | Verify |
+| --- | --- | --- | --- |
+| REQ-CI-01 | M | Every PR to `main` shall run host unit tests in CI. | UT |
+| REQ-CI-02 | M | Host-testable units (`ipc`, `svc` jail/auto/znp_mt, `game`) shall keep ≥ 80% line and ≥ 60% branch coverage in CI (`gcovr --fail-under-*`). BSP/port/third_party are excluded. | UT |
+| REQ-CI-03 | M | CI shall run cppcheck (error/warning fail) and clang-tidy analyzer checks on project C, excluding third_party. | UT |
+| REQ-CI-04 | M | CI shall cross-compile M7 and M4 ELF images with `gcc-arm-none-eabi`. | UT |
+| REQ-CI-05 | S | CI shall fail on `clang-format` drift. | UT |
+| REQ-CI-06 | S | CI shall run CodeQL `cpp` on PRs; high/error findings fail the job. | UT |
+| REQ-CI-07 | M | CI shall fail if `src/app` or `src/shell` include forbidden headers (REQ-SYS-02). | UT |
+| REQ-CI-08 | C | A self-hosted HIL job shall flash the Discovery board and publish JUnit; it shall not block merge until Sprint 13. | HIL |
+
+### Tests
+
+**TC-CI-01 (UT)**  
+A PR that adds `#include "lvgl.h"` under `src/app` fails the layering job.
+
+**TC-CI-02 (UT)**  
+`gcovr --fail-under-line 80` on the documented filter exits 0 on `main`.
+
+**TC-CI-03 (UT)**  
+cppcheck `--error-exitcode=1` on host `compile_commands.json` exits 0.
+
+**TC-CI-04 (UT)**  
+`firmware-m7.elf` and `firmware-m4.elf` exist after the cross job (Sprint 0 may be blink stubs).
+
+**TC-CI-05 (UT)**  
+A mis-formatted C file fails format dry-run.
+
+Add to RTM: REQ-CI-01 → TC-CI-01/host ctest; REQ-CI-02 → TC-CI-02; REQ-CI-03 → TC-CI-03; REQ-CI-04 → TC-CI-04; REQ-CI-05 → TC-CI-05; REQ-CI-07 → TC-SYS-01.

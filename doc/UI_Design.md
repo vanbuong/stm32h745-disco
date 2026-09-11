@@ -4,6 +4,8 @@ Target panel: 4.3" **480×272**, RGB, FT5336 capacitive multi-touch. Density ≈
 
 The shell is toolkit-agnostic. LVGL is the first backend; widgets below are roles, not LVGL type names.
 
+**Contents:** 1 Dock drop · 2 Chrome · 3 Touch · 4 Theme · 5 Status · 6 Nav · 7 Screens · 8 Motion · 9 LVGL map · 10 Assets · 11 A11y · 12 Future · 13 Heights · 14 Touch dispatch · 15 Open-with · 16 Image states · 17 Game loop · 18 Pairing · 19 Strings · 20 Pixel budget
+
 ## 1. Why the v1 dock is dropped
 
 v1 used a 50×272 left rail and a 430×242 canvas.
@@ -117,6 +119,32 @@ App registry (extensible):
 | `player` | Music | P1 |
 | `settings` | Settings | P1 |
 | `network` | Network | P1 |
+
+```mermaid
+stateDiagram-v2
+  [*] --> Launcher
+  Launcher --> Files: tile
+  Launcher --> Home: tile
+  Launcher --> Game: tile
+  Launcher --> Player: tile
+  Launcher --> Network: tile
+  Launcher --> Settings: tile
+  Files --> Text: open .txt
+  Files --> Image: open .jpg
+  Files --> Player: open .mp3
+  Home --> Device: row
+  Home --> NetworkZb: menu
+  Home --> Autos: menu
+  Game --> GamePause: Back
+  GamePause --> Game: Resume
+  GamePause --> Launcher: Quit
+  Text --> Files: Back
+  Image --> Files: Back
+  Device --> Home: Back
+  Launcher --> [*]: ignored Back
+```
+
+Home hardware button from any state: pop to Launcher (Game pauses first if playing).
 
 ## 7. Screens
 
@@ -338,3 +366,122 @@ Icons: 24 px and 48 px, alpha, light-on-dark. One icon set, not per-toolkit bitm
 ## 12. Future apps
 
 USB file copy, markdown preview, PDF, video, extra game modules, climate/scenes, MQTT export of `home_*`: new modules. No chrome change if they follow app bar + content.
+
+## 13. Chrome height formula
+
+```mermaid
+flowchart TD
+  A[480 x 272] --> B[status 32]
+  B --> C{app?}
+  C -->|launcher| D[content 240]
+  C -->|yes| E[app bar 40]
+  E --> F{mini-player?}
+  F -->|no| G[content 200]
+  F -->|yes| H[content 164 + player 36]
+```
+
+Status icons (left to right, 8 px pad):
+
+| Slot | Width | States |
+| --- | --- | --- |
+| Time | 56 | `HH:MM` |
+| ETH | 24 | ok / warn / err / hidden |
+| Wi-Fi | 24 | compiled-out = 0 width |
+| eMMC | 24 | ok / err |
+| Zigbee | 24 | ok formed / warn last-known / err no radio |
+| Audio pill | flex | hidden if stopped |
+| Activity | 480×2 under bar | hidden if idle |
+
+## 14. Touch dispatch
+
+```mermaid
+flowchart TD
+  T[FT5336 INT] --> I[input_poll]
+  I --> S{y < 32?}
+  S -->|yes| ST[status shortcuts]
+  S -->|no| M{modal up?}
+  M -->|yes| MD[modal only]
+  M -->|no| C{now playing and y > 236?}
+  C -->|yes| NP[mini-player]
+  C -->|no| A[active app on_event]
+```
+
+Hit test uses the 40 px minimum; if a label is smaller, the row still captures.
+
+## 15. Files open-with
+
+```mermaid
+flowchart LR
+  TAP[tap file] --> EXT{extension}
+  EXT -->|.txt .md .c .h .log| TXT[text app]
+  EXT -->|.jpg .jpeg .png .bmp| IMG[image app]
+  EXT -->|.mp3 .wav| AUD[player]
+  EXT -->|else| PROP[properties + Open as text?]
+```
+
+Scroll offset + selected index saved on a stack of folder records (max depth 16).
+
+## 16. Image viewer states
+
+```mermaid
+stateDiagram-v2
+  [*] --> Loading
+  Loading --> Shown: decode ok
+  Loading --> Error: corrupt
+  Shown --> ChromeHidden: 2s idle
+  ChromeHidden --> Shown: tap
+  Shown --> Shown: swipe next
+  Shown --> Zoomed: double tap
+  Zoomed --> Shown: double tap
+  Error --> Files: Back
+```
+
+## 17. Game (Brick) loop vs UI
+
+```mermaid
+flowchart LR
+  IN[input drag] --> SIM[game_tick 16 ms]
+  SIM --> GFX[gfx_fill blit]
+  GFX --> FB[playfield RGB565]
+  FB --> LV[backend flush]
+  PAUSE[Back] --> SIM
+```
+
+Paddle hit strip: y in `[content_bottom-56, content_bottom]`. Ball radius 4 px, brick 48×16, 5 rows × 8 cols on 480×160 inner field.
+
+## 18. Home pairing UX
+
+```mermaid
+sequenceDiagram
+  actor User
+  participant UI as Home
+  participant Z as zb_host
+  User->>UI: Pair
+  UI->>Z: permit_join 60
+  UI->>User: countdown + instruction
+  User->>User: puts bulb in pair mode
+  Z-->>UI: new ieee interviewing
+  UI->>User: spinner row
+  Z-->>UI: kind LIGHT
+  UI->>User: rename modal
+  User->>UI: "Living lamp"
+  UI->>Z: home_set_meta
+```
+
+Copy:
+
+| Situation | Title | Body | Actions |
+| --- | --- | --- | --- |
+| Radio down | Radio not ready | Check the Zigbee module on USART1. | Retry, Close |
+| Join closed | Join closed | Open the network to add a device. | Open 60 s, Close |
+| Remove device | Remove device? | It must be paired again later. | Cancel, Remove |
+| Form network | Form network? | This creates a new Zigbee network. | Cancel, Form |
+
+## 19. String table
+
+All UI strings live in `ui/strings.c` (`STR_RADIO_DOWN`, …). No string literals in `src/app` except debug logs.
+
+## 20. Pixel budget (launcher)
+
+Origin top-left. Tiles: 72×72, gutter 16, grid origin (72, 40) inside the 480×240 content so the block is 248×160 centered: x = (480-248)/2 = 116, y = (240-160)/2 = 40.
+

@@ -9,10 +9,11 @@ The first implementation is **FreeRTOS + LVGL + STM32Cube**. Interfaces are writ
 | Document | Purpose |
 | --- | --- |
 | [doc/Design_Review.md](doc/Design_Review.md) | Review of the v1 drafts and why v2 changed |
-| [doc/Architecture.md](doc/Architecture.md) | Layers, core split, memory map, portable APIs |
-| [doc/Plan.md](doc/Plan.md) | Sprints, GUI decision, risks |
-| [doc/UI_Design.md](doc/UI_Design.md) | Shell, screens, theme, touch rules |
-| [doc/Requirements_and_Test_Cases.md](doc/Requirements_and_Test_Cases.md) | Shall statements, tests, traceability |
+| [doc/Architecture.md](doc/Architecture.md) | Layers, core split, memory, boot/thread/Zigbee flows |
+| [doc/Plan.md](doc/Plan.md) | Sprints, dependencies, risks |
+| [doc/UI_Design.md](doc/UI_Design.md) | Shell, screens, navigation and pairing flows |
+| [doc/Requirements_and_Test_Cases.md](doc/Requirements_and_Test_Cases.md) | Shall statements, tests, traceability, CI reqs |
+| [doc/CICD.md](doc/CICD.md) | GitHub Actions, static analysis, coverage gates |
 
 ## Hardware (used by the design)
 
@@ -35,7 +36,7 @@ The first implementation is **FreeRTOS + LVGL + STM32Cube**. Interfaces are writ
 
 ## Status
 
-Documentation v2. Firmware bring-up starts at Sprint 0 in `doc/Plan.md`.
+Documentation v2 plus CI/CD spec. Firmware bring-up starts at Sprint 0 in `doc/Plan.md` (includes the first GitHub Actions workflow).
 
 ## License
 

@@ -24,7 +24,7 @@ Review of the first plan, requirements, and UI documents. The v2 specs in this f
 | Shared I2C | Not mentioned | I2C4 is shared by FT5336 touch and WM8994 codec. Needs a bus lock in the BSP |
 | Cache / MPU | “D-Cache sync” only | Explicit non-cacheable IPC region, DMA buffer policy, and cache APIs in BSP |
 | Requirements quality | Mixed goals, few IDs, no priority, no traceability | EARS-style shalls, MoSCoW, verification method, and a RTM |
-| Tests | A handful of cases, some testing the wrong layer | Host tests for pure logic; HIL for timing, storage, display, audio, failover |
+| Tests | A handful of cases, some testing the wrong layer | Host tests for pure logic; HIL for timing; **CI** for format, layering, cppcheck, clang-tidy, coverage floors |
 | Security / robustness | None | Path sandbox, bounded buffers, decoder failure, out-of-memory, and FS unmount |
 | Game loop | Named without screens, tick rate, or a testable sim | **Game** is a P1 app: host-testable `game_sim` + `gfx_*` playfield, not LVGL widgets |
 | Home automation | Absent, then MQTT-first | **Home** is a Zigbee **host** on STM32: TI ZNP over UART, device list, network form/join, local `auto_*`. MQTT is P2 export only |

@@ -2,6 +2,8 @@
 
 Portable HMI architecture for the STM32H745I-DISCO. Application code must not call FreeRTOS, Zephyr, LVGL, TouchGFX, FatFS, or STM32 HAL directly.
 
+**Contents:** 1 Goals · 2 Hardware · 3 Layers · 4 Tree · 5 Cores · 6 Memory · 7 Interfaces · 8 UI · 9 Services · 10 Pins · 11 Build/CI · 12 Zephyr · 13 Boot · 14 Threads · 15 OSAL · 16 VFS · 17 Zigbee · 18 Automation · 19 Audio · 20 Log · 21 Errors · 22 Migration
+
 ## 1. Goals
 
 - Ship a usable dual-core HMI: launcher, files, image/text viewers, audio, **game**, **home automation**, and network status.
@@ -51,6 +53,53 @@ Rules:
 3. STM32 HAL / Zephyr DT live only in `src/port/*` and `src/bsp/*`.
 4. Dual-core messages are structs with explicit endianness and version, never pointers to M7-only memory.
 
+```mermaid
+flowchart TB
+  subgraph apps [src/app — no OS/UI/HAL types]
+    L[launcher]
+    F[files]
+    I[image / text]
+    P[player]
+    G[game]
+    H[home]
+    S[settings]
+  end
+  subgraph shell [src/shell]
+    NAV[nav stack]
+    ST[status model]
+    TH[theme tokens]
+  end
+  subgraph backend [src/ui/backend_lvgl]
+    LV[lv_* widgets]
+  end
+  subgraph svc [src/svc]
+    VFS[vfs]
+    MED[media]
+    AUD[audio]
+    NET[net]
+    HOME[home]
+    ZB[zb_host]
+    MT[znp_mt]
+    AUTO[auto]
+  end
+  subgraph ports [replaceable]
+    OSAL[osal]
+    DISP[disp / input]
+    UART[uart]
+    IPC[ipc transport]
+  end
+  apps --> shell
+  shell --> backend
+  shell --> svc
+  backend --> DISP
+  svc --> OSAL
+  svc --> UART
+  ZB --> MT --> UART
+  HOME --> ZB
+  HOME --> AUTO
+  AUD --> IPC
+```
+
 ## 4. Recommended source tree
 
 ```
@@ -59,7 +108,7 @@ firmware/
     osal/          osal.h
     ipc/           ipc.h, ipc_msg.h
     hal/           disp.h, input.h, audio_out.h, net_if.h, uart.h
-    svc/           vfs.h, media.h, audio.h, net.h, home.h, zb_host.h, auto.h, time.h
+    svc/           vfs.h, media.h, audio.h, net.h, home.h, zb_host.h, znp_mt.h, auto.h, time.h
     game/          game_sim.h, gfx.h
     ui/            shell.h, nav.h, theme.h
     app/           apps.h
@@ -95,6 +144,29 @@ Two firmware images: `m7` and `m4`. They share only `include/ipc`.
 Bring-up order: **M7-only** until display, storage, and shell work. Enable M4 when audio or offloaded net is needed. Do not put FatFS or LVGL on M4.
 
 If Zephyr is adopted, keep the same split: M7 `stm32h745i_disco/stm32h745xx/m7`, M4 `.../m4`, IPC via HSEM mailbox then OpenAMP.
+
+```mermaid
+flowchart LR
+  subgraph M7 [Cortex-M7 480 MHz]
+    UI[LVGL + shell]
+    FS[VFS / JPEG]
+    SIM[game_sim]
+    HOST[zb_host + auto]
+  end
+  subgraph SRAM4 [SRAM4 64 KB non-cacheable]
+    R1[M7 to M4 ring]
+    R2[M4 to M7 ring]
+  end
+  subgraph M4 [Cortex-M4 240 MHz]
+    SAI[SAI DMA]
+    MP3[MP3 / WAV]
+    OPT[optional ETH or ZNP UART]
+  end
+  UI --- HOST
+  M7 -->|HSEM notify| SRAM4
+  SRAM4 --> M4
+  M4 --> SRAM4
+```
 
 ## 6. Memory map
 
@@ -287,6 +359,39 @@ SRAM4 sketch (64 KB):
 
 Latency budget: command round-trip **< 2 ms** for control messages. Audio PCM does not ride this ring; it uses a dedicated DMA buffer.
 
+```mermaid
+sequenceDiagram
+  participant U as M7 app
+  participant T as ipc transport
+  participant S as SRAM4 ring
+  participant H as HSEM
+  participant M as M4 service
+  U->>T: ipc_send(AUDIO_PLAY, path_id)
+  T->>S: copy header+payload, advance head
+  T->>H: notify M4
+  H->>M: ISR / task wake
+  M->>S: pop message
+  M-->>S: AUDIO_ACK
+  H->>T: notify M7
+  T-->>U: ipc_recv ACK
+```
+
+Message header (little endian, packed):
+
+| Offset | Size | Field |
+| --- | --- | --- |
+| 0 | 2 | magic `0xA55A` |
+| 2 | 1 | version (1) |
+| 3 | 1 | src endpoint |
+| 4 | 1 | dst endpoint |
+| 5 | 1 | flags (ACK, NAK, MORE) |
+| 6 | 2 | type |
+| 8 | 2 | seq |
+| 10 | 2 | payload length |
+| 12 | n | payload (≤ 256 for control) |
+
+Endpoints: `SYS=1`, `AUDIO=2`, `NET=3`, `LOG=4`, `ZB=5`. Types for AUDIO: PLAY, PAUSE, RESUME, STOP, VOLUME, POS, ACK, NAK, UNDERRUN. SYS: HEARTBEAT, READY, PANIC.
+
 ## 8. UI architecture
 
 Apps implement a small contract:
@@ -341,12 +446,13 @@ Network ownership: pick **one** core at build time (default M4 if audio+net isol
 - **Ethernet vs QSPI bank 2:** document the chosen solder-bridge map in the BSP README. Prefer QSPI dual-flash for XiP unless Ethernet full-duplex + CRS/COL is required.
 - **LTDC pixel clock** and SDRAM bandwidth: RGB565 double-buffer + DMA2D is the safe default at 480×272.
 
-## 11. Build, log, test
+## 11. Build, log, test, CI
 
 - CMake presets: `m7-debug`, `m4-debug`, `host-tests`.
 - Logs: UART3 115200 8N1, tagged `core,lvl,mod,msg`. No `printf` to ITM as the only log.
-- Host tests compile `svc` + `ipc` protocol with a POSIX OSAL stub.
+- Host tests compile `svc` + `ipc` protocol + `game_sim` + `znp_mt` + `auto` with a POSIX OSAL stub.
 - HIL tests run on the Discovery board via VCP.
+- Pull-request CI is specified in `CICD.md`: format, layering, cppcheck, clang-tidy, gcov floors, ARM GCC link.
 
 ## 12. Later Zephyr + LVGL migration
 
@@ -361,3 +467,199 @@ If LVGL is already the backend, the remaining work is a **port swap**, not an ap
 7. Keep `home_*` / `zb_host` / `auto_*`; replace only `uart_*` (STM32 HAL → Zephyr UART). MT protocol stays.
 
 Do not introduce TouchGFX. Do not scatter `#ifdef ZEPHYR` inside apps.
+
+---
+
+## 13. Boot sequence
+
+```mermaid
+sequenceDiagram
+  participant RST as Reset
+  participant M7 as Cortex-M7
+  participant M4 as Cortex-M4
+  participant ZNP as TI ZNP
+  RST->>M7: boot 0x08000000
+  M7->>M7: clocks 480 MHz, MPU, cache
+  M7->>M7: SDRAM + QSPI map + UART3 log
+  M7->>M7: start M4 (if option bytes BCM4)
+  M7->>M7: LTDC + touch + VFS mount
+  M7->>M7: LVGL + launcher
+  M4-->>M7: SYS READY heartbeat
+  M7->>ZNP: SYS_PING via USART1
+  ZNP-->>M7: version
+  M7->>M7: zb_host load /user/home
+```
+
+M7 does not wait forever for ZNP. If SYS_PING fails, Home shows “Radio not ready” and the rest of the shell still runs.
+
+## 14. Thread model (M7)
+
+| Thread | Prio (high=low number) | Period | Notes |
+| --- | --- | --- | --- |
+| `t_ui` | 4 | LVGL tick ~5 ms | No VFS, no UART, no JPEG |
+| `t_input` | 3 | event | optional; may merge into UI |
+| `t_fs` | 5 | work queue | VFS, decode, listing |
+| `t_zb` | 4 | UART worker | MT parse, interview |
+| `t_auto` | 6 | 100 ms | rule eval, delays |
+| `t_ipc` | 3 | notify | drain SRAM4 |
+| `t_idle` | idle | — | WFI |
+
+M4: `t_audio` (highest), `t_ipc`, optional `t_net` or `t_znp_uart`.
+
+## 15. OSAL API (minimum)
+
+```c
+osal_status_t osal_thread_create(osal_thread_t *t, const osal_thread_attr_t *a, osal_fn fn, void *arg);
+osal_status_t osal_mutex_lock(osal_mutex_t *m, uint32_t timeout_ms);
+osal_status_t osal_sem_take(osal_sem_t *s, uint32_t timeout_ms);
+osal_status_t osal_queue_send(osal_queue_t *q, const void *msg, uint32_t timeout_ms);
+osal_status_t osal_queue_recv(osal_queue_t *q, void *msg, uint32_t timeout_ms);
+void          osal_sleep_ms(uint32_t ms);
+uint32_t      osal_millis(void);
+void         *osal_malloc(size_t n);
+void          osal_free(void *p);
+void          osal_panic(const char *why);
+```
+
+Timeout `0` = try, `0xFFFFFFFF` = forever. `osal_malloc` may return NULL; callers must handle it.
+
+## 16. VFS jail and mounts
+
+```
+/user          eMMC FAT  — explorer root
+/user/home     devices.bin, network.bin, rules.bin
+/user/game     brick.sav
+/log           optional rotate
+/qspi          not a VFS mount; assets are pointers / IDs
+```
+
+Rejected paths: `..` segment, NUL, backslash, leading `//`, any canonical path outside `/user` for explorer APIs. `vfs_realpath` is the single normalizer; host-tested.
+
+## 17. Zigbee join and interview
+
+TI MT UART framing (host-testable in `znp_mt`):
+
+| Byte | Meaning |
+| --- | --- |
+| 0 | SOF `0xFE` |
+| 1 | LEN |
+| 2 | CMD0 |
+| 3 | CMD1 |
+| 4.. | payload LEN bytes |
+| last | FCS = XOR of LEN..payload |
+
+```mermaid
+stateDiagram-v2
+  [*] --> RadioDown
+  RadioDown --> Ping: SYS_PING ok
+  Ping --> Unformed: version stored
+  Unformed --> Formed: zb_form
+  Formed --> JoinOpen: permit_join N s
+  JoinOpen --> Formed: timer 0 or cancel
+  JoinOpen --> Interview: ZDO announce
+  Interview --> Named: clusters mapped
+  Named --> Formed: save devices.bin
+  Ping --> RadioDown: UART fail
+  Formed --> RadioDown: UART fail
+```
+
+```mermaid
+sequenceDiagram
+  participant UI as Home UI
+  participant H as home_*
+  participant Z as zb_host
+  participant MT as znp_mt
+  participant R as ZNP
+  UI->>H: permit join 60s
+  H->>Z: zb_permit_join(60)
+  Z->>MT: ZDO MGMT_PERMIT_JOIN
+  MT->>R: UART frame
+  R-->>MT: AF/ZDO announce
+  MT->>Z: ieee, nwk
+  Z->>MT: Active EP + Simple Desc
+  Z->>H: home_device_t LIGHT
+  H->>UI: on_change
+  UI->>UI: row + rename modal
+```
+
+Cluster map:
+
+| In-cluster | Kind | Primary state |
+| --- | --- | --- |
+| OnOff + Level | LIGHT | on/off, brightness |
+| OnOff only | SWITCH | on/off |
+| Occupancy / IAS Zone | BINARY_SENSOR | occupied/clear or alarm |
+| Temperature Measurement | CLIMATE | °C |
+
+## 18. Local automation engine
+
+Rule record (`auto_rule_t`):
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| id | u16 | 1..64 |
+| enabled | bool | |
+| name | char[24] | UI |
+| trig_ieee | u8[8] | or wildcard time |
+| trig_attr | enum | OCCUPIED, ON, TEMP_GT, TIME |
+| thresh | i16 | for TEMP_GT |
+| cond_ieee | optional | |
+| action_ieee | u8[8] | |
+| action_cmd | ON/OFF/TOGGLE/LEVEL | |
+| delay_ms | u32 | 0 = immediate |
+
+```mermaid
+flowchart TD
+  A[zb_host attribute report] --> B[home_on_change]
+  B --> C[auto_eval]
+  C --> D{enabled rule match?}
+  D -->|no| Z[done]
+  D -->|yes| E{delay?}
+  E -->|0| F[home_cmd]
+  E -->|n| G[t_auto timer]
+  G --> F
+  F --> H[optimistic UI]
+```
+
+Max **32 rules**. Eval is O(rules) per report; keep it on `t_auto`, not `t_ui`.
+
+## 19. Audio path
+
+```mermaid
+flowchart LR
+  E[eMMC MP3] --> W[t_fs read]
+  W --> IPC
+  IPC --> M4
+  M4 --> D[Helix decode]
+  D --> PP[SAI ping-pong DMA]
+  PP --> WM[WM8994]
+```
+
+UI sends path **id** (index in a M7 table) or a short path string ≤ 96 bytes, never a `FIL*`.
+
+## 20. Logging
+
+USART3 115200 8N1:
+
+```
+<ms> <core> <lvl> <mod> <msg>
+  12 M7 INF vfs  mounted /user
+```
+
+Levels: FAT, ERR, WRN, INF, DBG. No Zigbee keys or IEEE-as-secret in INF. IEEE may appear in DBG.
+
+## 21. Error codes
+
+Shared `err.h`: `OK=0`, `BUSY`, `TIMEOUT`, `NOMEM`, `NOENT`, `INVAL`, `IO`, `NOSPC`, `DENIED`, `CORRUPT`, `UNSUPPORTED`. Map FatFS / MT status to these at the port boundary.
+
+## 22. Zephyr migration flowchart
+
+```mermaid
+flowchart LR
+  A[src/app + shell] -->|unchanged| Z[Zephyr product]
+  B[osal/freertos] -->|rewrite| C[osal/zephyr]
+  D[port/cube] -->|rewrite| E[DTS + west]
+  F[disp input uart vfs] -->|thin wrappers| E
+  G[znp_mt zb_host auto game] -->|unchanged| Z
+```
+

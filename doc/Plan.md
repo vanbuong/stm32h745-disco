@@ -1,6 +1,6 @@
 # Development Plan
 
-HMI firmware for STM32H745I-DISCO. Architecture and portability rules are in `Architecture.md`. UI screens are in `UI_Design.md`. Requirements and tests are in `Requirements_and_Test_Cases.md`.
+HMI firmware for STM32H745I-DISCO. Architecture and portability rules are in `Architecture.md`. UI screens are in `UI_Design.md`. Requirements and tests are in `Requirements_and_Test_Cases.md`. CI/CD is in `CICD.md`.
 
 ## 1. Product intent
 
@@ -46,12 +46,62 @@ M7-only is acceptable through Sprint 5. M4 starts when audio or offloaded net la
 
 Each sprint has a demo on hardware or a host-test gate. Do not start the next sprint until the exit check passes.
 
-### Sprint 0 — Repo and contracts (1–3 days)
+```mermaid
+flowchart LR
+  S0[0 CI + contracts] --> S1[1 memory]
+  S1 --> S2[2 display]
+  S2 --> S3[3 VFS]
+  S3 --> S4[4 LVGL shell]
+  S4 --> S5[5 explorer]
+  S5 --> S6[6 viewers]
+  S4 --> S10[10 game]
+  S6 --> S7[7 M4 IPC]
+  S7 --> S8[8 audio]
+  S7 --> S9[9 net]
+  S4 --> S11[11 ZNP]
+  S11 --> S12[12 automations]
+  S8 --> S13[13 harden]
+  S10 --> S13
+  S12 --> S13
+  S9 --> S13
+```
+
+```mermaid
+gantt
+  title Firmware sprints
+  dateFormat  YYYY-MM-DD
+  axisFormat  %b %d
+  section Platform
+  Sprint 0 CI and contracts     :s0, 2026-09-14, 4d
+  Sprint 1 memory MPU           :s1, after s0, 7d
+  Sprint 2 display touch        :s2, after s1, 7d
+  Sprint 3 VFS                  :s3, after s2, 7d
+  section Shell
+  Sprint 4 LVGL                 :s4, after s3, 10d
+  Sprint 5 explorer             :s5, after s4, 7d
+  Sprint 6 viewers              :s6, after s5, 10d
+  section Dual core
+  Sprint 7 M4 IPC               :s7, after s6, 7d
+  Sprint 8 audio                :s8, after s7, 10d
+  Sprint 9 net                  :s9, after s7, 7d
+  section Apps
+  Sprint 10 game                :s10, after s4, 7d
+  Sprint 11 ZNP host            :s11, after s4, 14d
+  Sprint 12 automations         :s12, after s11, 7d
+  section Quality
+  Sprint 13 harden CI HIL       :s13, after s8, 10d
+```
+
+Dates are indicative; the dependency graph is normative. Game and ZNP may overlap after the shell exists.
+
+### Sprint 0 — Repo, contracts, CI (1–3 days)
 
 - CMake skeleton: `m7`, `host-tests`.
 - Empty headers for OSAL, VFS, disp, input, IPC messages.
 - UART3 log, assert, reset reason.
-- **Exit:** host build of `tests/host` runs on PC; M7 blinks LED and prints over VCP.
+- GitHub Actions `ci.yml` as specified in `CICD.md`: format, layering grep, host-tests job, ARM GCC hello.
+- `.clang-format`, `scripts/ci/check-layering.sh`.
+- **Exit:** host build of `tests/host` runs on PC; M7 blinks LED and prints over VCP; a PR cannot merge if layering or format fails.
 
 ### Sprint 1 — Clocks, memory, MPU
 
@@ -144,7 +194,8 @@ Each sprint has a demo on hardware or a host-test gate. Do not start the next sp
 - Watchdogs on both cores, brown-out, FS remount, OOM UI.
 - Settings app (brightness, volume, IP, Zigbee channel/permit-join default).
 - HIL pack for the requirement matrix, including game soak and ZNP mock.
-- **Exit:** RTM P0/P1 rows green; 8-hour soak (UI + audio + explorer; game 30 min; ZNP mock or radio idle) without leak or deadlock.
+- Size budgets and coverage floors as in `CICD.md` (80% line / 60% branch on host-testable C).
+- **Exit:** RTM P0/P1 rows green; 8-hour soak (UI + audio + explorer; game 30 min; ZNP mock or radio idle) without leak or deadlock; CI gates all green.
 
 ### Later — Zephyr port (not a product sprint yet)
 
@@ -198,7 +249,8 @@ Rationale: 40 px minimum hit targets, more room for lists and images, matches LV
 | File | Contents |
 | --- | --- |
 | `Design_Review.md` | Why v1 changed |
-| `Architecture.md` | Layers, memory, interfaces |
-| `UI_Design.md` | Shell, screens, theme |
-| `Requirements_and_Test_Cases.md` | Shall statements + tests + RTM |
+| `Architecture.md` | Layers, memory, interfaces, boot/thread/Zigbee flows |
+| `UI_Design.md` | Shell, screens, navigation and pairing flows |
+| `Requirements_and_Test_Cases.md` | Shall statements + tests + RTM + CI reqs |
+| `CICD.md` | GitHub Actions, static analysis, coverage gates |
 | `Plan.md` | This file |
