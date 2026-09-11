@@ -21,8 +21,10 @@ Policy (locked in `doc/Architecture.md` §3.1):
 | `fatfs/` | [abbrev/fatfs](https://github.com/abbrev/fatfs) (ChaN FatFs) | R0.15b |
 | `lvgl/` | [lvgl](https://github.com/lvgl/lvgl) | v9.5.0 |
 | `unity/` | [ThrowTheSwitch/Unity](https://github.com/ThrowTheSwitch/Unity) | v2.6.1 |
+| `helix/` | [ultraembedded/libhelix-mp3](https://github.com/ultraembedded/libhelix-mp3) | `0a0e067` (master) |
+| `stm32-wm8994/` | [stm32-wm8994](https://github.com/STMicroelectronics/stm32-wm8994) | v3.0.3 |
 
-`stm32h7xx-hal-driver` is both HAL (`stm32h7xx_hal_*.c`) and LL (`stm32h7xx_ll_*.c`, `USE_FULL_LL_DRIVER`). Panel timings are header-only; FT5336 is compiled in the M7 image with I2C4 in our BSP. FatFs `ff.c` is compiled on M7; `diskio` and `ffconf.h` are ours (`firmware/src/bsp/.../emmc.c`, `firmware/src/port/fatfs/`). LVGL is compiled on M7 and in the Sprint 5b `host-sim` SDL binary; `lv_conf.h` lives in `firmware/src/port/lvgl/` (MCU) and `firmware/src/port/lvgl_sim/` (PC). Apps never include `lvgl.h`.
+`stm32h7xx-hal-driver` is both HAL (`stm32h7xx_hal_*.c`) and LL (`stm32h7xx_ll_*.c`, `USE_FULL_LL_DRIVER`). Panel timings are header-only; FT5336 is compiled in the M7 image with I2C4 in our BSP. FatFs `ff.c` is compiled on M7; `diskio` and `ffconf.h` are ours (`firmware/src/bsp/.../emmc.c`, `firmware/src/port/fatfs/`). LVGL is compiled on M7 and in the Sprint 5b `host-sim` SDL binary; `lv_conf.h` lives in `firmware/src/port/lvgl/` (MCU) and `firmware/src/port/lvgl_sim/` (PC). Apps never include `lvgl.h`. Helix is compiled on M4 and in host-tests/host-sim (C fallback in `firmware/src/svc/vendor/helix_generic_asm.h`). WM8994 is compiled on M7; SAI DMA ping-pong is our BSP on M4.
 
 ```
 git submodule update --init --recursive
@@ -31,7 +33,7 @@ git submodule update --init --recursive
 | Core | HAL | LL |
 | --- | --- | --- |
 | M7 | RCC, PWR, Cortex/MPU, GPIO AF, SDRAM, QSPI, LTDC, DMA2D, I2C4, MMC/SDMMC1 | FMC, USART3, GPIO (LED), SDMMC |
-| M4 | none | GPIO (LED) |
+| M4 | RCC, DMA, SAI2 | GPIO (LED) |
 
 ## Pull when a sprint needs it
 
@@ -41,7 +43,7 @@ git submodule update --init --recursive
 | 4 shell | [lvgl](https://github.com/lvgl/lvgl) | Done. Only `src/ui/backend_lvgl`. |
 | 6 viewers | TJpgDec + puff | Done. Vendored under `firmware/src/svc/vendor/` (standalone ChaN TJpgDec, Mark Adler puff). Not LVGL's `libs/tjpgd`. LibJPEG stays out. |
 | OSAL | [FreeRTOS-Kernel](https://github.com/FreeRTOS/FreeRTOS-Kernel) | Not Cube `stm32-mw-freertos` unless we need their CMSIS-RTOS glue. |
-| 8 audio | [stm32-wm8994](https://github.com/STMicroelectronics/stm32-wm8994), Helix | Codec + MP3. SAI DMA is our BSP. |
+| 8 audio | [stm32-wm8994](https://github.com/STMicroelectronics/stm32-wm8994), Helix | Done. Codec + MP3. SAI DMA is our BSP. |
 | 9 net | [stm32-lan8742](https://github.com/STMicroelectronics/stm32-lan8742), LwIP | PHY. `ethernetif` is our port. |
 | USB MSC (later) | [tinyusb](https://github.com/hathach/tinyusb) | Device MSC over OTG FS. Exclusive with FatFs. Not Cube `USB_Device`. |
 

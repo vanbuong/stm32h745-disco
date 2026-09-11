@@ -2,6 +2,7 @@
 
 #include "app/files.h"
 #include "app/image_view.h"
+#include "app/player.h"
 #include "svc/text_view.h"
 
 #include <stddef.h>
@@ -39,9 +40,17 @@ static void files_stop(void)
 {
 }
 
-static void viewer_start(void *args)
+static void player_start(void *args)
 {
     g_view_path = (const char *)args;
+    if (g_view_path != NULL && g_view_path[0] != '\0') {
+        (void)player_open(g_view_path);
+    }
+}
+
+static void player_stop(void)
+{
+    player_close();
 }
 
 static void text_start(void *args)
@@ -74,7 +83,7 @@ static const ui_app_t g_apps[] = {
     {APP_ID_FILES, "Files", "files", files_start, files_stop, stub_tick, stub_event},
     {APP_ID_HOME, "Home", "home", stub_start, stub_stop, stub_tick, stub_event},
     {APP_ID_GAME, "Game", "game", stub_start, stub_stop, stub_tick, stub_event},
-    {APP_ID_PLAYER, "Music", "player", viewer_start, stub_stop, stub_tick, stub_event},
+    {APP_ID_PLAYER, "Music", "player", player_start, player_stop, stub_tick, stub_event},
     {APP_ID_NETWORK, "Network", "network", stub_start, stub_stop, stub_tick, stub_event},
     {APP_ID_SETTINGS, "Settings", "settings", stub_start, stub_stop, stub_tick, stub_event},
     {APP_ID_TEXT, "Text", "text", text_start, text_stop, stub_tick, stub_event},

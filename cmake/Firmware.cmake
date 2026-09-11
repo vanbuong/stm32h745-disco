@@ -1,3 +1,4 @@
+include(${CMAKE_SOURCE_DIR}/cmake/Helix.cmake)
 include(${CMAKE_SOURCE_DIR}/cmake/Cube.cmake)
 
 function(stm32_add_firmware CORE_ID)
@@ -46,6 +47,16 @@ function(stm32_add_firmware CORE_ID)
         set_source_files_properties(${FATFS_SRC} PROPERTIES
             COMPILE_FLAGS "-w -include ${FFCONF}")
         set_source_files_properties(${LVGL_SRC} PROPERTIES COMPILE_FLAGS "-w")
+        if(NOT EXISTS ${ST_ROOT}/stm32-wm8994/wm8994.c)
+            message(FATAL_ERROR
+                "Missing stm32-wm8994 at ${ST_ROOT}/stm32-wm8994.\n"
+                "Run: git submodule update --init --recursive")
+        endif()
+        set(WM8994_SRC
+            ${ST_ROOT}/stm32-wm8994/wm8994.c
+            ${ST_ROOT}/stm32-wm8994/wm8994_reg.c
+        )
+        set_source_files_properties(${WM8994_SRC} PROPERTIES COMPILE_FLAGS "-w")
         set_source_files_properties(
             ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/tjpgd/tjpgd.c
             ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/puff/puff.c
@@ -69,6 +80,7 @@ function(stm32_add_firmware CORE_ID)
             ${BSP}/emmc.c
             ${BSP}/hsem.c
             ${BSP}/ipc_host.c
+            ${BSP}/codec.c
             ${CMAKE_SOURCE_DIR}/firmware/src/bsp/mpu_map.c
             ${CMAKE_SOURCE_DIR}/firmware/src/bsp/disp_geom.c
             ${CMAKE_SOURCE_DIR}/firmware/src/svc/memtest.c
@@ -80,6 +92,10 @@ function(stm32_add_firmware CORE_ID)
             ${CMAKE_SOURCE_DIR}/firmware/src/svc/media_bmp.c
             ${CMAKE_SOURCE_DIR}/firmware/src/svc/media_jpeg.c
             ${CMAKE_SOURCE_DIR}/firmware/src/svc/media_png.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/svc/media_audio.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/svc/audio_mix.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/svc/audio_pipe.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/svc/audio.c
             ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/tjpgd/tjpgd.c
             ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/puff/puff.c
             ${CMAKE_SOURCE_DIR}/firmware/src/shell/nav.c
@@ -88,6 +104,7 @@ function(stm32_add_firmware CORE_ID)
             ${CMAKE_SOURCE_DIR}/firmware/src/app/apps.c
             ${CMAKE_SOURCE_DIR}/firmware/src/app/files.c
             ${CMAKE_SOURCE_DIR}/firmware/src/app/image_view.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/app/player.c
             ${CMAKE_SOURCE_DIR}/firmware/src/ui/backend_lvgl/lv_port.c
             ${CMAKE_SOURCE_DIR}/firmware/src/ui/backend_lvgl/ui_lvgl.c
             ${CMAKE_SOURCE_DIR}/firmware/src/ipc/ipc_ring.c
@@ -95,6 +112,7 @@ function(stm32_add_firmware CORE_ID)
             ${FT5336_SRC}
             ${FATFS_SRC}
             ${LVGL_SRC}
+            ${WM8994_SRC}
         )
     elseif(CORE_ID STREQUAL "M4")
         set(CPU_FLAGS -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard)
@@ -105,8 +123,14 @@ function(stm32_add_firmware CORE_ID)
             ${BSP}/startup.c
             ${BSP}/main_m4.c
             ${BSP}/hsem.c
+            ${BSP}/sai_out.c
+            ${BSP}/m4_heap.c
             ${CMAKE_SOURCE_DIR}/firmware/src/ipc/ipc_ring.c
             ${CMAKE_SOURCE_DIR}/firmware/src/ipc/ipc_link.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/svc/audio_mix.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/svc/audio_pipe.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/svc/audio_engine.c
+            ${HELIX_SRC}
         )
     else()
         message(FATAL_ERROR "stm32_add_firmware expects M7 or M4, got ${CORE_ID}")
@@ -132,6 +156,9 @@ function(stm32_add_firmware CORE_ID)
         ${ST_ROOT}/stm32-ft5336
         ${ST_ROOT}/fatfs/source
         ${ST_ROOT}/lvgl
+        ${ST_ROOT}/stm32-wm8994
+        ${HELIX_ROOT}/pub
+        ${HELIX_ROOT}/real
     )
     target_compile_definitions(${TGT} PRIVATE
         STM32H745xx
@@ -143,6 +170,8 @@ function(stm32_add_firmware CORE_ID)
     )
     if(CORE_ID STREQUAL "M7")
         target_compile_definitions(${TGT} PRIVATE USE_HAL_DRIVER LV_CONF_INCLUDE_SIMPLE)
+    else()
+        target_compile_definitions(${TGT} PRIVATE USE_HAL_DRIVER)
     endif()
     target_compile_options(${TGT} PRIVATE
         ${CPU_FLAGS}

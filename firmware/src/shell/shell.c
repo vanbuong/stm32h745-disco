@@ -1,6 +1,7 @@
 #include "ui/shell.h"
 
 #include "app/apps.h"
+#include "svc/audio.h"
 #include "ui/nav.h"
 
 #include <stddef.h>
@@ -97,6 +98,7 @@ void shell_tick(uint32_t dt_ms)
     if (g_top_app != NULL && g_top_app->on_tick != NULL) {
         g_top_app->on_tick(dt_ms);
     }
+    audio_poll(g_now_ms);
 }
 
 const char *shell_top_id(void)

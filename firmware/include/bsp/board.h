@@ -34,6 +34,7 @@ extern "C" {
 #define BOARD_FB1_BASE (BOARD_SDRAM_BASE + BOARD_FB_PITCH)
 
 #define BOARD_FT5336_ADDR 0x70u
+#define BOARD_WM8994_ADDR 0x34u
 
 #define BOARD_LVGL_MEM_BASE 0x24010000u
 #define BOARD_LVGL_MEM_BYTES (96u * 1024u)
@@ -76,6 +77,18 @@ err_t board_i2c4_lock(void);
 void board_i2c4_unlock(void);
 int32_t board_i2c4_read_reg(uint16_t addr, uint16_t reg, uint8_t *data, uint16_t len);
 int32_t board_i2c4_write_reg(uint16_t addr, uint16_t reg, uint8_t *data, uint16_t len);
+int32_t board_i2c4_read16(uint16_t addr, uint16_t reg, uint8_t *data, uint16_t len);
+int32_t board_i2c4_write16(uint16_t addr, uint16_t reg, uint8_t *data, uint16_t len);
+
+err_t board_ipc_send(uint8_t dst, uint16_t type, const void *payload, uint16_t len);
+void *board_ipc_base(void);
+
+err_t board_audio_clock_init(uint32_t sample_hz);
+err_t board_codec_init(uint32_t sample_hz, uint8_t vol_pct);
+err_t board_codec_volume(uint8_t pct);
+err_t board_codec_play(void);
+err_t board_codec_pause(void);
+err_t board_codec_stop(void);
 err_t board_input_init(void);
 uint8_t board_touch_present(void);
 

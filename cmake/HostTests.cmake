@@ -5,6 +5,8 @@ if(NOT EXISTS ${UNITY_ROOT}/src/unity.c)
         "Run: git submodule update --init --recursive")
 endif()
 
+include(${CMAKE_SOURCE_DIR}/cmake/Helix.cmake)
+
 set(HOST_SRC
     ${UNITY_ROOT}/src/unity.c
     ${CMAKE_SOURCE_DIR}/firmware/src/ipc/ipc_ring.c
@@ -17,8 +19,14 @@ set(HOST_SRC
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/media_bmp.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/media_jpeg.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/media_png.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/media_audio.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/audio_mix.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/audio_pipe.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/audio_engine.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/audio.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/tjpgd/tjpgd.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/puff/puff.c
+    ${HELIX_SRC}
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/auto.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/memtest.c
     ${CMAKE_SOURCE_DIR}/firmware/src/bsp/mpu_map.c
@@ -29,6 +37,7 @@ set(HOST_SRC
     ${CMAKE_SOURCE_DIR}/firmware/src/app/apps.c
     ${CMAKE_SOURCE_DIR}/firmware/src/app/files.c
     ${CMAKE_SOURCE_DIR}/firmware/src/app/image_view.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/app/player.c
     ${CMAKE_SOURCE_DIR}/firmware/src/osal/posix/osal.c
     ${CMAKE_SOURCE_DIR}/tests/host/test_main.c
     ${CMAKE_SOURCE_DIR}/tests/host/test_ipc.c
@@ -41,6 +50,7 @@ set(HOST_SRC
     ${CMAKE_SOURCE_DIR}/tests/host/test_files.c
     ${CMAKE_SOURCE_DIR}/tests/host/test_text.c
     ${CMAKE_SOURCE_DIR}/tests/host/test_image.c
+    ${CMAKE_SOURCE_DIR}/tests/host/test_audio.c
     ${CMAKE_SOURCE_DIR}/tests/host/vfs_ram.c
 )
 
@@ -50,6 +60,8 @@ target_include_directories(host_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/firmware/src/svc
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/tjpgd
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/puff
+    ${HELIX_ROOT}/pub
+    ${HELIX_ROOT}/real
     ${CMAKE_SOURCE_DIR}/tests/host
     ${CMAKE_SOURCE_DIR}/tests/host/data
 )

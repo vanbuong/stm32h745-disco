@@ -21,6 +21,7 @@ extern "C" {
 #define THEME_HIT_MIN_PX 40
 #define THEME_ROW_H 44
 #define THEME_STATUS_H 32
+#define THEME_NOWPLAYING_H 36
 #define THEME_APPBAR_H 40
 #define THEME_RADIUS_PX 8
 #define THEME_PANEL_W 480

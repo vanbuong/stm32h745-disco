@@ -132,10 +132,10 @@ firmware/
     osal/          osal.h
     ipc/           ipc.h, ipc_msg.h
     hal/           disp.h, input.h, audio_out.h, net_if.h, uart.h
-    svc/           vfs.h, media.h, audio.h, net.h, home.h, zb_host.h, znp_mt.h, auto.h, time.h
+    svc/           vfs.h, media.h, audio.h, audio_pipe.h, net.h, home.h, zb_host.h, znp_mt.h, auto.h, time.h
     game/          game_sim.h, gfx.h
     ui/            shell.h, nav.h, theme.h, launcher.h, backend.h, event.h
-    app/           apps.h
+    app/           apps.h, player.h
   src/
     app/           launcher, files, image, text, player, game, home, settings
     shell/
@@ -159,9 +159,10 @@ third_party/
   fatfs/                     elm-chan FatFs R0.15b (now)
   lvgl/                      upstream LVGL v9.5.0 (now)
   unity/                     ThrowTheSwitch Unity v2.6.1 (host unit tests)
+  helix/                     ultraembedded libhelix-mp3 (Sprint 8)
+  stm32-wm8994/              ST component (Sprint 8)
   tinyusb/                   upstream TinyUSB (later USB MSC sprint)
   stm32-mt25tl01g/           ST component (QSPI commands, when needed)
-  stm32-wm8994/              ST component (Sprint 8)
   stm32-lan8742/             ST component (Sprint 9)
   lvgl/  FreeRTOS-Kernel/  fatfs/  lwip/  helix/  tinyusb/   upstream, per sprint
 .settings/                   STM32CubeIDE for VS Code device store
@@ -401,11 +402,12 @@ SRAM4 sketch (64 KB):
 | 0 | 256 | Control: magic `IPC1`, version, nslots, ready flags, M4 heartbeat, kick counters |
 | 256 | 16 KB | M7→M4 ring (head/tail at start of window, then 60 slots) |
 | 16640 | 16 KB | M4→M7 ring (same layout) |
-| 33024 | rest | Reserved (future RPMsg vring) |
+| 33024 | 16392 | Encoded bitstream pipe (`audio_pipe_t`, 16 KB SPSC) |
+| 49416 | rest | Reserved (future RPMsg vring) |
 
 Rings are SPSC and lockless: the producer only advances `head`, the consumer only advances `tail`. Occupancy is `(uint16_t)(head - tail)` so all N slots are usable. A full ring returns `ERR_NOSPC` and does not overwrite. HSEM (sem 0 M7→M4, sem 1 M4→M7) is a notify; both cores also poll and drain every main-loop pass, so correctness does not depend on the IRQ. Vector table stays the 16 Cortex-M exceptions; HSEM IER is armed but NVIC is not.
 
-Latency budget: command round-trip **< 2 ms** for control messages. Audio PCM does not ride this ring; it uses a dedicated DMA buffer.
+Latency budget: command round-trip **< 2 ms** for control messages. Encoded audio bytes use the dedicated SRAM4 pipe; PCM stays in M4 SAI DMA ping-pong buffers and does not ride the control ring.
 
 ```mermaid
 sequenceDiagram
@@ -484,7 +486,7 @@ See `UI_Design.md` for layout and screens.
 | `time` | M7 | RTC display; NTP is P2 |
 | `settings` | M7 | Key/value in eMMC (names, rooms, rules; not Zigbee keys) |
 
-Audio path: M7 sends `{play path | pause | volume}` over IPC. M4 decodes and feeds SAI DMA. M7 never blocks the UI thread on decode.
+Audio path: M7 VFS-reads encoded bytes into the SRAM4 pipe and sends `{kind, channels, bits, volume, sample_hz}` on the control ring. The UI path string (≤ 96 bytes) stays on M7; never a `FIL*`. M4 Helix/WAV-decodes and feeds SAI DMA. Analogue volume is on the WM8994 (M7/I2C4); M4 PCM is full-scale. M7 never blocks the UI thread on decode.
 
 Network ownership: pick **one** core at build time (default M4 if audio+net isolation is wanted, M7 if the first Zephyr port should be single-core-simple). Never initialize ETH on both.
 
@@ -698,7 +700,7 @@ flowchart LR
   PP --> WM[WM8994]
 ```
 
-UI sends path **id** (index in a M7 table) or a short path string ≤ 96 bytes, never a `FIL*`.
+UI sends a path string ≤ 96 bytes or an `ipc_audio_fmt_t`; never a `FIL*`. Encoded bytes use the SRAM4 pipe, not the control ring.
 
 ## 20. Logging
 

@@ -243,7 +243,7 @@ int main(void)
     HAL_Init();
     led_init();
     board_console_init(0);
-    board_console_puts("M7 stm32h745-disco s7\r\n");
+    board_console_puts("M7 stm32h745-disco s8\r\n");
 
     e = board_clock_init();
     board_console_init(0);
@@ -255,6 +255,8 @@ int main(void)
     board_cache_init();
     board_console_puts("cache on\r\n");
 
+    e = board_audio_clock_init(44100u);
+    log_err("sai_clk", e);
     e = board_ipc_init();
     log_err("ipc", e);
 

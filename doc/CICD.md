@@ -62,6 +62,9 @@ flowchart TB
 cmake/
   HostTests.cmake
   HostSim.cmake             # Sprint 5b: LVGL + SDL2, not unit tests
+  Helix.cmake               # Sprint 8: libhelix-mp3 sources + C fallback
+  Firmware.cmake
+  Cube.cmake
   gcc-arm-none-eabi.cmake
   ArmGnu.cmake
   Coverage.cmake

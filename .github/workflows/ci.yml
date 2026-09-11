@@ -83,13 +83,19 @@ jobs:
             firmware/src/svc/media_bmp.c \
             firmware/src/svc/media_jpeg.c \
             firmware/src/svc/media_png.c \
+            firmware/src/svc/media_audio.c \
+            firmware/src/svc/audio_mix.c \
+            firmware/src/svc/audio_pipe.c \
+            firmware/src/svc/audio.c \
+            firmware/src/svc/audio_engine.c \
             firmware/src/svc/auto.c \
             firmware/src/svc/memtest.c \
             firmware/src/bsp/mpu_map.c \
             firmware/src/shell/nav.c \
             firmware/src/shell/launcher_geom.c \
             firmware/src/app/files.c \
-            firmware/src/app/image_view.c
+            firmware/src/app/image_view.c \
+            firmware/src/app/player.c
 
   cross:
     runs-on: ubuntu-24.04

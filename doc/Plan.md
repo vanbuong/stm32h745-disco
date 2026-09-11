@@ -198,8 +198,10 @@ Status: **done** (host-tested lockless wrap/overflow, credits, version, heartbea
 
 ### Sprint 8 — Audio pipeline
 
+Status: **done** (host-tested mixer, WAV/MP3 probe, bitstream pipe, player model; firmware links M7 codec + M4 SAI DMA).
+
 - WM8994 + SAI DMA ping-pong on M4.
-- Helix (or replacement) MP3 + WAV behind `media_open_audio`.
+- Helix MP3 + WAV behind `media_open_audio`.
 - Mini-player in the status/now-playing bar; full player screen.
 - **Exit:** 44.1 kHz stereo, no audible glitch while scrolling the explorer; pause/resume/volume via IPC.
 

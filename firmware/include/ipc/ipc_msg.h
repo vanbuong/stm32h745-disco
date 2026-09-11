@@ -38,6 +38,26 @@ extern "C" {
 #define IPC_AUDIO_ACK 16u
 #define IPC_AUDIO_NAK 17u
 #define IPC_AUDIO_UNDERRUN 18u
+#define IPC_AUDIO_DONE 19u
+
+#define IPC_AUDIO_PIPE_OFF (IPC_SHM_CTRL + (2u * IPC_SHM_RING))
+#define IPC_AUDIO_PIPE_BYTES 16384u
+
+typedef struct __attribute__((packed)) {
+    uint8_t kind;
+    uint8_t channels;
+    uint8_t bits;
+    uint8_t volume;
+    uint32_t sample_hz;
+} ipc_audio_fmt_t;
+
+typedef struct __attribute__((packed)) {
+    uint32_t elapsed_ms;
+    uint32_t duration_ms;
+    uint16_t underruns;
+    uint8_t state;
+    uint8_t pad;
+} ipc_audio_pos_t;
 
 #define IPC_SHM_MAGIC 0x31435049u /* 'IPC1' */
 #define IPC_SHM_CTRL 256u

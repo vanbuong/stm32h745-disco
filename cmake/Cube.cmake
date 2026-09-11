@@ -77,9 +77,15 @@ function(cube_collect_sources CORE_ID out_var)
             ${CUBE}/cube_it.c
         )
     else()
+        list(APPEND ST_HAL_SRC
+            ${ST_HAL_DIR}/Src/stm32h7xx_hal_sai.c
+            ${ST_HAL_DIR}/Src/stm32h7xx_hal_sai_ex.c
+        )
         set(src
             ${ST_CMSIS_SRC}
+            ${ST_HAL_SRC}
             ${ST_LL_SRC}
+            ${CUBE}/cube.c
         )
     endif()
 

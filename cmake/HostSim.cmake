@@ -1,5 +1,7 @@
 # Host LVGL + SDL2 simulator (Sprint 5b). Not unit tests: those stay LVGL-free.
 
+include(${CMAKE_SOURCE_DIR}/cmake/Helix.cmake)
+
 set(LVGL_ROOT ${CMAKE_SOURCE_DIR}/third_party/lvgl)
 if(NOT EXISTS ${LVGL_ROOT}/src/lv_init.c)
     message(FATAL_ERROR
@@ -70,14 +72,21 @@ set(SIM_SRC
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/media_bmp.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/media_jpeg.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/media_png.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/media_audio.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/audio_mix.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/audio_pipe.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/audio_engine.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/audio.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/tjpgd/tjpgd.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/puff/puff.c
+    ${HELIX_SRC}
     ${CMAKE_SOURCE_DIR}/firmware/src/shell/nav.c
     ${CMAKE_SOURCE_DIR}/firmware/src/shell/shell.c
     ${CMAKE_SOURCE_DIR}/firmware/src/shell/launcher_geom.c
     ${CMAKE_SOURCE_DIR}/firmware/src/app/apps.c
     ${CMAKE_SOURCE_DIR}/firmware/src/app/files.c
     ${CMAKE_SOURCE_DIR}/firmware/src/app/image_view.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/app/player.c
     ${CMAKE_SOURCE_DIR}/firmware/src/ui/backend_lvgl/ui_lvgl.c
     ${CMAKE_SOURCE_DIR}/firmware/src/ui/backend_lvgl/lv_port_sim.c
     ${CMAKE_SOURCE_DIR}/tests/host/sim/sim_main.c
@@ -92,6 +101,8 @@ target_include_directories(host_sim PRIVATE
     ${CMAKE_SOURCE_DIR}/firmware/src/svc
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/tjpgd
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/puff
+    ${HELIX_ROOT}/pub
+    ${HELIX_ROOT}/real
     ${CMAKE_SOURCE_DIR}/firmware/src/port/lvgl_sim
     ${CMAKE_SOURCE_DIR}/firmware/src/ui/backend_lvgl
     ${CMAKE_SOURCE_DIR}/tests/host/sim

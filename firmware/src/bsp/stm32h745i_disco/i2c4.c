@@ -3,8 +3,8 @@
 #include "cube.h"
 
 /*
- * I2C4 on PD12/PD13 (AF4). Shared later by FT5336 + WM8994; this sprint only
- * the touch controller uses it. Bare-metal lock: one outstanding transfer.
+ * I2C4 on PD12/PD13 (AF4). Shared by FT5336 + WM8994; BSP lock is one
+ * outstanding transfer. 8-bit regs for touch, 16-bit for the codec.
  */
 
 #define I2C4_TIMING 0x307075B1u /* 100 kHz at 120 MHz D3PCLK1 */
@@ -108,6 +108,36 @@ int32_t board_i2c4_write_reg(uint16_t addr, uint16_t reg, uint8_t *data, uint16_
         return -1;
     }
     s = HAL_I2C_Mem_Write(&g_i2c4, addr, reg, I2C_MEMADD_SIZE_8BIT, data, len, 100u);
+    board_i2c4_unlock();
+    return (s == HAL_OK) ? 0 : -1;
+}
+
+int32_t board_i2c4_read16(uint16_t addr, uint16_t reg, uint8_t *data, uint16_t len)
+{
+    HAL_StatusTypeDef s;
+
+    if (data == NULL || len == 0u) {
+        return -1;
+    }
+    if (board_i2c4_lock() != ERR_OK) {
+        return -1;
+    }
+    s = HAL_I2C_Mem_Read(&g_i2c4, addr, reg, I2C_MEMADD_SIZE_16BIT, data, len, 100u);
+    board_i2c4_unlock();
+    return (s == HAL_OK) ? 0 : -1;
+}
+
+int32_t board_i2c4_write16(uint16_t addr, uint16_t reg, uint8_t *data, uint16_t len)
+{
+    HAL_StatusTypeDef s;
+
+    if (data == NULL || len == 0u) {
+        return -1;
+    }
+    if (board_i2c4_lock() != ERR_OK) {
+        return -1;
+    }
+    s = HAL_I2C_Mem_Write(&g_i2c4, addr, reg, I2C_MEMADD_SIZE_16BIT, data, len, 100u);
     board_i2c4_unlock();
     return (s == HAL_OK) ? 0 : -1;
 }

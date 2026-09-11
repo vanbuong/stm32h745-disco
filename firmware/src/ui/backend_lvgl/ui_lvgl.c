@@ -3,7 +3,9 @@
 #include "app/apps.h"
 #include "app/files.h"
 #include "app/image_view.h"
+#include "app/player.h"
 #include "lv_port.h"
+#include "svc/audio.h"
 #include "svc/text_view.h"
 #include "ui/launcher.h"
 #include "ui/shell.h"
@@ -20,6 +22,9 @@ static lv_obj_t *s_status;
 static lv_obj_t *s_time;
 static lv_obj_t *s_stor;
 static lv_obj_t *s_m4;
+static lv_obj_t *s_nowplay;
+static lv_obj_t *s_np_title;
+static lv_obj_t *s_np_btn;
 static lv_obj_t *s_content;
 static lv_obj_t *s_list;
 static uint32_t s_gen = 0xFFFFFFFFu;
@@ -29,7 +34,20 @@ static uint32_t s_img_gen = 0xFFFFFFFFu;
 static uint8_t s_last_min = 0xFFu;
 static uint8_t s_last_m4 = 0xFFu;
 static uint8_t s_last_stor = 0xFFu;
+static uint8_t s_last_audio = 0xFFu;
+static uint32_t s_player_gen = 0xFFFFFFFFu;
 static lv_image_dsc_t s_img_dsc;
+
+static int32_t content_h(void)
+{
+    const char *id = shell_top_id();
+    int32_t h = (int32_t)THEME_CONTENT_H;
+
+    if (audio_active() != 0u && (id == NULL || strcmp(id, APP_ID_PLAYER) != 0)) {
+        h -= (int32_t)THEME_NOWPLAYING_H;
+    }
+    return h;
+}
 
 static void log_nav(const char *op, const char *id)
 {
@@ -227,6 +245,60 @@ static void image_nav_cb(lv_event_t *e)
     (void)image_view_next(dir);
 }
 
+static void player_nav_cb(lv_event_t *e)
+{
+    int dir;
+
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
+        return;
+    }
+    dir = (int)(intptr_t)lv_event_get_user_data(e);
+    (void)player_next(dir);
+}
+
+static void player_toggle_cb(lv_event_t *e)
+{
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
+        return;
+    }
+    player_toggle();
+}
+
+static void player_vol_cb(lv_event_t *e)
+{
+    int d;
+    int v;
+
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
+        return;
+    }
+    d = (int)(intptr_t)lv_event_get_user_data(e);
+    v = (int)player_volume() + d;
+    if (v < 0) {
+        v = 0;
+    }
+    if (v > 100) {
+        v = 100;
+    }
+    player_set_volume((uint8_t)v);
+}
+
+static void mini_open_cb(lv_event_t *e)
+{
+    const char *path;
+
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
+        return;
+    }
+    path = audio_path();
+    if (path == NULL || path[0] == '\0') {
+        path = NULL;
+    }
+    if (shell_push(APP_ID_PLAYER, (void *)path) == ERR_OK) {
+        log_nav("shell_push", APP_ID_PLAYER);
+    }
+}
+
 static void put_u32(char *out, size_t n, uint32_t v)
 {
     char tmp[11];
@@ -257,6 +329,20 @@ static void add_nav_btn(lv_obj_t *bar, int32_t x, const char *txt, lv_event_cb_t
 
     lv_obj_set_pos(btn, x, 0);
     lv_obj_set_size(btn, THEME_HIT_MIN_PX, THEME_APPBAR_H);
+    lv_obj_add_event_cb(btn, cb, LV_EVENT_CLICKED, (void *)(intptr_t)dir);
+    lab = lv_label_create(btn);
+    lv_label_set_text(lab, txt);
+    lv_obj_center(lab);
+}
+
+static void add_hit_btn(lv_obj_t *parent, int32_t x, int32_t y, const char *txt, lv_event_cb_t cb,
+                        int dir)
+{
+    lv_obj_t *btn = lv_button_create(parent);
+    lv_obj_t *lab;
+
+    lv_obj_set_pos(btn, x, y);
+    lv_obj_set_size(btn, THEME_HIT_MIN_PX, THEME_HIT_MIN_PX);
     lv_obj_add_event_cb(btn, cb, LV_EVENT_CLICKED, (void *)(intptr_t)dir);
     lab = lv_label_create(btn);
     lv_label_set_text(lab, txt);
@@ -455,6 +541,66 @@ static void build_image(void)
     }
 }
 
+static void fmt_time(char *out, uint32_t ms)
+{
+    uint32_t sec = ms / 1000u;
+    uint32_t m = sec / 60u;
+    uint32_t s = sec % 60u;
+
+    out[0] = (char)('0' + ((m / 10u) % 10u));
+    out[1] = (char)('0' + (m % 10u));
+    out[2] = ':';
+    out[3] = (char)('0' + (s / 10u));
+    out[4] = (char)('0' + (s % 10u));
+    out[5] = '\0';
+}
+
+static void build_player(void)
+{
+    lv_obj_t *bar;
+    const char *title = player_title();
+    char t0[6];
+    char t1[6];
+
+    bar = make_bar((title != NULL) ? title : "Music");
+    add_nav_btn(bar, THEME_PANEL_W - 3 * THEME_HIT_MIN_PX, "|<", player_nav_cb, -1);
+    add_nav_btn(bar, THEME_PANEL_W - 2 * THEME_HIT_MIN_PX, player_playing() ? "||" : ">",
+                player_toggle_cb, 0);
+    add_nav_btn(bar, THEME_PANEL_W - THEME_HIT_MIN_PX, ">|", player_nav_cb, 1);
+    if (player_status() != ERR_OK && audio_active() == 0u) {
+        add_label(s_content, "Can't open audio", 16, THEME_APPBAR_H + 16, 440, 24, THEME_ERR,
+                  LV_FONT_DEFAULT);
+        add_label(s_content, (player_err_str()[0] != '\0') ? player_err_str() : "unsupported", 16,
+                  THEME_APPBAR_H + 48, 440, 24, THEME_MUTED, &lv_font_montserrat_12);
+        return;
+    }
+    add_label(s_content, player_title(), 16, THEME_APPBAR_H + 24, 448, 24, THEME_TEXT,
+              LV_FONT_DEFAULT);
+    fmt_time(t0, player_elapsed_ms());
+    fmt_time(t1, player_duration_ms());
+    add_label(s_content, t0, 16, THEME_APPBAR_H + 64, 80, 24, THEME_MUTED, &lv_font_montserrat_12);
+    add_label(s_content, t1, 400, THEME_APPBAR_H + 64, 80, 24, THEME_MUTED, &lv_font_montserrat_12);
+    add_label(s_content, player_playing() ? "playing" : "paused", 16, THEME_APPBAR_H + 96, 200, 24,
+              THEME_OK, &lv_font_montserrat_12);
+    add_hit_btn(s_content, 16, THEME_APPBAR_H + 128, "-", player_vol_cb, -10);
+    add_hit_btn(s_content, 16 + THEME_HIT_MIN_PX, THEME_APPBAR_H + 128, "+", player_vol_cb, 10);
+    {
+        char vol[12];
+        unsigned n = (unsigned)player_volume();
+
+        vol[0] = 'v';
+        vol[1] = 'o';
+        vol[2] = 'l';
+        vol[3] = ' ';
+        vol[4] = (char)('0' + ((n / 100u) % 10u));
+        vol[5] = (char)('0' + ((n / 10u) % 10u));
+        vol[6] = (char)('0' + (n % 10u));
+        vol[7] = '\0';
+        add_label(s_content, vol, 16 + (2 * THEME_HIT_MIN_PX) + 8, THEME_APPBAR_H + 136, 80, 24,
+                  THEME_MUTED, &lv_font_montserrat_12);
+    }
+}
+
 static void build_app(const char *id, const char *title)
 {
     const char *path;
@@ -466,6 +612,10 @@ static void build_app(const char *id, const char *title)
     }
     if (id != NULL && strcmp(id, APP_ID_IMAGE) == 0) {
         build_image();
+        return;
+    }
+    if (id != NULL && strcmp(id, APP_ID_PLAYER) == 0) {
+        build_player();
         return;
     }
     make_bar((title != NULL) ? title : "");
@@ -555,9 +705,32 @@ err_t ui_backend_init(void)
     lv_obj_set_pos(s_m4, 140, 8);
     lv_obj_set_style_text_font(s_m4, &lv_font_montserrat_12, 0);
 
+    s_nowplay = lv_obj_create(scr);
+    lv_obj_set_pos(s_nowplay, 0, (int32_t)(THEME_PANEL_H - THEME_NOWPLAYING_H));
+    lv_obj_set_size(s_nowplay, THEME_PANEL_W, THEME_NOWPLAYING_H);
+    style_bar(s_nowplay);
+    lv_obj_set_style_bg_color(s_nowplay, lv_color_hex(THEME_SURFACE_2), 0);
+    s_np_title = lv_label_create(s_nowplay);
+    lv_obj_set_pos(s_np_title, 8, 8);
+    lv_obj_set_width(s_np_title, 360);
+    lv_label_set_long_mode(s_np_title, LV_LABEL_LONG_DOT);
+    lv_obj_set_style_text_color(s_np_title, lv_color_hex(THEME_TEXT), 0);
+    lv_obj_add_flag(s_np_title, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(s_np_title, mini_open_cb, LV_EVENT_CLICKED, NULL);
+    s_np_btn = lv_button_create(s_nowplay);
+    lv_obj_set_pos(s_np_btn, THEME_PANEL_W - THEME_HIT_MIN_PX, 0);
+    lv_obj_set_size(s_np_btn, THEME_HIT_MIN_PX, THEME_NOWPLAYING_H);
+    lv_obj_add_event_cb(s_np_btn, player_toggle_cb, LV_EVENT_CLICKED, NULL);
+    {
+        lv_obj_t *lab = lv_label_create(s_np_btn);
+        lv_label_set_text(lab, "||");
+        lv_obj_center(lab);
+    }
+    lv_obj_add_flag(s_nowplay, LV_OBJ_FLAG_HIDDEN);
+
     s_content = lv_obj_create(scr);
     lv_obj_set_pos(s_content, 0, THEME_STATUS_H);
-    lv_obj_set_size(s_content, THEME_PANEL_W, THEME_CONTENT_H);
+    lv_obj_set_size(s_content, THEME_PANEL_W, content_h());
     lv_obj_set_style_bg_color(s_content, lv_color_hex(THEME_BG), 0);
     lv_obj_set_style_bg_opa(s_content, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(s_content, 0, 0);
@@ -575,6 +748,7 @@ err_t ui_backend_init(void)
     s_files_gen = files_view_gen();
     s_text_gen = text_view_gen();
     s_img_gen = image_view_gen();
+    s_player_gen = player_gen();
     return ERR_OK;
 }
 
@@ -584,12 +758,33 @@ void ui_backend_handler(void)
     uint32_t fgen = files_view_gen();
     uint32_t tgen = text_view_gen();
     uint32_t igen = image_view_gen();
+    uint32_t pgen = player_gen();
+    uint8_t audio = audio_active();
+    const char *id = shell_top_id();
+    uint8_t show_mini = (audio != 0u && (id == NULL || strcmp(id, APP_ID_PLAYER) != 0)) ? 1u : 0u;
 
-    if (gen != s_gen || fgen != s_files_gen || tgen != s_text_gen || igen != s_img_gen) {
+    lv_obj_set_size(s_content, THEME_PANEL_W, content_h());
+    if (show_mini != 0u) {
+        lv_obj_remove_flag(s_nowplay, LV_OBJ_FLAG_HIDDEN);
+        lv_label_set_text(s_np_title, audio_title());
+        {
+            lv_obj_t *lab = lv_obj_get_child(s_np_btn, 0);
+            if (lab != NULL) {
+                lv_label_set_text(lab, (audio_state() == AUDIO_ST_PLAY) ? "||" : ">");
+            }
+        }
+    } else {
+        lv_obj_add_flag(s_nowplay, LV_OBJ_FLAG_HIDDEN);
+    }
+
+    if (gen != s_gen || fgen != s_files_gen || tgen != s_text_gen || igen != s_img_gen ||
+        pgen != s_player_gen || audio != s_last_audio) {
         s_gen = gen;
         s_files_gen = fgen;
         s_text_gen = tgen;
         s_img_gen = igen;
+        s_player_gen = pgen;
+        s_last_audio = audio;
         rebuild_content();
     }
     if (shell_status()->min != s_last_min || shell_status()->m4 != s_last_m4 ||

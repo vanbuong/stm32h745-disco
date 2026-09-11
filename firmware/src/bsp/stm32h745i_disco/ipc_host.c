@@ -2,6 +2,7 @@
 
 #include "cube.h"
 #include "ipc/ipc.h"
+#include "svc/audio.h"
 
 #include <string.h>
 
@@ -88,6 +89,25 @@ static void handle_msg(const ipc_msg_hdr_t *h, const uint8_t *pl, uint32_t now_m
     }
     if (h->type == IPC_SYS_PONG) {
         log_pong(pl, h->len);
+        return;
+    }
+    if (h->type == IPC_AUDIO_POS || h->type == IPC_AUDIO_DONE || h->type == IPC_AUDIO_UNDERRUN ||
+        h->type == IPC_AUDIO_ACK || h->type == IPC_AUDIO_NAK) {
+        ipc_audio_pos_t pos;
+        uint8_t ended = (h->type == IPC_AUDIO_DONE) ? 1u : 0u;
+        uint16_t un = 0u;
+        uint32_t elapsed = audio_elapsed_ms();
+
+        if (h->type == IPC_AUDIO_POS && pl != NULL && h->len >= sizeof(pos)) {
+            memcpy(&pos, pl, sizeof(pos));
+            elapsed = pos.elapsed_ms;
+            un = pos.underruns;
+            ended = (pos.state == (uint8_t)AUDIO_ST_IDLE) ? 1u : 0u;
+        }
+        if (h->type == IPC_AUDIO_UNDERRUN) {
+            un = (uint16_t)(audio_underruns() + 1u);
+        }
+        audio_on_peer(elapsed, un, ended);
     }
 }
 
@@ -139,4 +159,17 @@ uint8_t board_ipc_peer_alive(uint32_t now_ms)
         return 0u;
     }
     return ipc_link_peer_alive(&s_link, now_ms);
+}
+
+err_t board_ipc_send(uint8_t dst, uint16_t type, const void *payload, uint16_t len)
+{
+    if (s_ok == 0u) {
+        return ERR_IO;
+    }
+    return ipc_link_send(&s_link, dst, type, payload, len);
+}
+
+void *board_ipc_base(void)
+{
+    return (void *)BOARD_SRAM4_BASE;
 }

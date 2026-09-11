@@ -8,7 +8,7 @@
  */
 
 #define RAM_MAX 16
-#define RAM_CAP 256
+#define RAM_CAP 512
 
 typedef struct {
     uint8_t used;
@@ -403,4 +403,23 @@ err_t vfs_mkdir(const char *path)
 void vfs_ram_set_mounted(int on)
 {
     g_mounted = (on != 0) ? 1u : 0u;
+}
+
+err_t vfs_ram_add_file(const char *name, const void *data, uint16_t n)
+{
+    int i;
+
+    if (name == NULL || data == NULL) {
+        return ERR_INVAL;
+    }
+    i = add_node(0, name, 0u, NULL);
+    if (i < 0) {
+        return ERR_NOSPC;
+    }
+    if (n > RAM_CAP) {
+        n = RAM_CAP;
+    }
+    memcpy(g_nodes[i].data, data, n);
+    g_nodes[i].len = n;
+    return ERR_OK;
 }
