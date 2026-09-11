@@ -59,8 +59,11 @@ flowchart TB
   pull_request_template.md
 cmake/
   HostTests.cmake
+  gcc-arm-none-eabi.cmake
   ArmGnu.cmake
   Coverage.cmake
+.settings/ide.store.json    # STM32 VS Code device (STM32H745XIH6)
+.vscode/                    # CMake Tools presets + ST-LINK debug
 scripts/
   ci/
     check-layering.sh
@@ -80,7 +83,7 @@ Host tests **must not** link STM32 HAL, LVGL, or FatFS. They compile `src/svc`, 
 | CMake | ≥ 3.22 |
 | Host compiler | GCC 13 (ubuntu) **and** optionally Clang 18 |
 | Coverage | `gcov` from host GCC + `gcovr` |
-| Cross | `gcc-arm-none-eabi` 13.x (apt or ARM tarball, hashed) |
+| Cross | `gcc-arm-none-eabi` 13.x (apt or ARM tarball, hashed) + `ninja-build` for the VS Code `Debug` preset |
 | clang-format | 18 |
 | clang-tidy | 18 |
 | cppcheck | ≥ 2.13 |
@@ -182,10 +185,10 @@ New files under the filter that drop the combined floor fail the job.
 
 ### 5.6 Cross-compile
 
-Two CMake presets:
+Two CMake presets in CI:
 
-- `m7-debug` → `firmware-m7.elf`
-- `m4-debug` → `firmware-m4.elf`
+- `Debug` → Ninja, both `firmware-m7.elf` and `firmware-m4.elf` (STM32 VS Code path)
+- `m7-debug` / `m4-debug` → Unix Makefiles, one core each
 
 CI only needs **link success** and a size report (`arm-none-eabi-size`). Flash/run is HIL. The cross job checks out git submodules (`stm32h7xx-hal-driver` HAL+LL, `cmsis-device-h7`, `cmsis_core`).
 

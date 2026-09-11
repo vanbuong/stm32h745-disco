@@ -1,69 +1,78 @@
 include(${CMAKE_SOURCE_DIR}/cmake/Cube.cmake)
 
-set(BSP ${CMAKE_SOURCE_DIR}/firmware/src/bsp/stm32h745i_disco)
-set(CUBE ${CMAKE_SOURCE_DIR}/firmware/src/port/cube)
+function(stm32_add_firmware CORE_ID)
+    set(BSP ${CMAKE_SOURCE_DIR}/firmware/src/bsp/stm32h745i_disco)
+    cube_collect_sources(${CORE_ID} CUBE_SRC)
 
-if(CORE STREQUAL "M7")
-    set(CPU_FLAGS -mcpu=cortex-m7 -mthumb -mfpu=fpv5-d16 -mfloat-abi=hard)
-    set(LINKER ${BSP}/stm32h745_m7.ld)
-    set(CORE_DEFINE CORE_CM7)
-    set(TGT firmware-m7)
-    set(APP_SRC
-        ${BSP}/startup.c
-        ${BSP}/main_m7.c
-        ${BSP}/clock.c
-        ${BSP}/console.c
-        ${BSP}/mpu.c
-        ${BSP}/cache.c
-        ${BSP}/sdram.c
-        ${BSP}/qspi.c
-        ${CMAKE_SOURCE_DIR}/firmware/src/bsp/mpu_map.c
-        ${CMAKE_SOURCE_DIR}/firmware/src/svc/memtest.c
-    )
-else()
-    set(CPU_FLAGS -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard)
-    set(LINKER ${BSP}/stm32h745_m4.ld)
-    set(CORE_DEFINE CORE_CM4)
-    set(TGT firmware-m4)
-    set(APP_SRC
-        ${BSP}/startup.c
-        ${BSP}/main_m4.c
-    )
-endif()
+    if(CORE_ID STREQUAL "M7")
+        set(CPU_FLAGS -mcpu=cortex-m7 -mthumb -mfpu=fpv5-d16 -mfloat-abi=hard)
+        set(LINKER ${BSP}/stm32h745_m7.ld)
+        set(CORE_DEFINE CORE_CM7)
+        set(TGT firmware-m7)
+        set(APP_SRC
+            ${BSP}/startup.c
+            ${BSP}/main_m7.c
+            ${BSP}/clock.c
+            ${BSP}/console.c
+            ${BSP}/mpu.c
+            ${BSP}/cache.c
+            ${BSP}/sdram.c
+            ${BSP}/qspi.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/bsp/mpu_map.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/svc/memtest.c
+        )
+    elseif(CORE_ID STREQUAL "M4")
+        set(CPU_FLAGS -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard)
+        set(LINKER ${BSP}/stm32h745_m4.ld)
+        set(CORE_DEFINE CORE_CM4)
+        set(TGT firmware-m4)
+        set(APP_SRC
+            ${BSP}/startup.c
+            ${BSP}/main_m4.c
+        )
+    else()
+        message(FATAL_ERROR "stm32_add_firmware expects M7 or M4, got ${CORE_ID}")
+    endif()
 
-add_executable(${TGT} ${APP_SRC} ${CUBE_SRC})
-target_include_directories(${TGT} PRIVATE
-    ${CUBE}
-    ${CMAKE_SOURCE_DIR}/firmware/include
-    ${BSP}
-)
-target_include_directories(${TGT} SYSTEM PRIVATE
-    ${ST_HAL_DIR}/Inc
-    ${ST_CMSIS_DEV}/Include
-    ${ST_CMSIS_CORE}/Core/Include
-)
-target_compile_definitions(${TGT} PRIVATE
-    STM32H745xx
-    ${CORE_DEFINE}
-    USE_FULL_LL_DRIVER
-    USE_PWR_SMPS_1V8_SUPPLIES_LDO
-    HSE_VALUE=25000000U
-)
-if(CORE STREQUAL "M7")
-    target_compile_definitions(${TGT} PRIVATE USE_HAL_DRIVER)
-endif()
-target_compile_options(${TGT} PRIVATE
-    ${CPU_FLAGS}
-    -ffunction-sections -fdata-sections
-    -Wall -Wextra
-    -ffreestanding
-)
-target_link_options(${TGT} PRIVATE
-    ${CPU_FLAGS}
-    -T${LINKER}
-    -nostartfiles
-    -Wl,--gc-sections
-    -Wl,-Map=$<TARGET_FILE_DIR:${TGT}>/${TGT}.map
-    --specs=nosys.specs
-)
-set_target_properties(${TGT} PROPERTIES SUFFIX ".elf")
+    add_executable(${TGT} ${APP_SRC} ${CUBE_SRC})
+    target_include_directories(${TGT} PRIVATE
+        ${CUBE}
+        ${CMAKE_SOURCE_DIR}/firmware/include
+        ${BSP}
+    )
+    target_include_directories(${TGT} SYSTEM PRIVATE
+        ${ST_HAL_DIR}/Inc
+        ${ST_CMSIS_DEV}/Include
+        ${ST_CMSIS_CORE}/Core/Include
+    )
+    target_compile_definitions(${TGT} PRIVATE
+        STM32H745xx
+        ${CORE_DEFINE}
+        USE_FULL_LL_DRIVER
+        USE_PWR_SMPS_1V8_SUPPLIES_LDO
+        HSE_VALUE=25000000U
+        $<$<CONFIG:Debug>:DEBUG>
+    )
+    if(CORE_ID STREQUAL "M7")
+        target_compile_definitions(${TGT} PRIVATE USE_HAL_DRIVER)
+    endif()
+    target_compile_options(${TGT} PRIVATE
+        ${CPU_FLAGS}
+        -ffunction-sections -fdata-sections
+        -Wall -Wextra
+        -ffreestanding
+        $<$<CONFIG:Debug>:-g3 -O0>
+        $<$<CONFIG:Release>:-Os>
+        $<$<CONFIG:MinSizeRel>:-Os>
+        $<$<CONFIG:RelWithDebInfo>:-g -O2>
+    )
+    target_link_options(${TGT} PRIVATE
+        ${CPU_FLAGS}
+        -T${LINKER}
+        -nostartfiles
+        -Wl,--gc-sections
+        -Wl,-Map=$<TARGET_FILE_DIR:${TGT}>/${TGT}.map
+        --specs=nosys.specs
+    )
+    set_target_properties(${TGT} PROPERTIES SUFFIX ".elf")
+endfunction()

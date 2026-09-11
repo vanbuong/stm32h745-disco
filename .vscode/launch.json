@@ -1,0 +1,54 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "CM7_Debug",
+      "type": "stlinkgdbtarget",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "preBuild": "${command:st-stm32-ide-debug-launch.build}",
+      "runEntry": "main",
+      "deviceName": "STM32H745XIH6",
+      "deviceCore": "Cortex-M7",
+      "serverShared": true,
+      "serverHaltAllCores": true,
+      "svdPath": "${env:STM32CLT_PATH}/STMicroelectronics_CMSIS_SVD/STM32H745_CM7.svd",
+      "imagesAndSymbols": [
+        {
+          "imageFileName": "${workspaceFolder}/build/Debug/firmware-m4.elf"
+        },
+        {
+          "imageFileName": "${workspaceFolder}/build/Debug/firmware-m7.elf"
+        }
+      ],
+      "verbose": false
+    },
+    {
+      "name": "CM4_Debug",
+      "type": "stlinkgdbtarget",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runEntry": "main",
+      "deviceName": "STM32H745XIH6",
+      "deviceCore": "Cortex-M4",
+      "serverShared": true,
+      "serverApID": "3",
+      "serverPort": "61239",
+      "serverReset": "None",
+      "svdPath": "${env:STM32CLT_PATH}/STMicroelectronics_CMSIS_SVD/STM32H745_CM4.svd",
+      "imagesAndSymbols": [
+        {
+          "symbolFileName": "${workspaceFolder}/build/Debug/firmware-m4.elf"
+        }
+      ],
+      "verbose": false
+    }
+  ],
+  "compounds": [
+    {
+      "name": "DualCore_Debug",
+      "configurations": ["CM7_Debug", "CM4_Debug"],
+      "stopAll": true
+    }
+  ]
+}

@@ -80,14 +80,17 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - run: sudo apt-get update && sudo apt-get install -y cmake gcc-arm-none-eabi
+      - run: sudo apt-get update && sudo apt-get install -y cmake gcc-arm-none-eabi ninja-build
       - run: chmod +x scripts/ci/size-report.sh
+      - run: cmake --preset Debug && cmake --build --preset Debug
       - run: cmake --preset m7-debug && cmake --build --preset m7-debug
       - run: cmake --preset m4-debug && cmake --build --preset m4-debug
-      - run: ./scripts/ci/size-report.sh build-m7/firmware-m7.elf build-m4/firmware-m4.elf
+      - run: ./scripts/ci/size-report.sh build/Debug/firmware-m7.elf build/Debug/firmware-m4.elf build-m7/firmware-m7.elf build-m4/firmware-m4.elf
       - uses: actions/upload-artifact@v4
         with:
           name: firmware-elf
           path: |
+            build/Debug/firmware-m7.elf
+            build/Debug/firmware-m4.elf
             build-m7/firmware-m7.elf
             build-m4/firmware-m4.elf

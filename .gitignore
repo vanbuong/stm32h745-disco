@@ -44,6 +44,13 @@ build/
 Build/
 build-*/
 
+# Local CMake user presets (machine-specific)
+CMakeUserPresets.json
+
+# STM32CubeIDE for VS Code bundle pins (created on first setup)
+.settings/bundles.store.json
+.settings/bundles-lock.store.json
+
 # CMake generated files
 CMakeFiles/
 CMakeCache.txt

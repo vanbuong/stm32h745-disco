@@ -1,0 +1,37 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build firmware (M7 + M4)",
+      "type": "shell",
+      "command": "cmake --build --preset Debug",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "Configure Debug",
+      "type": "shell",
+      "command": "cmake --preset Debug",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Host tests",
+      "type": "shell",
+      "command": "cmake --preset host-tests && cmake --build --preset host-tests && ctest --test-dir build-host --output-on-failure",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "test",
+      "problemMatcher": ["$gcc"]
+    }
+  ]
+}

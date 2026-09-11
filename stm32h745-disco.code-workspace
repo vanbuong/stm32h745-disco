@@ -1,0 +1,18 @@
+{
+  "folders": [
+    {
+      "name": "stm32h745-disco",
+      "path": "."
+    }
+  ],
+  "settings": {
+    "cmake.useCMakePresets": "always",
+    "cmake.configurePreset": "Debug",
+    "cmake.buildPreset": "Debug"
+  },
+  "extensions": {
+    "recommendations": [
+      "STMicroelectronics.stm32-vscode-extension"
+    ]
+  }
+}

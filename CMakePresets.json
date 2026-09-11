@@ -3,7 +3,60 @@
   "cmakeMinimumRequired": { "major": 3, "minor": 22, "patch": 0 },
   "configurePresets": [
     {
+      "name": "firmware-base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "toolchainFile": "${sourceDir}/cmake/gcc-arm-none-eabi.cmake",
+      "cacheVariables": {
+        "CORE": "BOTH",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "Debug",
+      "displayName": "Debug (M7 + M4)",
+      "description": "STM32CubeIDE for VS Code / CMake Tools default firmware build",
+      "inherits": "firmware-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "Release",
+      "displayName": "Release (M7 + M4)",
+      "inherits": "firmware-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "m7-debug",
+      "displayName": "M7 only (Make)",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build-m7",
+      "toolchainFile": "${sourceDir}/cmake/gcc-arm-none-eabi.cmake",
+      "cacheVariables": {
+        "CORE": "M7",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "m4-debug",
+      "displayName": "M4 only (Make)",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build-m4",
+      "toolchainFile": "${sourceDir}/cmake/gcc-arm-none-eabi.cmake",
+      "cacheVariables": {
+        "CORE": "M4",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
       "name": "host-tests",
+      "displayName": "Host unit tests",
       "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/build-host",
       "environment": { "CC": "gcc" },
@@ -12,27 +65,11 @@
         "COVERAGE": "ON",
         "CMAKE_C_COMPILER": "gcc"
       }
-    },
-    {
-      "name": "m7-debug",
-      "generator": "Unix Makefiles",
-      "binaryDir": "${sourceDir}/build-m7",
-      "toolchainFile": "${sourceDir}/cmake/ArmGnu.cmake",
-      "cacheVariables": {
-        "CORE": "M7"
-      }
-    },
-    {
-      "name": "m4-debug",
-      "generator": "Unix Makefiles",
-      "binaryDir": "${sourceDir}/build-m4",
-      "toolchainFile": "${sourceDir}/cmake/ArmGnu.cmake",
-      "cacheVariables": {
-        "CORE": "M4"
-      }
     }
   ],
   "buildPresets": [
+    { "name": "Debug", "configurePreset": "Debug" },
+    { "name": "Release", "configurePreset": "Release" },
     { "name": "host-tests", "configurePreset": "host-tests" },
     { "name": "m7-debug", "configurePreset": "m7-debug" },
     { "name": "m4-debug", "configurePreset": "m4-debug" }

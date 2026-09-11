@@ -48,11 +48,29 @@ Cross-compile M7 / M4 (needs `gcc-arm-none-eabi` and the ST submodules):
 
 ```
 git submodule update --init --recursive
+cmake --preset Debug && cmake --build --preset Debug
+```
+
+That is the STM32 VS Code / Ninja path and produces `build/Debug/firmware-m7.elf` and `firmware-m4.elf`. CLI without Ninja:
+
+```
 cmake --preset m7-debug && cmake --build --preset m7-debug
 cmake --preset m4-debug && cmake --build --preset m4-debug
 ```
 
 ST HAL/LL v1.11.6, CMSIS device H7 v1.10.7, and CMSIS Core v5.9.0 live in `third_party/` (git submodules). Glue lives in `firmware/src/port/cube`.
+
+## STM32 VS Code extension
+
+Install the [STM32CubeIDE for Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=STMicroelectronics.stm32-vscode-extension) pack (brings CMake Tools, Ninja, `arm-none-eabi-gcc` via CubeCLT). Then:
+
+1. `git submodule update --init --recursive`
+2. **File → Open Folder** on this repo (or open `stm32h745-disco.code-workspace`)
+3. Accept **Configure discovered CMake project(s) as STM32Cube project(s)?** if asked
+4. Select the **Debug (M7 + M4)** CMake preset
+5. Build, then debug with **CM7_Debug** (flashes both ELFs) and optionally **DualCore_Debug**
+
+Device is `STM32H745XIH6` on **STM32H745I-DISCO** (`.settings/ide.store.json`). Apps still never include HAL; only `firmware/src/port/cube` and `firmware/src/bsp` do.
 
 CI: format, layering, cppcheck, clang-tidy, coverage, and both ELF images — see `doc/CICD.md`.
 
