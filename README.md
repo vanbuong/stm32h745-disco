@@ -2,7 +2,7 @@
 
 HMI firmware for the **STM32H745I-DISCO**: dual-core shell with file explorer, image and text viewers, audio, game, and **Zigbee home automation** (TI ZNP host) on the 4.3" 480×272 panel.
 
-The first implementation is **FreeRTOS + LVGL + STM32Cube HAL/LL**. Board bring-up uses ST's [`stm32h7xx-hal-driver`](https://github.com/STMicroelectronics/stm32h7xx-hal-driver) (HAL for RCC/PWR/MPU/SDRAM/QSPI, LL for USART/GPIO). Apps still never include those headers.
+The first implementation is **FreeRTOS + LVGL + STM32Cube HAL/LL**. Board bring-up uses ST's [`stm32h7xx-hal-driver`](https://github.com/STMicroelectronics/stm32h7xx-hal-driver) as a git submodule (HAL for RCC/PWR/MPU/SDRAM/QSPI, LL for USART/GPIO). Apps still never include those headers.
 
 ## Documentation
 
@@ -44,14 +44,15 @@ cmake --build --preset host-tests
 ctest --test-dir build-host --output-on-failure
 ```
 
-Cross-compile M7 / M4 (needs `gcc-arm-none-eabi`):
+Cross-compile M7 / M4 (needs `gcc-arm-none-eabi` and the ST submodules):
 
 ```
+git submodule update --init --recursive
 cmake --preset m7-debug && cmake --build --preset m7-debug
 cmake --preset m4-debug && cmake --build --preset m4-debug
 ```
 
-The first cross configure fetches ST HAL v1.11.6, CMSIS device H7 v1.10.7, and CMSIS Core v5.9.0 into `third_party/` (gitignored). Glue lives in `firmware/src/port/cube`.
+ST HAL/LL v1.11.6, CMSIS device H7 v1.10.7, and CMSIS Core v5.9.0 live in `third_party/` (git submodules). Glue lives in `firmware/src/port/cube`.
 
 CI: format, layering, cppcheck, clang-tidy, coverage, and both ELF images — see `doc/CICD.md`.
 

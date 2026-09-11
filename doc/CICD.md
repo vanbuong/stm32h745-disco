@@ -187,7 +187,7 @@ Two CMake presets:
 - `m7-debug` → `firmware-m7.elf`
 - `m4-debug` → `firmware-m4.elf`
 
-CI only needs **link success** and a size report (`arm-none-eabi-size`). Flash/run is HIL.
+CI only needs **link success** and a size report (`arm-none-eabi-size`). Flash/run is HIL. The cross job checks out git submodules (`stm32h7xx-hal-driver` HAL+LL, `cmsis-device-h7`, `cmsis_core`).
 
 `scripts/ci/size-report.sh` prints text + `.bss/.data/.text` vs budgets:
 

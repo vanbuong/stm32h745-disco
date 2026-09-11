@@ -64,11 +64,6 @@ vcpkg_installed/
 # debug information files
 *.dwo
 
-# ST Cube HAL/LL + CMSIS (fetched by CMake)
-third_party/stm32h7xx-hal-driver/
-third_party/cmsis-device-h7/
-third_party/cmsis_core/
-
 # test output & cache
 Testing/
 .cache/

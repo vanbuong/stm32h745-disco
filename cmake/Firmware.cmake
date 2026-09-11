@@ -31,7 +31,7 @@ else()
     )
 endif()
 
-add_executable(${TGT} ${APP_SRC} ${HAL_SRC})
+add_executable(${TGT} ${APP_SRC} ${CUBE_SRC})
 target_include_directories(${TGT} PRIVATE
     ${CUBE}
     ${CMAKE_SOURCE_DIR}/firmware/include
@@ -45,11 +45,13 @@ target_include_directories(${TGT} SYSTEM PRIVATE
 target_compile_definitions(${TGT} PRIVATE
     STM32H745xx
     ${CORE_DEFINE}
-    USE_HAL_DRIVER
     USE_FULL_LL_DRIVER
     USE_PWR_SMPS_1V8_SUPPLIES_LDO
     HSE_VALUE=25000000U
 )
+if(CORE STREQUAL "M7")
+    target_compile_definitions(${TGT} PRIVATE USE_HAL_DRIVER)
+endif()
 target_compile_options(${TGT} PRIVATE
     ${CPU_FLAGS}
     -ffunction-sections -fdata-sections

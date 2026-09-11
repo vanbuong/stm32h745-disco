@@ -5,14 +5,8 @@
 
 static void led_init(void)
 {
-    GPIO_InitTypeDef g = {0};
-
-    __HAL_RCC_GPIOI_CLK_ENABLE();
-    g.Pin = GPIO_PIN_13;
-    g.Mode = GPIO_MODE_OUTPUT_PP;
-    g.Pull = GPIO_NOPULL;
-    g.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(GPIOI, &g);
+    LL_AHB4_GRP1_EnableClock(LL_AHB4_GRP1_PERIPH_GPIOI);
+    LL_GPIO_SetPinMode(GPIOI, LL_GPIO_PIN_13, LL_GPIO_MODE_OUTPUT);
 }
 
 static void log_kv(const char *k, uint32_t v)
@@ -89,9 +83,9 @@ int main(void)
     log_kv("mpu_mmfar", board_mpu_last_mmfar());
 
     for (;;) {
-        HAL_GPIO_WritePin(GPIOI, GPIO_PIN_13, GPIO_PIN_SET);
+        LL_GPIO_SetOutputPin(GPIOI, LL_GPIO_PIN_13);
         HAL_Delay(250);
-        HAL_GPIO_WritePin(GPIOI, GPIO_PIN_13, GPIO_PIN_RESET);
+        LL_GPIO_ResetOutputPin(GPIOI, LL_GPIO_PIN_13);
         HAL_Delay(250);
     }
 }

@@ -78,6 +78,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - run: sudo apt-get update && sudo apt-get install -y cmake gcc-arm-none-eabi
       - run: chmod +x scripts/ci/size-report.sh
       - run: cmake --preset m7-debug && cmake --build --preset m7-debug

@@ -120,10 +120,14 @@ firmware/
     ipc/
     osal/freertos/           later: osal/zephyr/
     bsp/stm32h745i_disco/
-    port/cube/               later: port/zephyr/
+    port/cube/               STM32Cube HAL/LL glue (later: port/zephyr/)
   tests/
     host/          PC unit tests, no HAL
     hil/           on-target scripts and fixtures
+third_party/
+  stm32h7xx-hal-driver/      ST HAL + LL (submodule)
+  cmsis-device-h7/
+  cmsis_core/
 ```
 
 Two firmware images: `m7` and `m4`. They share only `include/ipc`.
@@ -449,6 +453,7 @@ Network ownership: pick **one** core at build time (default M4 if audio+net isol
 ## 11. Build, log, test, CI
 
 - CMake presets: `m7-debug`, `m4-debug`, `host-tests`.
+- STM32Cube: `third_party/stm32h7xx-hal-driver` (HAL + LL), only included from `src/port/cube` and `src/bsp`.
 - Logs: UART3 115200 8N1, tagged `core,lvl,mod,msg`. No `printf` to ITM as the only log.
 - Host tests compile `svc` + `ipc` protocol + `game_sim` + `znp_mt` + `auto` with a POSIX OSAL stub.
 - HIL tests run on the Discovery board via VCP.
