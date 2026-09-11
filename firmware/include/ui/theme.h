@@ -19,6 +19,7 @@ extern "C" {
 #define THEME_HAIRLINE 0x3A4154u
 
 #define THEME_HIT_MIN_PX 40
+#define THEME_ROW_H 44
 #define THEME_STATUS_H 32
 #define THEME_APPBAR_H 40
 #define THEME_RADIUS_PX 8

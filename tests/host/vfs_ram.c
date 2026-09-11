@@ -127,6 +127,9 @@ err_t vfs_mount(void)
     strncpy(g_nodes[0].name, "/", VFS_NAME_MAX - 1u);
     (void)add_node(0, "hello.txt", 0u, "hello\n");
     (void)add_node(0, "readme.md", 0u, "# hi\n");
+    (void)add_node(0, "data.bin", 0u, "BIN\n");
+    (void)add_node(0, "photo.png", 0u, "PNG");
+    (void)add_node(0, "song.wav", 0u, "RIFF");
     {
         int sub = add_node(0, "sub", 1u, NULL);
         if (sub >= 0) {
@@ -395,4 +398,9 @@ err_t vfs_mkdir(const char *path)
         return ERR_NOSPC;
     }
     return ERR_OK;
+}
+
+void vfs_ram_set_mounted(int on)
+{
+    g_mounted = (on != 0) ? 1u : 0u;
 }

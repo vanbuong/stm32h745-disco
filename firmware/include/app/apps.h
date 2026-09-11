@@ -18,8 +18,6 @@ extern "C" {
 #define APP_ID_SETTINGS "settings"
 #define APP_ID_NETWORK "network"
 
-#define APP_FILES_STUB_ROWS 40u
-
 typedef struct {
     const char *id;
     const char *title;
@@ -35,8 +33,7 @@ const ui_app_t *apps_find(const char *id);
 const ui_app_t *apps_at(unsigned index);
 unsigned apps_count(void);
 
-unsigned app_files_stub_count(void);
-const char *app_files_stub_row(unsigned i);
+const char *app_view_path(void);
 
 #ifdef __cplusplus
 }

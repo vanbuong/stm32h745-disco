@@ -110,6 +110,13 @@ const char *shell_top_title(void)
     return (g_top_app != NULL) ? g_top_app->title : NULL;
 }
 
+void *shell_top_args(void)
+{
+    const nav_frame_t *f = nav_top(&g_nav);
+
+    return (f != NULL) ? f->args : NULL;
+}
+
 int shell_depth(void)
 {
     return (int)g_nav.depth;

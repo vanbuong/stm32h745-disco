@@ -1,6 +1,8 @@
 #include "test.h"
 
 #include "app/apps.h"
+#include "app/files.h"
+#include "svc/vfs.h"
 #include "ui/launcher.h"
 #include "ui/nav.h"
 #include "ui/shell.h"
@@ -89,18 +91,23 @@ static void test_shell_nav(void)
     CHECK(shell_top_id() == NULL);
     CHECK(shell_pop() == ERR_OK);
     CHECK(shell_push("nope", NULL) == ERR_NOENT);
-    CHECK(apps_count() == LAUNCHER_COUNT);
+    CHECK(apps_count() >= LAUNCHER_COUNT);
     CHECK(apps_find(APP_ID_FILES) != NULL);
+    CHECK(apps_find(APP_ID_TEXT) != NULL);
+    CHECK(apps_find(APP_ID_IMAGE) != NULL);
     CHECK(apps_find(NULL) == NULL);
     CHECK(apps_at(99u) == NULL);
 
+    CHECK(vfs_mount() == ERR_OK);
     CHECK(shell_push(APP_ID_FILES, NULL) == ERR_OK);
     CHECK(shell_depth() == 1);
     CHECK(strcmp(shell_top_id(), APP_ID_FILES) == 0);
     CHECK(strcmp(shell_top_title(), "Files") == 0);
-    CHECK(app_files_stub_count() == APP_FILES_STUB_ROWS);
-    CHECK(app_files_stub_row(0) != NULL);
-    CHECK(app_files_stub_row(99u) == NULL);
+    CHECK(files_state() == FILES_ST_OK);
+    CHECK(files_count() >= 3u);
+    CHECK(strcmp(files_cwd(), "/user") == 0);
+    CHECK(files_row(0) != NULL);
+    CHECK(files_row(99u) == NULL);
 
     CHECK(shell_push(APP_ID_GAME, NULL) == ERR_OK);
     CHECK(strcmp(shell_top_id(), APP_ID_GAME) == 0);

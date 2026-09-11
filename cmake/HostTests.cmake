@@ -11,6 +11,7 @@ set(HOST_SRC
     ${CMAKE_SOURCE_DIR}/firmware/src/shell/shell.c
     ${CMAKE_SOURCE_DIR}/firmware/src/shell/launcher_geom.c
     ${CMAKE_SOURCE_DIR}/firmware/src/app/apps.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/app/files.c
     ${CMAKE_SOURCE_DIR}/firmware/src/osal/posix/osal.c
     ${CMAKE_SOURCE_DIR}/tests/host/test_main.c
     ${CMAKE_SOURCE_DIR}/tests/host/test_ipc.c
@@ -20,6 +21,7 @@ set(HOST_SRC
     ${CMAKE_SOURCE_DIR}/tests/host/test_mem.c
     ${CMAKE_SOURCE_DIR}/tests/host/test_disp.c
     ${CMAKE_SOURCE_DIR}/tests/host/test_shell.c
+    ${CMAKE_SOURCE_DIR}/tests/host/test_files.c
     ${CMAKE_SOURCE_DIR}/tests/host/vfs_ram.c
 )
 

@@ -74,7 +74,8 @@ jobs:
             firmware/src/svc/memtest.c \
             firmware/src/bsp/mpu_map.c \
             firmware/src/shell/nav.c \
-            firmware/src/shell/launcher_geom.c
+            firmware/src/shell/launcher_geom.c \
+            firmware/src/app/files.c
 
   cross:
     runs-on: ubuntu-24.04

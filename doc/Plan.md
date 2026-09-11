@@ -149,9 +149,12 @@ Status: **done** (host-tested nav stack, launcher geometry, stub registry; board
 
 ### Sprint 5 — File explorer
 
-- List/grid of `/user`, breadcrumbs, empty and error states.
-- Open-with registry: `.txt/.md/.c/.h` → text, `.jpg/.jpeg/.png/.bmp` → image, `.mp3/.wav` → player.
-- **Exit:** browse nested folders, open a file into a stub viewer, Back returns with list position restored.
+Status: **done** (host-tested listing, open-with, Back restores scroll; viewers remain stubs until Sprint 6).
+
+- List of `/user` with breadcrumb cwd, empty / unmounted / IO / unknown-type prompt.
+- Open-with: `.txt/.md/.c/.h/.log` → text, `.jpg/.jpeg/.png/.bmp` → image, `.mp3/.wav` → player.
+- No `..` row; Back leaves the folder. Unknown files: Properties + “Open as text?”.
+- **Exit:** browse nested folders, open a file into a stub viewer, Back restores list position.
 
 ### Sprint 6 — Text and image viewers
 

@@ -27,6 +27,7 @@ const char *shell_top_id(void);
 const char *shell_top_title(void);
 int shell_depth(void);
 uint32_t shell_nav_gen(void);
+void *shell_top_args(void);
 const shell_status_t *shell_status(void);
 void shell_status_set_storage(uint8_t ok);
 

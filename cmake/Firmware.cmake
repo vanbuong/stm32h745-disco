@@ -68,10 +68,12 @@ function(stm32_add_firmware CORE_ID)
             ${CMAKE_SOURCE_DIR}/firmware/src/svc/memtest.c
             ${CMAKE_SOURCE_DIR}/firmware/src/svc/vfs.c
             ${CMAKE_SOURCE_DIR}/firmware/src/svc/vfs_path.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/svc/media_probe.c
             ${CMAKE_SOURCE_DIR}/firmware/src/shell/nav.c
             ${CMAKE_SOURCE_DIR}/firmware/src/shell/shell.c
             ${CMAKE_SOURCE_DIR}/firmware/src/shell/launcher_geom.c
             ${CMAKE_SOURCE_DIR}/firmware/src/app/apps.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/app/files.c
             ${CMAKE_SOURCE_DIR}/firmware/src/ui/backend_lvgl/lv_port.c
             ${CMAKE_SOURCE_DIR}/firmware/src/ui/backend_lvgl/ui_lvgl.c
             ${FT5336_SRC}

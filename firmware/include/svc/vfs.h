@@ -44,6 +44,11 @@ int vfs_in_user_jail(const char *norm);
 /* "/user" -> "/", "/user/a/b" -> "/a/b". in must already be normalized. */
 err_t vfs_jail_rel(const char *norm, char *rel, size_t rel_sz);
 
+/* Join jail path + single name (no slashes). Result is normalized. */
+err_t vfs_path_join(const char *dir, const char *name, char *out, size_t out_sz);
+/* Parent of a normalized jail path. ERR_NOENT at "/user". */
+err_t vfs_path_parent(const char *path, char *out, size_t out_sz);
+
 err_t vfs_mount(void);
 int vfs_mounted(void);
 

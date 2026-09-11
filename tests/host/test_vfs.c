@@ -96,7 +96,7 @@ static void test_ram_ops(void)
         }
         CHECK(seen <= 8u);
     }
-    CHECK(seen == 3u);
+    CHECK(seen == 6u);
     CHECK(got_hello == 1);
     CHECK(got_md == 1);
     CHECK(got_sub == 1);
