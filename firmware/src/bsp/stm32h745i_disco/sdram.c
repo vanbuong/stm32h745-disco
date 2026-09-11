@@ -1,115 +1,97 @@
 #include "bsp/board.h"
 
-#include "stm32h745_regs.h"
+#include "cube.h"
 
-/*
- * GPIO MODER/AFR and FMC SDCR/SDTR values are the STM32H745I-DISCO numbers from
- * ST CubeH7 SystemInit_ExtMemCtl (STMicroelectronics, BSD-3). QSPI pins on the
- * same ports are programmed after this init.
- */
+static SDRAM_HandleTypeDef g_sdram;
 
-static void delay_loops(uint32_t n)
+static err_t sdram_cmd(uint32_t mode, uint32_t refresh, uint32_t mrd)
 {
-    volatile uint32_t i = n;
-    while (i > 0u) {
-        i--;
-    }
+    FMC_SDRAM_CommandTypeDef c = {0};
+
+    c.CommandMode = mode;
+    c.CommandTarget = FMC_SDRAM_CMD_TARGET_BANK2;
+    c.AutoRefreshNumber = refresh;
+    c.ModeRegisterDefinition = mrd;
+    return cube_err(HAL_SDRAM_SendCommand(&g_sdram, &c, 0xFFFFu));
 }
 
-static err_t fmc_wait(void)
+void HAL_SDRAM_MspInit(SDRAM_HandleTypeDef *hsdram)
 {
-    uint32_t t = 0xFFFFu;
-    while ((FMC_SDSR & FMC_SDSR_BUSY) != 0u) {
-        if (t == 0u) {
-            return ERR_TIMEOUT;
-        }
-        t--;
-    }
-    return ERR_OK;
+    GPIO_InitTypeDef g = {0};
+
+    (void)hsdram;
+    __HAL_RCC_FMC_CLK_ENABLE();
+    __HAL_RCC_GPIOD_CLK_ENABLE();
+    __HAL_RCC_GPIOE_CLK_ENABLE();
+    __HAL_RCC_GPIOF_CLK_ENABLE();
+    __HAL_RCC_GPIOG_CLK_ENABLE();
+    __HAL_RCC_GPIOH_CLK_ENABLE();
+
+    g.Mode = GPIO_MODE_AF_PP;
+    g.Pull = GPIO_PULLUP;
+    g.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+    g.Alternate = GPIO_AF12_FMC;
+
+    g.Pin =
+        GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_8 | GPIO_PIN_9 | GPIO_PIN_10 | GPIO_PIN_14 | GPIO_PIN_15;
+    HAL_GPIO_Init(GPIOD, &g);
+
+    g.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9 | GPIO_PIN_10 |
+            GPIO_PIN_11 | GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15;
+    HAL_GPIO_Init(GPIOE, &g);
+
+    g.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5 |
+            GPIO_PIN_11 | GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15;
+    HAL_GPIO_Init(GPIOF, &g);
+
+    g.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_8 | GPIO_PIN_15;
+    HAL_GPIO_Init(GPIOG, &g);
+
+    g.Pin = GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7;
+    HAL_GPIO_Init(GPIOH, &g);
 }
 
 err_t board_sdram_init(void)
 {
-    err_t e;
-    volatile uint32_t dummy;
+    FMC_SDRAM_TimingTypeDef t = {0};
 
-    RCC_AHB4ENR |= 0x000001F8u; /* GPIOD–I */
-    dummy = RCC_AHB4ENR;
-    (void)dummy;
+    g_sdram.Instance = FMC_SDRAM_DEVICE;
+    g_sdram.Init.SDBank = FMC_SDRAM_BANK2;
+    g_sdram.Init.ColumnBitsNumber = FMC_SDRAM_COLUMN_BITS_NUM_8;
+    g_sdram.Init.RowBitsNumber = FMC_SDRAM_ROW_BITS_NUM_12;
+    g_sdram.Init.MemoryDataWidth = FMC_SDRAM_MEM_BUS_WIDTH_16;
+    g_sdram.Init.InternalBankNumber = FMC_SDRAM_INTERN_BANKS_NUM_4;
+    g_sdram.Init.CASLatency = FMC_SDRAM_CAS_LATENCY_2;
+    g_sdram.Init.WriteProtection = FMC_SDRAM_WRITE_PROTECTION_DISABLE;
+    g_sdram.Init.SDClockPeriod = FMC_SDRAM_CLOCK_PERIOD_2;
+    g_sdram.Init.ReadBurst = FMC_SDRAM_RBURST_ENABLE;
+    g_sdram.Init.ReadPipeDelay = FMC_SDRAM_RPIPE_DELAY_0;
 
-    GPIO_AFR(GPIOD_BASE, 0) = 0x000000CCu;
-    GPIO_AFR(GPIOD_BASE, 1) = 0xCC000CCCu;
-    GPIO_MODER(GPIOD_BASE) = 0xAFEAFFFAu;
-    GPIO_OSPEEDR(GPIOD_BASE) = 0xF03F000Fu;
-    GPIO_OTYPER(GPIOD_BASE) = 0;
-    GPIO_PUPDR(GPIOD_BASE) = 0x50150005u;
+    t.LoadToActiveDelay = 2;
+    t.ExitSelfRefreshDelay = 6;
+    t.SelfRefreshTime = 4;
+    t.RowCycleDelay = 6;
+    t.WriteRecoveryTime = 2;
+    t.RPDelay = 2;
+    t.RCDDelay = 2;
 
-    GPIO_AFR(GPIOE_BASE, 0) = 0xC00000CCu;
-    GPIO_AFR(GPIOE_BASE, 1) = 0xCCCCCCCCu;
-    GPIO_MODER(GPIOE_BASE) = 0xAAAABFFAu;
-    GPIO_OSPEEDR(GPIOE_BASE) = 0xFFFFC00Fu;
-    GPIO_OTYPER(GPIOE_BASE) = 0;
-    GPIO_PUPDR(GPIOE_BASE) = 0x55554005u;
-
-    GPIO_AFR(GPIOF_BASE, 0) = 0x00CCCCCCu;
-    GPIO_AFR(GPIOF_BASE, 1) = 0xCCCCC000u;
-    GPIO_MODER(GPIOF_BASE) = 0xAABFFFAAu;
-    GPIO_OSPEEDR(GPIOF_BASE) = 0xFFC00FFFu;
-    GPIO_OTYPER(GPIOF_BASE) = 0;
-    GPIO_PUPDR(GPIOF_BASE) = 0x55400555u;
-
-    GPIO_AFR(GPIOG_BASE, 0) = 0x00CC00CCu;
-    GPIO_AFR(GPIOG_BASE, 1) = 0xC000000Cu;
-    GPIO_MODER(GPIOG_BASE) = 0xBFFEFAFAu;
-    GPIO_OSPEEDR(GPIOG_BASE) = 0xC0030F0Fu;
-    GPIO_OTYPER(GPIOG_BASE) = 0;
-    GPIO_PUPDR(GPIOG_BASE) = 0x40010505u;
-
-    GPIO_AFR(GPIOH_BASE, 0) = 0xCCC00000u;
-    GPIO_AFR(GPIOH_BASE, 1) = 0xCCCCCCCCu;
-    GPIO_MODER(GPIOH_BASE) = 0xAAAAABFFu;
-    GPIO_OSPEEDR(GPIOH_BASE) = 0xFFFFFC00u;
-    GPIO_OTYPER(GPIOH_BASE) = 0;
-    GPIO_PUPDR(GPIOH_BASE) = 0x55555400u;
-
-    RCC_AHB3ENR |= RCC_AHB3ENR_FMCEN;
-    (void)RCC_AHB3ENR;
-    FMC_BTCR0 = 0x000030D2u;
-
-    /* Bank2, 16-bit, 8 col, 12 row, CAS2, SDCLK = HCLK/2, burst, RPIPE=0. */
-    FMC_SDCR1 = 0x00001800u;
-    FMC_SDCR2 = 0x00000154u;
-    FMC_SDTR1 = 0x00105000u;
-    FMC_SDTR2 = 0x01010351u;
-
-    FMC_SDCMR = 0x00000009u; /* clock enable, CTB2 */
-    e = fmc_wait();
-    if (e != ERR_OK) {
-        return e;
-    }
-    delay_loops(200000u);
-
-    FMC_SDCMR = 0x0000000Au; /* PALL */
-    e = fmc_wait();
-    if (e != ERR_OK) {
-        return e;
+    if (HAL_SDRAM_Init(&g_sdram, &t) != HAL_OK) {
+        return ERR_IO;
     }
 
-    FMC_SDCMR = 0x000000EBu; /* 8 auto-refresh */
-    e = fmc_wait();
-    if (e != ERR_OK) {
-        return e;
+    if (sdram_cmd(FMC_SDRAM_CMD_CLK_ENABLE, 1, 0) != ERR_OK) {
+        return ERR_IO;
     }
-
-    FMC_SDCMR = 0x0004400Cu; /* load mode, CAS2 */
-    e = fmc_wait();
-    if (e != ERR_OK) {
-        return e;
+    HAL_Delay(1);
+    if (sdram_cmd(FMC_SDRAM_CMD_PALL, 1, 0) != ERR_OK) {
+        return ERR_IO;
     }
-
-    /* 64 ms / 4096 rows at 120 MHz SDCLK → COUNT = 1875. */
-    FMC_SDRTR = (FMC_SDRTR & ~0x3FFEu) | (1875u << 1);
-    FMC_SDCR2 &= ~0x00000200u; /* write protect off */
-    FMC_BTCR0 |= FMC_BCR1_FMCEN;
-    return ERR_OK;
+    if (sdram_cmd(FMC_SDRAM_CMD_AUTOREFRESH_MODE, 8, 0) != ERR_OK) {
+        return ERR_IO;
+    }
+    /* Burst length 1, sequential, CAS2, single write burst. */
+    if (sdram_cmd(FMC_SDRAM_CMD_LOAD_MODE, 1, 0x220u) != ERR_OK) {
+        return ERR_IO;
+    }
+    return cube_err(HAL_SDRAM_ProgramRefreshRate(&g_sdram, 1875u));
 }

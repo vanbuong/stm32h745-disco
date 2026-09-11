@@ -1,6 +1,6 @@
-#include "stm32h745_regs.h"
-
 #include <stdint.h>
+
+#include "system_stm32h7xx.h"
 
 extern uint32_t _sidata;
 extern uint32_t _sdata;
@@ -34,7 +34,8 @@ void Reset_Handler(void)
     while (dst < &_ebss) {
         *dst++ = 0;
     }
-    SCB_CPACR |= (0xFu << 20);
+    ExitRun0Mode();
+    SystemInit();
     (void)main();
     for (;;) {
     }

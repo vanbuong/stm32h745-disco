@@ -1,62 +1,61 @@
 #include "bsp/board.h"
 #include "bsp/mpu_map.h"
 
-#include "stm32h745_regs.h"
+#include "cube.h"
 
 static volatile uint32_t g_mpu_faults;
 static volatile uint32_t g_mpu_last_mmfar;
 
 #define MPU_SELFTEST_BASE 0x2407FFE0u
 
-static uint32_t rasr_attr(uint8_t attr, uint8_t exec, uint8_t size_enc, uint8_t ap)
+static void mpu_fill(MPU_Region_InitTypeDef *r, uint8_t number, uint32_t base, uint8_t size_enc,
+                     uint8_t attr, uint8_t exec, uint8_t ap)
 {
-    uint32_t r = MPU_RASR_ENABLE | ((uint32_t)size_enc << 1) | ((uint32_t)ap << 24) | MPU_RASR_S;
+    r->Enable = MPU_REGION_ENABLE;
+    r->Number = number;
+    r->BaseAddress = base;
+    r->Size = size_enc;
+    r->SubRegionDisable = 0;
+    r->AccessPermission = ap;
+    r->DisableExec = (exec != 0u) ? MPU_INSTRUCTION_ACCESS_ENABLE : MPU_INSTRUCTION_ACCESS_DISABLE;
+    r->IsShareable = MPU_ACCESS_SHAREABLE;
+    r->TypeExtField = MPU_TEX_LEVEL0;
+    r->IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
+    r->IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
 
-    if (exec == 0u) {
-        r |= MPU_RASR_XN;
-    }
     switch (attr) {
     case MPU_ATTR_DEVICE:
-        r |= (1u << 16); /* B, TEX=000 C=0 */
+        r->IsBufferable = MPU_ACCESS_BUFFERABLE;
         break;
     case MPU_ATTR_NORMAL_NC:
-        r |= (1u << 19); /* TEX=001 */
+        r->TypeExtField = MPU_TEX_LEVEL1;
         break;
     case MPU_ATTR_WT:
-        r |= (1u << 17); /* C */
+        r->IsCacheable = MPU_ACCESS_CACHEABLE;
         break;
     case MPU_ATTR_WB:
-        r |= (1u << 19) | (1u << 17) | (1u << 16); /* TEX=001 C B */
+        r->TypeExtField = MPU_TEX_LEVEL1;
+        r->IsCacheable = MPU_ACCESS_CACHEABLE;
+        r->IsBufferable = MPU_ACCESS_BUFFERABLE;
         break;
     default:
         break;
     }
-    return r;
-}
-
-static void mpu_program(uint8_t region, uint32_t base, uint32_t rasr)
-{
-    MPU_RNR = region;
-    MPU_RBAR = base;
-    MPU_RASR = rasr;
 }
 
 void board_mpu_init(void)
 {
+    MPU_Region_InitTypeDef r = {0};
     unsigned i;
 
-    MPU_CTRL = 0;
-    for (i = 0; i < 16u; i++) {
-        mpu_program((uint8_t)i, 0, 0);
-    }
+    HAL_MPU_Disable();
     for (i = 0; i < g_mpu_map_n; i++) {
-        const mpu_region_desc_t *r = &g_mpu_map[i];
-        mpu_program((uint8_t)i, r->base, rasr_attr(r->attr, r->exec, r->size_enc, 3u));
+        const mpu_region_desc_t *d = &g_mpu_map[i];
+        mpu_fill(&r, (uint8_t)i, d->base, d->size_enc, d->attr, d->exec, MPU_REGION_FULL_ACCESS);
+        HAL_MPU_ConfigRegion(&r);
     }
-    SCB_SHCSR |= SCB_SHCSR_MEMFAULTENA;
-    MPU_CTRL = MPU_CTRL_ENABLE | MPU_CTRL_PRIVDEFENA;
-    dsb();
-    isb();
+    SCB->SHCSR |= SCB_SHCSR_MEMFAULTENA_Msk;
+    HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
 }
 
 uint32_t board_mpu_faults(void)
@@ -75,8 +74,8 @@ __attribute__((used)) static void memmanage_from_frame(uint32_t *frame)
     uint16_t hw = *(const uint16_t *)(pc & ~1u);
 
     g_mpu_faults++;
-    g_mpu_last_mmfar = SCB_MMFAR;
-    SCB_CFSR = SCB_CFSR;
+    g_mpu_last_mmfar = SCB->MMFAR;
+    SCB->CFSR = SCB->CFSR;
 
     if ((hw & 0xF800u) >= 0xE800u) {
         frame[6] = pc + 4u;
@@ -100,20 +99,18 @@ void MemManage_Handler(void)
 
 err_t board_mpu_selftest(void)
 {
+    MPU_Region_InitTypeDef r = {0};
     uint32_t before = g_mpu_faults;
     volatile uint32_t *p = (volatile uint32_t *)MPU_SELFTEST_BASE;
 
-    /* Region 7: 32-byte no-access hole at the end of AXI SRAM (unused; .data is DTCM). */
-    mpu_program(7u, MPU_SELFTEST_BASE, rasr_attr(MPU_ATTR_NORMAL_NC, 0, MPU_ENC_32B, 0u));
-    dsb();
-    isb();
+    mpu_fill(&r, MPU_REGION_NUMBER7, MPU_SELFTEST_BASE, MPU_ENC_32B, MPU_ATTR_NORMAL_NC, 0,
+             MPU_REGION_NO_ACCESS);
+    HAL_MPU_ConfigRegion(&r);
 
     *p = 0xA5A5A5A5u;
-    dsb();
+    __DSB();
 
-    mpu_program(7u, 0, 0);
-    dsb();
-    isb();
+    HAL_MPU_DisableRegion(MPU_REGION_NUMBER7);
 
     if (g_mpu_faults == before) {
         return ERR_IO;

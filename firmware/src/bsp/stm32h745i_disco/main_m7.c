@@ -1,21 +1,18 @@
 #include "bsp/board.h"
 #include "svc/memtest.h"
 
-#include "stm32h745_regs.h"
-
-static void delay(void)
-{
-    volatile uint32_t n = board_sysclk_hz() / 8u;
-    while (n > 0u) {
-        n--;
-    }
-}
+#include "cube.h"
 
 static void led_init(void)
 {
-    RCC_AHB4ENR |= RCC_AHB4ENR_GPIOIEN;
-    GPIO_MODER(GPIOI_BASE) &= ~(3u << 26);
-    GPIO_MODER(GPIOI_BASE) |= (1u << 26);
+    GPIO_InitTypeDef g = {0};
+
+    __HAL_RCC_GPIOI_CLK_ENABLE();
+    g.Pin = GPIO_PIN_13;
+    g.Mode = GPIO_MODE_OUTPUT_PP;
+    g.Pull = GPIO_NOPULL;
+    g.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOI, &g);
 }
 
 static void log_kv(const char *k, uint32_t v)
@@ -45,12 +42,13 @@ int main(void)
     uint32_t fail_off = 0;
     err_t e;
 
+    HAL_Init();
     led_init();
-    board_console_init(BOARD_HSI_HZ);
-    board_console_puts("M7 stm32h745-disco s1\r\n");
+    board_console_init(0);
+    board_console_puts("M7 stm32h745-disco s1 cube\r\n");
 
     e = board_clock_init();
-    board_console_init(board_pclk1_hz());
+    board_console_init(0);
     log_err("clk", e);
     log_kv("sysclk", board_sysclk_hz());
 
@@ -91,9 +89,9 @@ int main(void)
     log_kv("mpu_mmfar", board_mpu_last_mmfar());
 
     for (;;) {
-        GPIO_BSRR(GPIOI_BASE) = (1u << 13);
-        delay();
-        GPIO_BSRR(GPIOI_BASE) = (1u << 29);
-        delay();
+        HAL_GPIO_WritePin(GPIOI, GPIO_PIN_13, GPIO_PIN_SET);
+        HAL_Delay(250);
+        HAL_GPIO_WritePin(GPIOI, GPIO_PIN_13, GPIO_PIN_RESET);
+        HAL_Delay(250);
     }
 }

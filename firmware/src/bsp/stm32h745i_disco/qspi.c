@@ -1,153 +1,138 @@
 #include "bsp/board.h"
 
-#include "stm32h745_regs.h"
+#include "cube.h"
+
+#include <string.h>
 
 /*
  * Dual QSPI NOR on STM32H745I-DISCO (ST BSP pin map). BK2 PH2/PH3 is the
- * Ethernet CRS/COL mux; Sprint 1 keeps dual-flash, Ethernet full MII later.
- * Mmap smoke is a 1-1-1 READ of bank 1. Do not execute blank 0xFF NOR.
+ * Ethernet CRS/COL mux; Sprint 1 keeps dual-flash. Mmap smoke is 1-1-1 READ
+ * of bank 1. Do not execute blank 0xFF NOR.
  */
 
-static err_t qspi_wait_not_busy(void)
+static QSPI_HandleTypeDef g_qspi;
+
+static void qspi_cmd_defaults(QSPI_CommandTypeDef *c)
 {
-    uint32_t t = 2000000u;
-    while ((QUADSPI_SR & QUADSPI_SR_BUSY) != 0u) {
-        if (t == 0u) {
-            return ERR_TIMEOUT;
-        }
-        t--;
-    }
-    return ERR_OK;
+    memset(c, 0, sizeof(*c));
+    c->InstructionMode = QSPI_INSTRUCTION_1_LINE;
+    c->AddressMode = QSPI_ADDRESS_NONE;
+    c->AlternateByteMode = QSPI_ALTERNATE_BYTES_NONE;
+    c->DataMode = QSPI_DATA_NONE;
+    c->DummyCycles = 0;
+    c->DdrMode = QSPI_DDR_MODE_DISABLE;
+    c->DdrHoldHalfCycle = QSPI_DDR_HHC_ANALOG_DELAY;
+    c->SIOOMode = QSPI_SIOO_INST_EVERY_CMD;
 }
 
-static err_t qspi_wait_tc(void)
+static err_t qspi_instr(uint8_t instr)
 {
-    uint32_t t = 2000000u;
-    while ((QUADSPI_SR & QUADSPI_SR_TCF) == 0u) {
-        if (t == 0u) {
-            return ERR_TIMEOUT;
-        }
-        t--;
-    }
-    QUADSPI_FCR = QUADSPI_FCR_CTCF;
-    return ERR_OK;
+    QSPI_CommandTypeDef c;
+
+    qspi_cmd_defaults(&c);
+    c.Instruction = instr;
+    (void)HAL_QSPI_Abort(&g_qspi);
+    return cube_err(HAL_QSPI_Command(&g_qspi, &c, HAL_QSPI_TIMEOUT_DEFAULT_VALUE));
 }
 
-static err_t qspi_abort(void)
+void HAL_QSPI_MspInit(QSPI_HandleTypeDef *hqspi)
 {
-    QUADSPI_CR |= QUADSPI_CR_ABORT;
-    return qspi_wait_not_busy();
-}
+    (void)hqspi;
+    __HAL_RCC_QSPI_CLK_ENABLE();
+    __HAL_RCC_QSPI_FORCE_RESET();
+    __HAL_RCC_QSPI_RELEASE_RESET();
+    __HAL_RCC_GPIOD_CLK_ENABLE();
+    __HAL_RCC_GPIOF_CLK_ENABLE();
+    __HAL_RCC_GPIOG_CLK_ENABLE();
+    __HAL_RCC_GPIOH_CLK_ENABLE();
 
-static void qspi_gpio(void)
-{
-    RCC_AHB4ENR |=
-        RCC_AHB4ENR_GPIODEN | RCC_AHB4ENR_GPIOFEN | RCC_AHB4ENR_GPIOGEN | RCC_AHB4ENR_GPIOHEN;
-    (void)RCC_AHB4ENR;
-
-    gpio_af(GPIOF_BASE, 10u, 9u, 0u); /* CLK PF10 AF9 */
-    gpio_af(GPIOG_BASE, 6u, 10u, 1u); /* BK1/BK2 NCS PG6 AF10 pull-up */
-    gpio_af(GPIOD_BASE, 11u, 9u, 0u); /* BK1 D0 PD11 AF9 */
-    gpio_af(GPIOF_BASE, 9u, 10u, 0u); /* BK1 D1 PF9 AF10 */
-    gpio_af(GPIOF_BASE, 7u, 9u, 0u);  /* BK1 D2 PF7 AF9 */
-    gpio_af(GPIOF_BASE, 6u, 9u, 0u);  /* BK1 D3 PF6 AF9 */
-    gpio_af(GPIOH_BASE, 2u, 9u, 0u);  /* BK2 D0 PH2 AF9 */
-    gpio_af(GPIOH_BASE, 3u, 9u, 0u);  /* BK2 D1 PH3 AF9 */
-    gpio_af(GPIOG_BASE, 9u, 9u, 0u);  /* BK2 D2 PG9 AF9 */
-    gpio_af(GPIOG_BASE, 14u, 9u, 0u); /* BK2 D3 PG14 AF9 */
-}
-
-static err_t qspi_cmd_write(uint8_t instr)
-{
-    err_t e = qspi_abort();
-    if (e != ERR_OK) {
-        return e;
-    }
-    QUADSPI_DLR = 0;
-    QUADSPI_CCR = (uint32_t)instr | (1u << 8); /* IMODE 1-line, FMODE write */
-    e = qspi_wait_tc();
-    if (e != ERR_OK) {
-        return e;
-    }
-    return qspi_wait_not_busy();
+    cube_gpio_af(GPIOF, GPIO_PIN_10, GPIO_AF9_QUADSPI, GPIO_NOPULL); /* CLK */
+    cube_gpio_af(GPIOG, GPIO_PIN_6, GPIO_AF10_QUADSPI, GPIO_PULLUP); /* NCS */
+    cube_gpio_af(GPIOD, GPIO_PIN_11, GPIO_AF9_QUADSPI, GPIO_NOPULL); /* BK1 D0 */
+    cube_gpio_af(GPIOF, GPIO_PIN_9, GPIO_AF10_QUADSPI, GPIO_NOPULL); /* BK1 D1 */
+    cube_gpio_af(GPIOF, GPIO_PIN_7, GPIO_AF9_QUADSPI, GPIO_NOPULL);  /* BK1 D2 */
+    cube_gpio_af(GPIOF, GPIO_PIN_6, GPIO_AF9_QUADSPI, GPIO_NOPULL);  /* BK1 D3 */
+    cube_gpio_af(GPIOH, GPIO_PIN_2, GPIO_AF9_QUADSPI, GPIO_NOPULL);  /* BK2 D0 */
+    cube_gpio_af(GPIOH, GPIO_PIN_3, GPIO_AF9_QUADSPI, GPIO_NOPULL);  /* BK2 D1 */
+    cube_gpio_af(GPIOG, GPIO_PIN_9, GPIO_AF9_QUADSPI, GPIO_NOPULL);  /* BK2 D2 */
+    cube_gpio_af(GPIOG, GPIO_PIN_14, GPIO_AF9_QUADSPI, GPIO_NOPULL); /* BK2 D3 */
 }
 
 err_t board_qspi_init(void)
 {
     err_t e;
+    QSPI_CommandTypeDef c;
+    QSPI_MemoryMappedTypeDef mmap = {0};
 
-    qspi_gpio();
+    g_qspi.Instance = QUADSPI;
+    g_qspi.Init.ClockPrescaler = 3;
+    g_qspi.Init.FifoThreshold = 4;
+    g_qspi.Init.SampleShifting = QSPI_SAMPLE_SHIFTING_HALFCYCLE;
+    g_qspi.Init.FlashSize = 25;
+    g_qspi.Init.ChipSelectHighTime = QSPI_CS_HIGH_TIME_4_CYCLE;
+    g_qspi.Init.ClockMode = QSPI_CLOCK_MODE_0;
+    g_qspi.Init.FlashID = QSPI_FLASH_ID_1;
+    g_qspi.Init.DualFlash = QSPI_DUALFLASH_DISABLE;
+    if (HAL_QSPI_Init(&g_qspi) != HAL_OK) {
+        return ERR_IO;
+    }
 
-    RCC_AHB3ENR |= RCC_AHB3ENR_QSPIEN;
-    RCC_AHB3RSTR |= RCC_AHB3RSTR_QSPIRST;
-    RCC_AHB3RSTR &= ~RCC_AHB3RSTR_QSPIRST;
-
-    /* Prescaler 3 → HCLK/4 ≈ 60 MHz. FSIZE 25 → 64 MB (one 512 Mbit die). */
-    QUADSPI_CR = (3u << 24) | QUADSPI_CR_SSHIFT;
-    QUADSPI_DCR = (25u << 16) | (3u << 8);
-    QUADSPI_CR |= QUADSPI_CR_EN;
-
-    e = qspi_cmd_write(0x66u); /* reset enable */
+    e = qspi_instr(0x66u);
     if (e != ERR_OK) {
         return e;
     }
-    e = qspi_cmd_write(0x99u); /* reset memory */
+    e = qspi_instr(0x99u);
     if (e != ERR_OK) {
         return e;
     }
-    {
-        volatile uint32_t n = 20000u;
-        while (n > 0u) {
-            n--;
-        }
-    }
+    HAL_Delay(1);
 
-    e = qspi_abort();
-    if (e != ERR_OK) {
-        return e;
-    }
-    /* 1-1-1 READ (0x03), 24-bit address, memory-mapped. */
-    QUADSPI_CCR = 0x03u | (1u << 8) | (1u << 10) | (2u << 12) | (1u << 24) | (3u << 26);
-    return qspi_wait_not_busy();
+    qspi_cmd_defaults(&c);
+    c.Instruction = 0x03u;
+    c.AddressMode = QSPI_ADDRESS_1_LINE;
+    c.AddressSize = QSPI_ADDRESS_24_BITS;
+    c.DataMode = QSPI_DATA_1_LINE;
+    mmap.TimeOutActivation = QSPI_TIMEOUT_COUNTER_DISABLE;
+    (void)HAL_QSPI_Abort(&g_qspi);
+    return cube_err(HAL_QSPI_MemoryMapped(&g_qspi, &c, &mmap));
 }
 
 err_t board_qspi_read_id(uint8_t id[3])
 {
+    QSPI_CommandTypeDef c;
     err_t e;
-    unsigned i;
 
     if (id == NULL) {
         return ERR_INVAL;
     }
 
-    e = qspi_abort();
+    qspi_cmd_defaults(&c);
+    c.Instruction = 0x9Fu;
+    c.DataMode = QSPI_DATA_1_LINE;
+    c.NbData = 3;
+    (void)HAL_QSPI_Abort(&g_qspi);
+    e = cube_err(HAL_QSPI_Command(&g_qspi, &c, HAL_QSPI_TIMEOUT_DEFAULT_VALUE));
     if (e != ERR_OK) {
         return e;
     }
-
-    QUADSPI_DLR = 2u;
-    QUADSPI_CCR = 0x9Fu | (1u << 8) | (1u << 24) | (1u << 26); /* indirect read */
-    e = qspi_wait_tc();
-    if (e != ERR_OK) {
-        return e;
-    }
-    for (i = 0; i < 3u; i++) {
-        id[i] = QUADSPI_DR8;
-    }
-    return qspi_wait_not_busy();
+    return cube_err(HAL_QSPI_Receive(&g_qspi, id, HAL_QSPI_TIMEOUT_DEFAULT_VALUE));
 }
 
 err_t board_qspi_mmap_probe(uint32_t *first_word)
 {
-    err_t e;
+    QSPI_CommandTypeDef c;
+    QSPI_MemoryMappedTypeDef mmap = {0};
     volatile uint32_t *q = (volatile uint32_t *)BOARD_QSPI_BASE;
+    err_t e;
 
-    e = qspi_abort();
-    if (e != ERR_OK) {
-        return e;
-    }
-    QUADSPI_CCR = 0x03u | (1u << 8) | (1u << 10) | (2u << 12) | (1u << 24) | (3u << 26);
-    e = qspi_wait_not_busy();
+    qspi_cmd_defaults(&c);
+    c.Instruction = 0x03u;
+    c.AddressMode = QSPI_ADDRESS_1_LINE;
+    c.AddressSize = QSPI_ADDRESS_24_BITS;
+    c.DataMode = QSPI_DATA_1_LINE;
+    mmap.TimeOutActivation = QSPI_TIMEOUT_COUNTER_DISABLE;
+    (void)HAL_QSPI_Abort(&g_qspi);
+    e = cube_err(HAL_QSPI_MemoryMapped(&g_qspi, &c, &mmap));
     if (e != ERR_OK) {
         return e;
     }

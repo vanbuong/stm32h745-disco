@@ -2,7 +2,7 @@
 
 HMI firmware for the **STM32H745I-DISCO**: dual-core shell with file explorer, image and text viewers, audio, game, and **Zigbee home automation** (TI ZNP host) on the 4.3" 480×272 panel.
 
-The first implementation is **FreeRTOS + LVGL + STM32Cube**. Interfaces are written so the same apps can move to **Zephyr + LVGL** later.
+The first implementation is **FreeRTOS + LVGL + STM32Cube HAL/LL**. Board bring-up uses ST's [`stm32h7xx-hal-driver`](https://github.com/STMicroelectronics/stm32h7xx-hal-driver) (HAL for RCC/PWR/MPU/SDRAM/QSPI, LL for USART/GPIO). Apps still never include those headers.
 
 ## Documentation
 
@@ -51,6 +51,8 @@ cmake --preset m7-debug && cmake --build --preset m7-debug
 cmake --preset m4-debug && cmake --build --preset m4-debug
 ```
 
+The first cross configure fetches ST HAL v1.11.6, CMSIS device H7 v1.10.7, and CMSIS Core v5.9.0 into `third_party/` (gitignored). Glue lives in `firmware/src/port/cube`.
+
 CI: format, layering, cppcheck, clang-tidy, coverage, and both ELF images — see `doc/CICD.md`.
 
 ## Sprint 1 boot log (USART3 115200)
@@ -58,7 +60,7 @@ CI: format, layering, cppcheck, clang-tidy, coverage, and both ELF images — se
 After clocks, MPU, cache, SDRAM, and QSPI init the M7 prints on the ST-LINK VCP, then blinks LD2 (PI13):
 
 ```
-M7 stm32h745-disco s1
+M7 stm32h745-disco s1 cube
 clk ok
 sysclk 1C9C3800
 mpu on

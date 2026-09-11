@@ -107,7 +107,7 @@ Dates are indicative; the dependency graph is normative. Game and ZNP may overla
 
 Status: **done** (host-tested walking/MPU map; board boot log is the HIL check).
 
-- M7 clock 480 MHz (HSE 25 MHz, PLL1 M=5 N=192 P=2, VOS0 / SMPS 1.8 V supplies LDO), MPU regions, cache enable with documented policy.
+- M7 clock 480 MHz via STM32Cube HAL (`HAL_RCC_*`, VOS0 / SMPS 1.8 V supplies LDO), MPU regions (`HAL_MPU_*`), cache via CMSIS. USART3 console uses LL.
 - SDRAM init at `0xD0000000` (8 MB, 16-bit FMC bank 2).
 - QSPI memory-map at `0x90000000` (read; dual-flash pins, bank-1 1-1-1 smoke). Blank NOR is `0xFF` — do not execute it; true XiP comes with programmed assets.
 - SRAM4 reserved and marked non-cacheable, no-execute.

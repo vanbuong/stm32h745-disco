@@ -1,24 +1,31 @@
 #include "bsp/board.h"
 
-#include "stm32h745_regs.h"
+#include "cube.h"
 
 void board_console_init(uint32_t pclk1_hz)
 {
     if (pclk1_hz == 0u) {
-        pclk1_hz = BOARD_HSI_HZ;
+        pclk1_hz = HAL_RCC_GetPCLK1Freq();
+        if (pclk1_hz == 0u) {
+            pclk1_hz = BOARD_HSI_HZ;
+        }
     }
 
-    RCC_AHB4ENR |= RCC_AHB4ENR_GPIOBEN;
-    RCC_APB1LENR |= RCC_APB1LENR_USART3EN;
-    (void)RCC_APB1LENR;
+    LL_AHB4_GRP1_EnableClock(LL_AHB4_GRP1_PERIPH_GPIOB);
+    LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_USART3);
 
-    /* PB10/PB11 AF7 USART3 */
-    gpio_af(GPIOB_BASE, 10u, 7u, 0u);
-    gpio_af(GPIOB_BASE, 11u, 7u, 1u);
+    cube_gpio_af(GPIOB, GPIO_PIN_10, GPIO_AF7_USART3, GPIO_NOPULL);
+    cube_gpio_af(GPIOB, GPIO_PIN_11, GPIO_AF7_USART3, GPIO_PULLUP);
 
-    USART_CR1(USART3_BASE) = 0;
-    USART_BRR(USART3_BASE) = pclk1_hz / BOARD_UART_BAUD;
-    USART_CR1(USART3_BASE) = USART_CR1_UE | USART_CR1_TE;
+    LL_USART_Disable(USART3);
+    LL_USART_SetTransferDirection(USART3, LL_USART_DIRECTION_TX);
+    LL_USART_SetDataWidth(USART3, LL_USART_DATAWIDTH_8B);
+    LL_USART_SetParity(USART3, LL_USART_PARITY_NONE);
+    LL_USART_SetStopBitsLength(USART3, LL_USART_STOPBITS_1);
+    LL_USART_SetOverSampling(USART3, LL_USART_OVERSAMPLING_16);
+    LL_USART_SetBaudRate(USART3, pclk1_hz, LL_USART_PRESCALER_DIV1, LL_USART_OVERSAMPLING_16,
+                         BOARD_UART_BAUD);
+    LL_USART_Enable(USART3);
 }
 
 void board_console_puts(const char *s)
@@ -27,9 +34,9 @@ void board_console_puts(const char *s)
         return;
     }
     while (*s != '\0') {
-        while ((USART_ISR(USART3_BASE) & USART_ISR_TXE) == 0u) {
+        while (LL_USART_IsActiveFlag_TXE(USART3) == 0u) {
         }
-        USART_TDR(USART3_BASE) = (uint32_t)(uint8_t)*s++;
+        LL_USART_TransmitData8(USART3, (uint8_t)*s++);
     }
 }
 

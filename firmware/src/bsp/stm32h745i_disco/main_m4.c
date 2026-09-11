@@ -1,4 +1,5 @@
-#include "stm32h745_regs.h"
+#include "stm32h7xx_ll_bus.h"
+#include "stm32h7xx_ll_gpio.h"
 
 static void delay(volatile uint32_t n)
 {
@@ -9,13 +10,12 @@ static void delay(volatile uint32_t n)
 
 int main(void)
 {
-    RCC_AHB4ENR |= RCC_AHB4ENR_GPIOJEN;
-    GPIO_MODER(GPIOJ_BASE) &= ~(3u << 4);
-    GPIO_MODER(GPIOJ_BASE) |= (1u << 4);
+    LL_AHB4_GRP1_EnableClock(LL_AHB4_GRP1_PERIPH_GPIOJ);
+    LL_GPIO_SetPinMode(GPIOJ, LL_GPIO_PIN_2, LL_GPIO_MODE_OUTPUT);
     for (;;) {
-        GPIO_BSRR(GPIOJ_BASE) = (1u << 2);
+        LL_GPIO_SetOutputPin(GPIOJ, LL_GPIO_PIN_2);
         delay(400000u);
-        GPIO_BSRR(GPIOJ_BASE) = (1u << 18);
+        LL_GPIO_ResetOutputPin(GPIOJ, LL_GPIO_PIN_2);
         delay(400000u);
     }
 }

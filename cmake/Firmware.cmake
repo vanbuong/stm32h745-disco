@@ -1,21 +1,16 @@
+include(${CMAKE_SOURCE_DIR}/cmake/Cube.cmake)
+
 set(BSP ${CMAKE_SOURCE_DIR}/firmware/src/bsp/stm32h745i_disco)
+set(CUBE ${CMAKE_SOURCE_DIR}/firmware/src/port/cube)
 
 if(CORE STREQUAL "M7")
     set(CPU_FLAGS -mcpu=cortex-m7 -mthumb -mfpu=fpv5-d16 -mfloat-abi=hard)
     set(LINKER ${BSP}/stm32h745_m7.ld)
-    set(MAIN ${BSP}/main_m7.c)
+    set(CORE_DEFINE CORE_CM7)
     set(TGT firmware-m7)
-else()
-    set(CPU_FLAGS -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard)
-    set(LINKER ${BSP}/stm32h745_m4.ld)
-    set(MAIN ${BSP}/main_m4.c)
-    set(TGT firmware-m4)
-endif()
-
-if(CORE STREQUAL "M7")
-    add_executable(${TGT}
+    set(APP_SRC
         ${BSP}/startup.c
-        ${MAIN}
+        ${BSP}/main_m7.c
         ${BSP}/clock.c
         ${BSP}/console.c
         ${BSP}/mpu.c
@@ -26,9 +21,35 @@ if(CORE STREQUAL "M7")
         ${CMAKE_SOURCE_DIR}/firmware/src/svc/memtest.c
     )
 else()
-    add_executable(${TGT} ${BSP}/startup.c ${MAIN})
+    set(CPU_FLAGS -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard)
+    set(LINKER ${BSP}/stm32h745_m4.ld)
+    set(CORE_DEFINE CORE_CM4)
+    set(TGT firmware-m4)
+    set(APP_SRC
+        ${BSP}/startup.c
+        ${BSP}/main_m4.c
+    )
 endif()
-target_include_directories(${TGT} PRIVATE ${BSP} ${CMAKE_SOURCE_DIR}/firmware/include)
+
+add_executable(${TGT} ${APP_SRC} ${HAL_SRC})
+target_include_directories(${TGT} PRIVATE
+    ${CUBE}
+    ${CMAKE_SOURCE_DIR}/firmware/include
+    ${BSP}
+)
+target_include_directories(${TGT} SYSTEM PRIVATE
+    ${ST_HAL_DIR}/Inc
+    ${ST_CMSIS_DEV}/Include
+    ${ST_CMSIS_CORE}/Core/Include
+)
+target_compile_definitions(${TGT} PRIVATE
+    STM32H745xx
+    ${CORE_DEFINE}
+    USE_HAL_DRIVER
+    USE_FULL_LL_DRIVER
+    USE_PWR_SMPS_1V8_SUPPLIES_LDO
+    HSE_VALUE=25000000U
+)
 target_compile_options(${TGT} PRIVATE
     ${CPU_FLAGS}
     -ffunction-sections -fdata-sections
