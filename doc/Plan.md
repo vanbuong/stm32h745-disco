@@ -7,13 +7,13 @@ HMI firmware for STM32H745I-DISCO. Architecture and portability rules are in `Ar
 A small dual-core handheld-style shell on the 4.3" panel:
 
 - Launcher
-- File explorer
-- Image viewer
-- Text viewer
+- File explorer, image viewer, text viewer
 - Audio player
+- **Game** (first title: Brick)
+- **Home** (lights/switches/sensors over MQTT)
 - Status (time, storage, Ethernet; optional Wi-Fi)
 
-A local game is optional (P2) and must use the same app contract as every other app.
+Game and Home use the same `ui_app_t` contract as Files. Game logic is a host-testable sim; Home UI talks only to `home_*`, never to MQTT.
 
 ## 2. Non-goals (this generation)
 
@@ -22,6 +22,8 @@ A local game is optional (P2) and must use the same app contract as every other 
 - Linux / MPU migration.
 - Full POSIX, USB mass-storage gadget, or network file server.
 - Treating ESP32 as on-board hardware.
+- A 3D / GPU game engine, or Home Assistant running **on** the STM32.
+- Binding Home UI to one vendor app (HA dashboard scrape, Zigbee coordinator, Matter stack on-chip).
 
 ## 3. Platform choices
 
@@ -32,6 +34,8 @@ A local game is optional (P2) and must use the same app contract as every other 
 | FS | FatFS on eMMC behind `vfs_*` | Zephyr FS |
 | IPC | SRAM4 rings + HSEM | OpenAMP / RPMsg |
 | Net | LwIP on a single core | Zephyr net |
+| Home bus | `home_*` + mock, then MQTT | Zephyr MQTT, same `home_*` |
+| Game | `game_sim` + `gfx_*` | Same modules; gfx via Zephyr display |
 | Wi-Fi | Optional ESP32 AT/SPI driver | Same `net_*` API |
 | Build | CMake + STM32Cube HAL in `port/cube` | `west` + DTS |
 
@@ -74,7 +78,8 @@ Each sprint has a demo on hardware or a host-test gate. Do not start the next sp
 
 - LVGL ported **only** in `ui/backend_lvgl`.
 - Theme tokens, 32 px status bar, launcher grid, navigation stack.
-- Dummy apps that push/pop screens.
+- Dummy apps that push/pop screens (Files stub, Game stub, Home stub).
+- Launcher 3×2: Files, Home, Game, Music, Network, Settings.
 - **Exit:** launcher opens and returns from two stub apps; 20 FPS UI with touch scroll.
 
 ### Sprint 5 — File explorer
@@ -111,17 +116,31 @@ Each sprint has a demo on hardware or a host-test gate. Do not start the next sp
 - Optional ESP32 failover **only** if hardware is attached (compile-time).
 - **Exit:** DHCP or static IP shown; unplug RJ45 updates status < 2 s; if ESP32 enabled, failover within the REQ-NET timeout.
 
-### Sprint 10 — Hardening
+### Sprint 10 — Game
+
+- `game_module_t` host + **Brick** (paddle, bricks, one-finger drag).
+- `gfx_*` on a playfield buffer; pause on Back/Home; high score in `/user/game`.
+- **Exit:** host tests for collision/score; HIL ≥ 30 FPS; Home button returns to launcher with audio still healthy.
+
+### Sprint 11 — Home automation
+
+- `home_*` with `mock` backend (8 rooms / 32 devices capacity tests on host).
+- MQTT backend: connect, discover or static map, on/off + brightness for lights, binary sensor read-only.
+- Dashboard + room list; offline banner + last-known state; broker URL in Settings.
+- **Exit:** mock UI works with Ethernet unplugged; with broker, toggle a light and see state round-trip; command failure reverts the switch.
+
+### Sprint 12 — Hardening
 
 - Watchdogs on both cores, brown-out, FS remount, OOM UI.
-- Settings app (brightness, volume, IP).
-- HIL pack for the requirement matrix.
-- **Exit:** RTM P0/P1 rows green; 8-hour soak (UI + audio + explorer) without leak or deadlock.
+- Settings app (brightness, volume, IP, MQTT broker).
+- HIL pack for the requirement matrix, including game soak and home mock.
+- **Exit:** RTM P0/P1 rows green; 8-hour soak (UI + audio + explorer; game 30 min; home mock) without leak or deadlock.
 
 ### Later — Zephyr port (not a product sprint yet)
 
 - `osal/zephyr`, DTS for this board, OpenAMP transport, same apps.
 - Track as a spike after Sprint 4 so the HAL stays honest.
+- Home MQTT client and game `gfx_*` must survive that spike without app changes.
 
 ## 5. Suggested GUI change (locked for v2)
 
@@ -144,7 +163,10 @@ Rationale: 40 px minimum hit targets, more room for lists and images, matches LV
 | FatFS + LVGL on one core | FS work on a worker thread; UI thread never blocks on eMMC |
 | M7 D-cache vs DMA/IPC | Non-cacheable SRAM4; cache API for DMA |
 | TouchGFX samples leaking in | Ban TouchGFX in review; LVGL-only backend |
-| Scope (game, Wi-Fi, NTP) | P2; do not block explorer/viewers |
+| Game in LVGL widgets | Keep `game_sim` + `gfx_*`; LVGL canvas is a backend, not the model |
+| Home UI talking MQTT | `home_*` only; mock backend so UI is not blocked on Sprint 9 |
+| MQTT / HA schema churn | Prefer a small topic map; HA discovery is optional |
+| Scope (extra games, climate, NTP, Wi-Fi) | C/P2; do not block Files, Brick, or light toggles |
 
 ## 7. Deliverables per milestone
 
@@ -154,7 +176,9 @@ Rationale: 40 px minimum hit targets, more room for lists and images, matches LV
 | M2 (Sprint 5) | Browse eMMC and open files |
 | M3 (Sprint 6) | View JPEG + UTF-8 text |
 | M4 (Sprint 8) | Play MP3 while browsing |
-| M5 (Sprint 10) | Full shell, status, soak |
+| M5 (Sprint 10) | Brick playable at ≥ 30 FPS |
+| M6 (Sprint 11) | Toggle a mocked (and optionally MQTT) light |
+| M7 (Sprint 12) | Full shell, soak |
 
 ## 8. Documentation map
 

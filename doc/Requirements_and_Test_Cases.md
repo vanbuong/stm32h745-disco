@@ -273,30 +273,96 @@ Ethernet unplug with ESP32 present; Wi-Fi carries ICMP within 10 s.
 
 ---
 
-## 11. Time, settings, robustness
+## 11. Game
 
 | ID | Pri | Requirement | Verify |
 | --- | --- | --- | --- |
-| REQ-CFG-01 | S | Brightness and volume shall persist across reset. | HIL |
+| REQ-GAME-01 | S | The launcher shall provide a Game app that loads at least the Brick module. | HIL |
+| REQ-GAME-02 | S | Game simulation shall live in `game_sim` / `game_module_t` with no LVGL, FreeRTOS, or HAL includes. | UT |
+| REQ-GAME-03 | S | Drawing shall go through `gfx_*` (clear/fill/blit), not one UI widget per sprite. | INSP, UT |
+| REQ-GAME-04 | S | Brick shall play at ≥ 30 FPS on the Discovery panel in RGB565. | HIL |
+| REQ-GAME-05 | S | Paddle control shall use a ≥ 40 px-tall drag band; Back or Home shall pause or quit without crashing the shell. | HIL |
+| REQ-GAME-06 | S | High score shall persist in `/user/game` across reset when eMMC is mounted. | HIL |
+| REQ-GAME-07 | S | A second game module shall be addable without changing the shell. | INSP |
+| REQ-GAME-08 | C | Audio playback shall continue during Brick without SAI underrun. | HIL |
+
+### Tests
+
+**TC-GAME-01 (UT)**  
+Brick: reset; tick with no input; ball position changes; brick-ball overlap increments score and removes brick; ball below playfield decrements lives.
+
+**TC-GAME-02 (UT)**  
+`gfx` spy: one frame after reset records a clear and at least one paddle fill; no LVGL symbols linked.
+
+**TC-GAME-03 (HIL)**  
+Play 15 s; frame counter ≥ 30 FPS; drag paddle; Back shows pause; Resume continues; Home returns to launcher.
+
+**TC-GAME-04 (HIL)**  
+Beat a previous high score; reboot; Game shows the stored high score.
+
+---
+
+## 12. Home automation
+
+| ID | Pri | Requirement | Verify |
+| --- | --- | --- | --- |
+| REQ-HOME-01 | S | Apps shall access devices only through `home_*` (no MQTT/HTTP types in `src/app`). | UT |
+| REQ-HOME-02 | S | A `mock` backend shall provide ≥ 2 rooms and ≥ 4 devices so the UI runs with no broker. | UT, HIL |
+| REQ-HOME-03 | S | The dashboard shall show lights and switches with ≥ 40 px toggles, and binary sensors as read-only state. | HIL |
+| REQ-HOME-04 | S | `home_cmd` on/off for a light shall update the model; UI is optimistic and reverts on failure. | UT, HIL |
+| REQ-HOME-05 | S | Last-known state shall be shown if the bus is down, with a visible offline banner. | HIL |
+| REQ-HOME-06 | S | The service shall support at least 8 rooms and 32 devices in RAM. | UT |
+| REQ-HOME-07 | S | An MQTT backend shall connect using broker settings (host, port, user, password) stored in `settings`. | HIL |
+| REQ-HOME-08 | C | MQTT Home Assistant discovery shall populate `home_device_t` without UI changes. | HIL |
+| REQ-HOME-09 | C | Climate setpoint and scene buttons (Good night / Away). | HIL |
+| REQ-HOME-10 | S | Home worker shall not block the UI thread on TCP/MQTT. | UT, INSP |
+
+### Tests
+
+**TC-HOME-01 (UT)**  
+Mock: list rooms; toggle light; callback fires with new state; failed cmd leaves or reverts state per API contract.
+
+**TC-HOME-02 (UT)**  
+Fill 8 rooms × 4 devices (32); list and cmd still succeed; 33rd register returns an error.
+
+**TC-HOME-03 (UT)**  
+CI scan: `src/app/home` does not include MQTT or lwIP headers.
+
+**TC-HOME-04 (HIL)**  
+Mock build, Ethernet unplugged: Home opens, toggle works, no crash.
+
+**TC-HOME-05 (HIL)**  
+MQTT build with a test broker: dashboard shows a light; tap toggle; broker payload (or loopback) matches; kill broker; banner appears; last state remains.
+
+**TC-HOME-06 (HIL)**  
+Settings broker fields persist across reset.
+
+---
+
+## 13. Time, settings, robustness
+
+| ID | Pri | Requirement | Verify |
+| --- | --- | --- | --- |
+| REQ-CFG-01 | S | Brightness, volume, and Home broker settings shall persist across reset. | HIL |
 | REQ-CFG-02 | M | About shall show M7 and M4 firmware versions. | IT |
 | REQ-RST-01 | M | Hard fault handlers shall log and reset in production; they shall not paint a white screen forever. | HIL |
 | REQ-RST-02 | S | eMMC surprise unmount (if reproduced) shall put VFS in error and keep shell alive. | HIL |
 
 ---
 
-## 12. Host vs HIL policy
+## 14. Host vs HIL policy
 
 | Kind | Where | What belongs |
 | --- | --- | --- |
-| UT | PC, CMake `host-tests` | Path jail, IPC rings, UTF-8, dispatcher, mixer math, image golden, include check |
+| UT | PC, CMake `host-tests` | Path jail, IPC rings, UTF-8, dispatcher, mixer math, image golden, include check, **Brick sim**, **home mock** |
 | IT | Board, no extra gear | Mount, display mode, QSPI map, versions |
-| HIL | Board + actions | Latency, FPS, failover, audio underrun, touch, throughput |
+| HIL | Board + actions | Latency, FPS, failover, audio underrun, touch, throughput, **game FPS**, **MQTT toggle** |
 
 Host tests must not link STM32 HAL.
 
 ---
 
-## 13. Traceability (RTM)
+## 15. Traceability (RTM)
 
 | Requirement | Tests |
 | --- | --- |
@@ -333,5 +399,20 @@ Host tests must not link STM32 HAL.
 | REQ-NET-02 | TC-NET-02 |
 | REQ-NET-03 | TC-NET-03 |
 | REQ-NET-05 | TC-SYS-02 |
+| REQ-GAME-01 | TC-GAME-03 |
+| REQ-GAME-02 | TC-GAME-01, TC-GAME-02 |
+| REQ-GAME-03 | TC-GAME-02 |
+| REQ-GAME-04 | TC-GAME-03 |
+| REQ-GAME-05 | TC-GAME-03 |
+| REQ-GAME-06 | TC-GAME-04 |
+| REQ-HOME-01 | TC-HOME-03 |
+| REQ-HOME-02 | TC-HOME-01, TC-HOME-04 |
+| REQ-HOME-03 | TC-HOME-04 |
+| REQ-HOME-04 | TC-HOME-01, TC-HOME-05 |
+| REQ-HOME-05 | TC-HOME-05 |
+| REQ-HOME-06 | TC-HOME-02 |
+| REQ-HOME-07 | TC-HOME-05, TC-HOME-06 |
+| REQ-HOME-10 | TC-HOME-03 |
+| REQ-CFG-01 | TC-HOME-06 |
 
-Sprint 10 is not done until every **M** row has a passing test or an explicit waiver recorded here.
+Sprint 12 is not done until every **M** row has a passing test or an explicit waiver recorded here. **S** rows for Game and Home are the Sprint 10–11 exit gates.

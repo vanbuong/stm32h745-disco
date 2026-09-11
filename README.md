@@ -1,6 +1,6 @@
 # stm32h745-disco
 
-HMI firmware for the **STM32H745I-DISCO**: dual-core shell with file explorer, image and text viewers, and audio on the 4.3" 480×272 panel.
+HMI firmware for the **STM32H745I-DISCO**: dual-core shell with file explorer, image and text viewers, audio, **game**, and **home automation** on the 4.3" 480×272 panel.
 
 The first implementation is **FreeRTOS + LVGL + STM32Cube**. Interfaces are written so the same apps can move to **Zephyr + LVGL** later.
 
@@ -26,10 +26,10 @@ The first implementation is **FreeRTOS + LVGL + STM32Cube**. Interfaces are writ
 
 ## Design rules (short)
 
-1. Apps do not call LVGL, FreeRTOS, FatFS, or HAL.
-2. M7 owns UI, VFS, and image decode. M4 owns SAI audio (and optional net).
+1. Apps do not call LVGL, FreeRTOS, FatFS, MQTT, or HAL.
+2. M7 owns UI, VFS, image decode, game sim, and the home device model. M4 owns SAI audio (and optional net).
 3. IPC is versioned messages in SRAM4, not shared C pointers.
-4. Explorer is jailed to `/user`.
+4. Explorer is jailed to `/user`. Home UI talks only to `home_*`. Game logic talks only to `game_module_t` / `gfx_*`.
 
 ## Status
 

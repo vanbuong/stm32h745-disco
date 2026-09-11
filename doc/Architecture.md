@@ -4,7 +4,7 @@ Portable HMI architecture for the STM32H745I-DISCO. Application code must not ca
 
 ## 1. Goals
 
-- Ship a usable dual-core HMI: launcher, file explorer, image viewer, text viewer, audio playback, and network status.
+- Ship a usable dual-core HMI: launcher, files, image/text viewers, audio, **game**, **home automation**, and network status.
 - Keep OS, UI toolkit, filesystem, and board drivers behind stable C interfaces.
 - Allow a later move to **Zephyr + LVGL** without rewriting apps.
 - Keep Cortex-M4 work real-time (audio DMA, optional network) and Cortex-M7 work latency-tolerant (UI, FS, decode).
@@ -29,12 +29,12 @@ Portable HMI architecture for the STM32H745I-DISCO. Application code must not ca
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  Apps (no toolkit/OS types)                                 │
-│  launcher, files, image, text, player, settings [, game]    │
+│  launcher, files, image, text, player, game, home, settings │
 ├─────────────────────────────────────────────────────────────┤
 │  Shell: navigation stack, status model, app registry        │
 ├─────────────────────────────────────────────────────────────┤
 │  ui_backend  │  services                                    │
-│  (LVGL now)  │  vfs, media, audio, net, time, settings      │
+│  (LVGL now)  │  vfs, media, audio, net, home, game, time    │
 ├──────────────┴──────────────────────────────────────────────┤
 │  OSAL   IPC protocol   disp/input HAL   media decode HAL    │
 ├─────────────────────────────────────────────────────────────┤
@@ -58,11 +58,12 @@ firmware/
     osal/          osal.h
     ipc/           ipc.h, ipc_msg.h
     hal/           disp.h, input.h, audio_out.h, net_if.h
-    svc/           vfs.h, media.h, audio.h, net.h, time.h
+    svc/           vfs.h, media.h, audio.h, net.h, home.h, time.h
+    game/          game_sim.h, gfx.h
     ui/            shell.h, nav.h, theme.h
     app/           apps.h
   src/
-    app/           launcher, files, image, text, player, settings
+    app/           launcher, files, image, text, player, game, home, settings
     shell/
     svc/
     ui/backend_lvgl/
@@ -80,13 +81,13 @@ Two firmware images: `m7` and `m4`. They share only `include/ipc`.
 ## 5. Core split
 
 ```
-          Cortex-M7 (UI / FS / decode)         Cortex-M4 (real-time IO)
-          ----------------------------         -------------------------
-          LVGL + shell + apps                  SAI DMA ping-pong
-          VFS / eMMC / QSPI assets             MP3/WAV decode
-          JPEG / PNG / text paging             Optional LwIP or ESP32 AT
-          IPC client                           IPC server
-          Display + touch                      No framebuffer access
+          Cortex-M7                            Cortex-M4
+          ---------                            ---------
+          Shell + LVGL backend                 SAI DMA ping-pong
+          VFS, JPEG, text paging               MP3/WAV decode
+          game_sim + gfx blit                  Optional LwIP / ESP32
+          home_* model                         IPC server
+          IPC client, display, touch           No framebuffer / no LVGL
 ```
 
 Bring-up order: **M7-only** until display, storage, and shell work. Enable M4 when audio or offloaded net is needed. Do not put FatFS or LVGL on M4.
@@ -119,8 +120,8 @@ RGB565 is the default pixel format (480×272×2 = 261 120 bytes per full buffer)
 | `+0x000000` | 261 KB | LTDC framebuffer 0 |
 | `+0x040000` | 261 KB | LTDC framebuffer 1 (double buffer) |
 | `+0x080000` | 261 KB | LVGL draw buffer (or DMA2D staging) |
-| `+0x0C0000` | ~2 MB | Image decode / scaler working buffer |
-| `+0x2C0000` | remainder | File cache, text window, heap fallback |
+| `+0x0C0000` | ~2 MB | Image decode / scaler **or** game playfield + sprites (exclusive: viewers vs game) |
+| `+0x2C0000` | remainder | File cache, text window, home state cache, heap fallback |
 
 ARGB8888 is allowed later if color quality requires it; each full buffer then costs ~522 KB. Do not put M4 code/data in SDRAM.
 
@@ -178,11 +179,62 @@ int media_open_audio(const char *path, audio_stream_t *s);
 
 JPEG uses the STM32 JPEG codec when present. PNG/BMP are software. Failures return codes, never abort the UI.
 
-### 7.5 IPC
+### 7.5 Game (sim + gfx)
+
+Game **logic** is a pure tick function. Game **pixels** go through a tiny blit API. Neither includes LVGL.
+
+```c
+typedef struct {
+    const char *id;     /* "brick" */
+    void (*reset)(game_t *g, uint16_t w, uint16_t h);
+    void (*input)(game_t *g, const input_event_t *e);
+    void (*tick)(game_t *g, uint32_t dt_ms);
+    void (*draw)(const game_t *g, gfx_t *fx);
+} game_module_t;
+
+void gfx_clear(gfx_t *fx, uint16_t rgb565);
+void gfx_fill(gfx_t *fx, gfx_rect_t r, uint16_t rgb565);
+void gfx_blit(gfx_t *fx, int x, int y, const gfx_sprite_t *s);
+```
+
+Host tests run `tick`/`input` with a fake `gfx` that records fill rects. The LVGL backend may implement `gfx_t` as an `lv_canvas` **or** a raw RGB565 buffer flushed with `disp_flush`. A later Zephyr port keeps `game_module_t`.
+
+First bundled module: **Brick** (breakout-style paddle + bricks) on the 480×200 playfield. Extra modules (Snake, puzzle) register in the same host; do not fork the app.
+
+While a game is foreground it may borrow the image-decode SDRAM window. Leaving the game releases that buffer.
+
+### 7.6 Home automation
+
+UI lists rooms and devices. It never parses MQTT, HA JSON, or HTTP.
+
+```c
+typedef enum { HOME_LIGHT, HOME_SWITCH, HOME_BINARY_SENSOR, HOME_CLIMATE } home_kind_t;
+
+int  home_connect(void);
+void home_disconnect(void);
+size_t home_rooms(home_room_t *out, size_t max);
+size_t home_devices(const char *room_id, home_device_t *out, size_t max);
+int  home_cmd(const char *device_id, const home_cmd_t *cmd);  /* on/off, brightness */
+void home_on_change(void (*cb)(const home_device_t *));
+```
+
+| Backend | When | Notes |
+| --- | --- | --- |
+| `mock` | UI and host tests | Deterministic devices, no network |
+| `mqtt` | P1 on-target | Portable on LwIP and Zephyr; Home Assistant MQTT discovery **or** a small fixed topic map |
+| `ha_http` | P2 | Optional later; still behind `home_*` |
+
+Credentials and broker URL live in `settings`, not in source. Last-known device state is cached so the dashboard opens offline with a banner.
+
+Commands run on a worker. Optimistic UI: toggle immediately, revert + toast on `home_cmd` failure.
+
+Capacity target: **8 rooms, 32 devices** in RAM.
+
+### 7.7 IPC
 
 Transport and protocol are separate.
 
-**Protocol** (`ipc_msg.h`): versioned header `{magic, ver, src, dst, type, flags, seq, len}` + payload. Endpoints: `SYS`, `AUDIO`, `NET`, `LOG`. No pointers in payloads.
+**Protocol** (`ipc_msg.h`): versioned header `{magic, ver, src, dst, type, flags, seq, len}` + payload. Endpoints: `SYS`, `AUDIO`, `NET`, `LOG`. Home automation uses `NET` (or local sockets on M7); it does not need a separate ring. No pointers in payloads.
 
 **Transport now:** two lockless rings in SRAM4 + HSEM notify.
 
@@ -234,8 +286,10 @@ See `UI_Design.md` for layout and screens.
 | `media` | M7 | Probe and decode images; open audio files |
 | `audio` | M7 API, M4 engine | Play/pause/seek, volume, now-playing |
 | `net` | One core only | Link state, IPv4, optional failover |
+| `home` | M7 model; MQTT on the net core | Rooms, devices, commands, last-known cache |
+| `game` | M7 | Sim tick + gfx; high scores in `/user/game` |
 | `time` | M7 | RTC display; NTP is P2 |
-| `settings` | M7 | Key/value in eMMC or backup SRAM |
+| `settings` | M7 | Key/value in eMMC or backup SRAM (includes MQTT broker) |
 
 Audio path: M7 sends `{play path | pause | volume}` over IPC. M4 decodes and feeds SAI DMA. M7 never blocks the UI thread on decode.
 
@@ -263,5 +317,7 @@ If LVGL is already the backend, the remaining work is a **port swap**, not an ap
 3. Map `disp_*` to Zephyr display, `input_*` to FT5336 input, `vfs_*` to Zephyr FS.
 4. Map `ipc` transport to `ipm` / OpenAMP; keep `ipc_msg.h`.
 5. Keep `src/app` and `src/shell` unchanged except Kconfig feature flags.
+6. Keep `game_module_t` / `gfx_*`; only the canvas flush changes.
+7. Keep `home_*`; swap the MQTT port (LwIP → Zephyr MQTT).
 
 Do not introduce TouchGFX. Do not scatter `#ifdef ZEPHYR` inside apps.

@@ -15,7 +15,7 @@ Review of the first plan, requirements, and UI documents. The v2 specs in this f
 | --- | --- | --- |
 | Portability | TouchGFX, FreeRTOS, FatFS, and HSEM ring buffers were treated as the product | Introduce OSAL, VFS, UI backend, display/input HAL, and an IPC protocol so LVGL and Zephyr can replace the first ports |
 | UI framework | TouchGFX named as the UI | Prefer **LVGL from the first UI sprint**. TouchGFX is STM32-only and would be thrown away for Zephyr |
-| Missing apps | File explorer, image viewer, and text viewer were not specified | First-class applications with requirements and screens |
+| Missing apps | File explorer, image viewer, text viewer, **game**, and **home automation** were not specified (v1 only named a game loop) | First-class applications: Files, Image, Text, Player, **Game**, **Home**, Settings |
 | GUI chrome | Persistent 50 px left dock on a 480×272 panel | Full-width status bar + launcher + in-app top bar. Dock wasted ~10% of an already small canvas and missed finger-target size |
 | Sprint plan | Sprints jumped 1 → 4 → 5 with no exit criteria | Sequential sprints with dependencies and done-when checks |
 | SDRAM size | Documented as 16 MB | Chip is 128 Mbit (16 MB), but the board wires a **16-bit** FMC bus, so **8 MB is usable** |
@@ -26,7 +26,8 @@ Review of the first plan, requirements, and UI documents. The v2 specs in this f
 | Requirements quality | Mixed goals, few IDs, no priority, no traceability | EARS-style shalls, MoSCoW, verification method, and a RTM |
 | Tests | A handful of cases, some testing the wrong layer | Host tests for pure logic; HIL for timing, storage, display, audio, failover |
 | Security / robustness | None | Path sandbox, bounded buffers, decoder failure, out-of-memory, and FS unmount |
-| Game loop | Named without a product reason | Demoted to P2 optional app, same shell as other apps |
+| Game loop | Named without screens, tick rate, or a testable sim | **Game** is a P1 app: host-testable `game_sim` + `gfx_*` playfield, not LVGL widgets |
+| Home automation | Absent | **Home** is a P1 app: device model + pluggable bus (`mock` then MQTT). UI never speaks MQTT or Home Assistant JSON |
 
 ## GUI recommendation (adopted in `UI_Design.md`)
 

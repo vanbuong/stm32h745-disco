@@ -91,7 +91,8 @@ Left → right:
 2. **Net cluster:** Ethernet icon (ok/warn/err), optional Wi-Fi icon if compiled in.
 3. **Storage:** eMMC mounted (ok) or error.
 4. **Audio pill:** truncated title when playing; tap opens Player.
-5. **Activity:** thin indeterminate bar under the status bar during FS/decode (does not block touch).
+5. **Home bus (optional dot):** `ok` if MQTT connected, `warn` if using last-known, hidden on mock-only builds.
+6. **Activity:** thin indeterminate bar under the status bar during FS/decode/home_cmd (does not block touch).
 
 Status bar is not a menu. No hamburger that hides primary navigation.
 
@@ -111,10 +112,11 @@ App registry (extensible):
 | `files` | Files | P0 |
 | `image` | Image (usually opened from Files) | P0 |
 | `text` | Text (usually opened from Files) | P0 |
+| `home` | Home | P1 |
+| `game` | Game | P1 |
 | `player` | Music | P1 |
 | `settings` | Settings | P1 |
 | `network` | Network | P1 |
-| `game` | Game | P2 |
 
 ## 7. Screens
 
@@ -124,14 +126,14 @@ App registry (extensible):
 
 ```
 ┌──────────┐  ┌──────────┐  ┌──────────┐
-│  Files   │  │  Music   │  │ Settings │
+│  Files   │  │   Home   │  │   Game   │
 └──────────┘  └──────────┘  └──────────┘
 ┌──────────┐  ┌──────────┐  ┌──────────┐
-│ Network  │  │   Game   │  │   …      │
+│  Music   │  │ Network  │  │ Settings │
 └──────────┘  └──────────┘  └──────────┘
 ```
 
-Missing P2 apps leave an empty slot or are omitted; do not show disabled grey tiles that do nothing.
+All six tiles are product apps (P0/P1). Do not show disabled grey tiles that do nothing.
 
 ### 7.2 Files (explorer)
 
@@ -192,9 +194,11 @@ Mini-player (chrome): title + play/pause only. Tap title → full player.
 
 ### 7.6 Settings
 
-List of rows (44 px): Brightness, Volume, Time, Network, About (fw versions of M7/M4, LVGL, FS free space).
+List of rows (44 px): Brightness, Volume, Time, Network, **Home broker**, About (fw versions of M7/M4, LVGL, FS free space).
 
 Brightness PWM on the panel backlight. Persist in settings service.
+
+Home broker row (only if `HOME_MQTT`): host, port, user, password, enable. Test-connection action.
 
 ### 7.7 Network
 
@@ -202,7 +206,54 @@ Brightness PWM on the panel backlight. Persist in settings service.
 - Wi-Fi page only if `NET_WIFI` compiled.
 - Failover state machine shown as Ethernet → Wi-Fi, never both “primary”.
 
-### 7.8 Common overlays
+### 7.8 Game
+
+App bar auto-hides during play (same as image viewer). Pause overlay on Back, Home, or tap-pause: Resume / Quit. Quit pops to launcher.
+
+Playfield is the content region (typically 480×200). **Not** a widget tree of bricks.
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  SCORE  120          LIVES  ●●●                   HIGH  840  │
+│                                                              │
+│                    [ bricks  ]                               │
+│                                                              │
+│                       (ball)                                 │
+│  ████████  paddle  (finger drag on lower 56 px)              │
+└──────────────────────────────────────────────────────────────┘
+```
+
+- First module: **Brick**. Drag anywhere on the lower band to move the paddle (40 px tall hit strip).
+- One-finger only. No multi-touch gestures.
+- Game-over modal: score, New game, Quit.
+- High score persisted under `/user/game/brick.sav`.
+- If music is playing, keep it; do not steal SAI. If FPS drops below 25, drop particles first, not the paddle.
+- Extra modules later: a Pause-menu “Games” list if more than one module is compiled.
+
+### 7.9 Home
+
+App bar: Back | Home | Rooms.
+
+**Dashboard** (default): 2-column cards, 44+ px tall, for favorites / all devices if ≤ 8; otherwise rooms first.
+
+```
+┌─────────────────────┐  ┌─────────────────────┐
+│ Living   💡  ON     │  │ Hall     ⏻  OFF    │
+│          [=======]  │  │ Front door  closed  │
+└─────────────────────┘  └─────────────────────┘
+```
+
+- Light: big toggle + optional brightness slider (40 px thumb).
+- Switch: big toggle only.
+- Binary sensor: state text, not tappable as a command.
+- Climate (P2): temperature label; setpoint stepper later.
+- Tap card (not the toggle): device page (name, room, last update, error).
+- **Rooms** list: one row per room, count of devices, chevron.
+- Offline: amber banner “Using last known state” ; toggles queue or fail with toast.
+- Empty: “No devices. Enable mock or set broker in Settings.”
+- Never show raw MQTT topics as the primary name.
+
+### 7.10 Common overlays
 
 - **Toast** 2 s at bottom (copied, saved).
 - **Modal:** title, two lines of body, primary + cancel. Primary is the safe action (OK / Retry). Destructive actions use `err` color and explicit “Delete”.
@@ -214,7 +265,9 @@ Brightness PWM on the panel backlight. Persist in settings service.
 - Target **≥ 20 FPS** while scrolling lists; **≥ 30 FPS** idle launcher.
 - Explorer listing of 500 files: first screen in < 300 ms, rest incrementally.
 - Image first paint: JPEG ≤ 2 MP in < 1 s typical from eMMC.
-- Never stall LVGL’s timer tick in a FS read. Use worker + `ui_async`.
+- Game playfield ≥ **30 FPS**.
+- Home dashboard of 32 devices: first paint < 400 ms from cache; live MQTT does not rebuild the whole list each message.
+- Never stall LVGL’s timer tick in a FS read, MQTT parse, or game load. Use worker + `ui_async`.
 
 ## 9. Mapping to LVGL (backend only)
 
@@ -227,6 +280,8 @@ Brightness PWM on the panel backlight. Persist in settings service.
 | Image | `lv_image` from canvas/RGB buffer, not a PNG file widget for large photos |
 | Text | `lv_label` inside `lv_obj` scroll, text set from a window buffer |
 | Player | standard sliders/buttons |
+| Game playfield | `lv_canvas` or raw buffer; **not** one `lv_obj` per brick |
+| Home cards | flex row of buttons/switches bound to `home_device_t` |
 
 Do not use SquareLine/EEZ generated code as the app model. Generated UI, if used, stays in `ui/backend_lvgl`.
 
@@ -236,6 +291,8 @@ Do not use SquareLine/EEZ generated code as the app model. Generated UI, if used
 | --- | --- |
 | Icons, launcher glyphs, fonts | QSPI (or compiled-in C arrays for bring-up) |
 | User photos, notes, music | eMMC `/user` |
+| Game sprites / high scores | QSPI sprites; `/user/game` saves |
+| Home cache | RAM + settings blob (not a user-visible folder) |
 | Thumbs cache | eMMC `/cache/thumbs` (optional, P2) |
 
 Icons: 24 px and 48 px, alpha, light-on-dark. One icon set, not per-toolkit bitmaps duplicated in SDRAM.
@@ -243,9 +300,9 @@ Icons: 24 px and 48 px, alpha, light-on-dark. One icon set, not per-toolkit bitm
 ## 11. Accessibility and copy
 
 - Contrast ≥ 4.5:1 for `text` on `bg`.
-- Errors in plain language: “Storage not ready”, “Cannot open image”, “File is too large”.
+- Errors in plain language: “Storage not ready”, “Cannot open image”, “File is too large”, “Home offline”, “Game paused”.
 - English UI first; strings in a table for later i18n.
 
 ## 12. Future apps
 
-USB file copy, markdown preview, PDF, video: new `ui_app_t` entries and media probes. No chrome change required if they follow the app bar + content pattern.
+USB file copy, markdown preview, PDF, video, extra game modules, climate/scenes: new `ui_app_t` or `game_module_t` / `home_kind_t`. No chrome change if they follow app bar + content.
