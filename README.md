@@ -53,6 +53,30 @@ cmake --preset m4-debug && cmake --build --preset m4-debug
 
 CI: format, layering, cppcheck, clang-tidy, coverage, and both ELF images — see `doc/CICD.md`.
 
+## Sprint 1 boot log (USART3 115200)
+
+After clocks, MPU, cache, SDRAM, and QSPI init the M7 prints on the ST-LINK VCP, then blinks LD2 (PI13):
+
+```
+M7 stm32h745-disco s1
+clk ok
+sysclk 1C9C3800
+mpu on
+cache on
+sdram ok
+walk ok
+qspi ok
+qspi id 20BA20
+qspi_id ok
+qspi_mmap ok
+qspi_word FFFFFFFF
+mpu_test ok
+mpu_faults 00000001
+mpu_mmfar 2407FFE0
+```
+
+`qspi_word FFFFFFFF` means the NOR is erased; mmap worked (no bus fault). Do not execute that window until assets are programmed.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

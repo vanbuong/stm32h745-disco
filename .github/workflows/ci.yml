@@ -70,7 +70,9 @@ jobs:
             firmware/src/svc/vfs_path.c \
             firmware/src/svc/znp_mt.c \
             firmware/src/svc/media_probe.c \
-            firmware/src/svc/auto.c
+            firmware/src/svc/auto.c \
+            firmware/src/svc/memtest.c \
+            firmware/src/bsp/mpu_map.c
 
   cross:
     runs-on: ubuntu-24.04

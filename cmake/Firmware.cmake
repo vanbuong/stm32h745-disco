@@ -12,7 +12,22 @@ else()
     set(TGT firmware-m4)
 endif()
 
-add_executable(${TGT} ${BSP}/startup.c ${MAIN})
+if(CORE STREQUAL "M7")
+    add_executable(${TGT}
+        ${BSP}/startup.c
+        ${MAIN}
+        ${BSP}/clock.c
+        ${BSP}/console.c
+        ${BSP}/mpu.c
+        ${BSP}/cache.c
+        ${BSP}/sdram.c
+        ${BSP}/qspi.c
+        ${CMAKE_SOURCE_DIR}/firmware/src/bsp/mpu_map.c
+        ${CMAKE_SOURCE_DIR}/firmware/src/svc/memtest.c
+    )
+else()
+    add_executable(${TGT} ${BSP}/startup.c ${MAIN})
+endif()
 target_include_directories(${TGT} PRIVATE ${BSP} ${CMAKE_SOURCE_DIR}/firmware/include)
 target_compile_options(${TGT} PRIVATE
     ${CPU_FLAGS}
