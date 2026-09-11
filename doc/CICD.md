@@ -68,7 +68,8 @@ cmake/
   gcc-arm-none-eabi.cmake
   ArmGnu.cmake
   Coverage.cmake
-.settings/ide.store.json    # STM32 VS Code device (STM32H745XIH6)
+.settings/ide.store.json    # STM32 VS Code device (STM32H745XIH6, dual-core)
+CM7/ CM4/                   # per-core Cube CMake contexts
 .vscode/                    # CMake Tools presets + ST-LINK debug (in-tree SVD)
 scripts/
   ci/

@@ -1,9 +1,13 @@
-include(${CMAKE_SOURCE_DIR}/cmake/Helix.cmake)
-include(${CMAKE_SOURCE_DIR}/cmake/LwIP.cmake)
-include(${CMAKE_SOURCE_DIR}/cmake/Cube.cmake)
+if(NOT DEFINED H745_ROOT)
+    get_filename_component(H745_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
+endif()
+include_guard(GLOBAL)
+include(${H745_ROOT}/cmake/Helix.cmake)
+include(${H745_ROOT}/cmake/LwIP.cmake)
+include(${H745_ROOT}/cmake/Cube.cmake)
 
 function(stm32_add_firmware CORE_ID)
-    set(BSP ${CMAKE_SOURCE_DIR}/firmware/src/bsp/stm32h745i_disco)
+    set(BSP ${H745_ROOT}/firmware/src/bsp/stm32h745i_disco)
     cube_collect_sources(${CORE_ID} CUBE_SRC)
 
     if(CORE_ID STREQUAL "M7")
@@ -43,7 +47,7 @@ function(stm32_add_firmware CORE_ID)
         list(FILTER LVGL_SRC EXCLUDE REGEX "/drivers/")
         list(FILTER LVGL_SRC EXCLUDE REGEX "/libs/")
         list(APPEND LVGL_SRC ${ST_ROOT}/lvgl/src/libs/bin_decoder/lv_bin_decoder.c)
-        set(FFCONF ${CMAKE_SOURCE_DIR}/firmware/src/port/fatfs/ffconf.h)
+        set(FFCONF ${H745_ROOT}/firmware/src/port/fatfs/ffconf.h)
         set_source_files_properties(${FT5336_SRC} PROPERTIES COMPILE_FLAGS "-w")
         set_source_files_properties(${FATFS_SRC} PROPERTIES
             COMPILE_FLAGS "-w -include ${FFCONF}")
@@ -66,12 +70,12 @@ function(stm32_add_firmware CORE_ID)
         set(LAN8742_SRC ${ST_ROOT}/stm32-lan8742/lan8742.c)
         set_source_files_properties(${LAN8742_SRC} PROPERTIES COMPILE_FLAGS "-w")
         set_source_files_properties(
-            ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/tjpgd/tjpgd.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/puff/puff.c
+            ${H745_ROOT}/firmware/src/svc/vendor/tjpgd/tjpgd.c
+            ${H745_ROOT}/firmware/src/svc/vendor/puff/puff.c
             PROPERTIES COMPILE_FLAGS "-w")
         set_source_files_properties(
             ${BSP}/emmc.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/svc/vfs.c
+            ${H745_ROOT}/firmware/src/svc/vfs.c
             PROPERTIES COMPILE_FLAGS "-include ${FFCONF}")
         set(APP_SRC
             ${BSP}/startup.c
@@ -91,38 +95,38 @@ function(stm32_add_firmware CORE_ID)
             ${BSP}/codec.c
             ${BSP}/eth.c
             ${BSP}/rtc.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/port/lwip/ethernetif.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/bsp/mpu_map.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/bsp/disp_geom.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/svc/memtest.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/svc/vfs.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/svc/vfs_path.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/svc/media_probe.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/svc/text_view.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/svc/media_image.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/svc/media_bmp.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/svc/media_jpeg.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/svc/media_png.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/svc/media_audio.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/svc/audio_mix.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/svc/audio_pipe.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/svc/audio.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/svc/net.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/svc/time.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/tjpgd/tjpgd.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/puff/puff.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/shell/nav.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/shell/shell.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/shell/launcher_geom.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/app/apps.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/app/files.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/app/image_view.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/app/player.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/app/network.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/ui/backend_lvgl/lv_port.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/ui/backend_lvgl/ui_lvgl.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/ipc/ipc_ring.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/ipc/ipc_link.c
+            ${H745_ROOT}/firmware/src/port/lwip/ethernetif.c
+            ${H745_ROOT}/firmware/src/bsp/mpu_map.c
+            ${H745_ROOT}/firmware/src/bsp/disp_geom.c
+            ${H745_ROOT}/firmware/src/svc/memtest.c
+            ${H745_ROOT}/firmware/src/svc/vfs.c
+            ${H745_ROOT}/firmware/src/svc/vfs_path.c
+            ${H745_ROOT}/firmware/src/svc/media_probe.c
+            ${H745_ROOT}/firmware/src/svc/text_view.c
+            ${H745_ROOT}/firmware/src/svc/media_image.c
+            ${H745_ROOT}/firmware/src/svc/media_bmp.c
+            ${H745_ROOT}/firmware/src/svc/media_jpeg.c
+            ${H745_ROOT}/firmware/src/svc/media_png.c
+            ${H745_ROOT}/firmware/src/svc/media_audio.c
+            ${H745_ROOT}/firmware/src/svc/audio_mix.c
+            ${H745_ROOT}/firmware/src/svc/audio_pipe.c
+            ${H745_ROOT}/firmware/src/svc/audio.c
+            ${H745_ROOT}/firmware/src/svc/net.c
+            ${H745_ROOT}/firmware/src/svc/time.c
+            ${H745_ROOT}/firmware/src/svc/vendor/tjpgd/tjpgd.c
+            ${H745_ROOT}/firmware/src/svc/vendor/puff/puff.c
+            ${H745_ROOT}/firmware/src/shell/nav.c
+            ${H745_ROOT}/firmware/src/shell/shell.c
+            ${H745_ROOT}/firmware/src/shell/launcher_geom.c
+            ${H745_ROOT}/firmware/src/app/apps.c
+            ${H745_ROOT}/firmware/src/app/files.c
+            ${H745_ROOT}/firmware/src/app/image_view.c
+            ${H745_ROOT}/firmware/src/app/player.c
+            ${H745_ROOT}/firmware/src/app/network.c
+            ${H745_ROOT}/firmware/src/ui/backend_lvgl/lv_port.c
+            ${H745_ROOT}/firmware/src/ui/backend_lvgl/ui_lvgl.c
+            ${H745_ROOT}/firmware/src/ipc/ipc_ring.c
+            ${H745_ROOT}/firmware/src/ipc/ipc_link.c
             ${FT5336_SRC}
             ${FATFS_SRC}
             ${LVGL_SRC}
@@ -141,11 +145,11 @@ function(stm32_add_firmware CORE_ID)
             ${BSP}/hsem.c
             ${BSP}/sai_out.c
             ${BSP}/m4_heap.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/ipc/ipc_ring.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/ipc/ipc_link.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/svc/audio_mix.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/svc/audio_pipe.c
-            ${CMAKE_SOURCE_DIR}/firmware/src/svc/audio_engine.c
+            ${H745_ROOT}/firmware/src/ipc/ipc_ring.c
+            ${H745_ROOT}/firmware/src/ipc/ipc_link.c
+            ${H745_ROOT}/firmware/src/svc/audio_mix.c
+            ${H745_ROOT}/firmware/src/svc/audio_pipe.c
+            ${H745_ROOT}/firmware/src/svc/audio_engine.c
             ${HELIX_SRC}
         )
     else()
@@ -155,14 +159,14 @@ function(stm32_add_firmware CORE_ID)
     add_executable(${TGT} ${APP_SRC} ${CUBE_SRC})
     target_include_directories(${TGT} PRIVATE
         ${CUBE}
-        ${CMAKE_SOURCE_DIR}/firmware/include
-        ${CMAKE_SOURCE_DIR}/firmware/src/svc
-        ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/tjpgd
-        ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/puff
-        ${CMAKE_SOURCE_DIR}/firmware/src/port/fatfs
-        ${CMAKE_SOURCE_DIR}/firmware/src/port/lvgl
-        ${CMAKE_SOURCE_DIR}/firmware/src/ui/backend_lvgl
-        ${CMAKE_SOURCE_DIR}/firmware/src/port/lwip
+        ${H745_ROOT}/firmware/include
+        ${H745_ROOT}/firmware/src/svc
+        ${H745_ROOT}/firmware/src/svc/vendor/tjpgd
+        ${H745_ROOT}/firmware/src/svc/vendor/puff
+        ${H745_ROOT}/firmware/src/port/fatfs
+        ${H745_ROOT}/firmware/src/port/lvgl
+        ${H745_ROOT}/firmware/src/ui/backend_lvgl
+        ${H745_ROOT}/firmware/src/port/lwip
         ${BSP}
     )
     target_include_directories(${TGT} SYSTEM PRIVATE
@@ -210,5 +214,8 @@ function(stm32_add_firmware CORE_ID)
         -Wl,-Map=$<TARGET_FILE_DIR:${TGT}>/${TGT}.map
         --specs=nosys.specs
     )
-    set_target_properties(${TGT} PROPERTIES SUFFIX ".elf")
+    set_target_properties(${TGT} PROPERTIES
+        SUFFIX ".elf"
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+    )
 endfunction()

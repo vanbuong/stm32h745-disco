@@ -4,7 +4,7 @@
   },
   "board": "STM32H745I-DISCO",
   "device": "STM32H745XIH6",
-  "core": "Cortex-M7",
-  "order": 0,
+  "core": "Cortex-M4",
+  "order": 1,
   "toolchain": "GCC"
 }

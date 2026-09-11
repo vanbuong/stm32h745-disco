@@ -1,4 +1,7 @@
-set(LWIP_DIR ${CMAKE_SOURCE_DIR}/third_party/lwip)
+if(NOT DEFINED H745_ROOT)
+    get_filename_component(H745_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
+endif()
+set(LWIP_DIR ${H745_ROOT}/third_party/lwip)
 if(NOT EXISTS ${LWIP_DIR}/src/core/init.c)
     message(FATAL_ERROR
         "Missing LwIP at ${LWIP_DIR}.\n"

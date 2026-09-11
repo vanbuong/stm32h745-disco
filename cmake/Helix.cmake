@@ -1,4 +1,7 @@
-set(HELIX_ROOT ${CMAKE_SOURCE_DIR}/third_party/helix)
+if(NOT DEFINED H745_ROOT)
+    get_filename_component(H745_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
+endif()
+set(HELIX_ROOT ${H745_ROOT}/third_party/helix)
 if(NOT EXISTS ${HELIX_ROOT}/mp3dec.c)
     message(FATAL_ERROR
         "Missing Helix at ${HELIX_ROOT}.\n"
@@ -22,7 +25,7 @@ set(HELIX_SRC
     ${HELIX_ROOT}/real/subband.c
     ${HELIX_ROOT}/real/trigtabs.c
 )
-set(HELIX_GENERIC_ASM ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/helix_generic_asm.h)
+set(HELIX_GENERIC_ASM ${H745_ROOT}/firmware/src/svc/vendor/helix_generic_asm.h)
 if(MSVC)
     set_source_files_properties(${HELIX_SRC} PROPERTIES
         COMPILE_FLAGS "/w /FI${HELIX_GENERIC_ASM}")

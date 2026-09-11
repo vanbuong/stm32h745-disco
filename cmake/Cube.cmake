@@ -6,11 +6,14 @@
 # Clone with --recurse-submodules, or:
 #   git submodule update --init --recursive
 
-set(ST_ROOT ${CMAKE_SOURCE_DIR}/third_party)
+if(NOT DEFINED H745_ROOT)
+    get_filename_component(H745_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
+endif()
+set(ST_ROOT ${H745_ROOT}/third_party)
 set(ST_HAL_DIR ${ST_ROOT}/stm32h7xx-hal-driver)
 set(ST_CMSIS_DEV ${ST_ROOT}/cmsis-device-h7)
 set(ST_CMSIS_CORE ${ST_ROOT}/cmsis_core)
-set(CUBE ${CMAKE_SOURCE_DIR}/firmware/src/port/cube)
+set(CUBE ${H745_ROOT}/firmware/src/port/cube)
 
 if(NOT EXISTS ${ST_HAL_DIR}/Inc/stm32h7xx_hal.h)
     message(FATAL_ERROR

@@ -10,6 +10,7 @@
       "toolchainFile": "${sourceDir}/cmake/gcc-arm-none-eabi.cmake",
       "cacheVariables": {
         "CORE": "BOTH",
+        "ST_MULTICONTEXT": "DUAL_CORE",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       }
     },

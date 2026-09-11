@@ -88,11 +88,12 @@ Install the [STM32CubeIDE for Visual Studio Code](https://marketplace.visualstud
 
 1. `git submodule update --init --recursive`
 2. **File → Open Folder** on this repo (or open `stm32h745-disco.code-workspace`)
-3. Accept **Configure discovered CMake project(s) as STM32Cube project(s)?** if asked
-4. Select the **Debug (M7 + M4)** CMake preset
-5. Build, then debug with **CM7_Debug** (flashes both ELFs) and optionally **DualCore_Debug**
+3. Accept **Configure discovered CMake project(s) as STM32Cube project(s)?**
+4. If the tool asks to map cores, set **CM7 → Cortex-M7** and **CM4 → Cortex-M4** (root is the dual-core CMake project)
+5. Select the **Debug (M7 + M4)** CMake preset and build — that produces both `firmware-m7.elf` and `firmware-m4.elf`
+6. Debug with **CM7_Debug** (flashes both ELFs) and optionally **DualCore_Debug**
 
-Register view uses in-tree SVD files (`third_party/cmsis-svd/`), not CubeCLT. Device is `STM32H745XIH6` on **STM32H745I-DISCO** (`.settings/ide.store.json`). Apps still never include HAL; only `firmware/src/port/cube` and `firmware/src/bsp` do.
+The STM32 configuration tool may add local `cube-cmake` / `starm-clangd` keys to `.vscode/settings.json`; leave those. Do not change the Debug preset to a single core. Register view uses in-tree SVD files (`third_party/cmsis-svd/`). Device is `STM32H745XIH6` on **STM32H745I-DISCO**. Apps still never include HAL; only `firmware/src/port/cube` and `firmware/src/bsp` do.
 
 CI: format, layering, cppcheck, clang-tidy, coverage, and both ELF images — see `doc/CICD.md`.
 
