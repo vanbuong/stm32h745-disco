@@ -15,6 +15,7 @@ set(HOST_SRC
     ${CMAKE_SOURCE_DIR}/tests/host/test_media_auto.c
     ${CMAKE_SOURCE_DIR}/tests/host/test_mem.c
     ${CMAKE_SOURCE_DIR}/tests/host/test_disp.c
+    ${CMAKE_SOURCE_DIR}/tests/host/vfs_ram.c
 )
 
 add_executable(host_tests ${HOST_SRC})

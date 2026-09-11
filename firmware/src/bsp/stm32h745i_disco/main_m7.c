@@ -3,11 +3,17 @@
 #include "hal/disp.h"
 #include "hal/input.h"
 #include "svc/memtest.h"
+#include "svc/vfs.h"
 
 #include "cube.h"
 
+#include <string.h>
+
 #define FPS_FRAMES 60u
 #define CROSS_ARM 8
+#define VFS_CHUNK 16384u
+#define VFS_FILE_BYTES (1024u * 1024u)
+#define VFS_READ_GOAL (8u * 1024u * 1024u)
 
 static void led_init(void)
 {
@@ -126,6 +132,144 @@ static void fps_fill(void)
     }
 }
 
+static uint8_t g_chunk[VFS_CHUNK];
+
+static void vfs_list_user(void)
+{
+    vfs_dir_t d = -1;
+    vfs_dirent_t ent;
+    unsigned n = 0;
+    err_t e;
+
+    e = vfs_opendir("/user", &d);
+    log_err("vfs_dir", e);
+    if (e != ERR_OK) {
+        return;
+    }
+    for (;;) {
+        e = vfs_readdir(d, &ent);
+        if (e == ERR_NOENT) {
+            break;
+        }
+        if (e != ERR_OK) {
+            log_err("vfs_readent", e);
+            break;
+        }
+        n++;
+        if (n <= 8u) {
+            board_console_puts("vfs_ent ");
+            board_console_puts(ent.name);
+            board_console_puts("\r\n");
+        }
+    }
+    (void)vfs_closedir(d);
+    board_console_puts("vfs_ents ");
+    put_u32(n);
+    board_console_puts("\r\n");
+}
+
+static err_t vfs_ensure_bench(void)
+{
+    vfs_stat_t st;
+    vfs_file_t fd = -1;
+    uint32_t left;
+    err_t e;
+
+    if (vfs_stat("/user/s3.bin", &st) == ERR_OK && st.size >= VFS_FILE_BYTES) {
+        return ERR_OK;
+    }
+    memset(g_chunk, 0xA5, sizeof(g_chunk));
+    e = vfs_open("/user/s3.bin", VFS_O_WR | VFS_O_CREAT | VFS_O_TRUNC, &fd);
+    if (e != ERR_OK) {
+        return e;
+    }
+    left = VFS_FILE_BYTES;
+    while (left > 0u) {
+        size_t n = (left > VFS_CHUNK) ? VFS_CHUNK : left;
+        size_t put = 0u;
+        e = vfs_write(fd, g_chunk, n, &put);
+        if (e != ERR_OK || put != n) {
+            (void)vfs_close(fd);
+            return (e != ERR_OK) ? e : ERR_IO;
+        }
+        left -= (uint32_t)n;
+    }
+    return vfs_close(fd);
+}
+
+static void vfs_bench(void)
+{
+    vfs_file_t fd = -1;
+    uint32_t t0;
+    uint32_t dt;
+    uint32_t total = 0u;
+    uint32_t kBps;
+    err_t e;
+
+    e = vfs_ensure_bench();
+    log_err("vfs_mk", e);
+    if (e != ERR_OK) {
+        return;
+    }
+    e = vfs_open("/user/s3.bin", VFS_O_RD, &fd);
+    log_err("vfs_open", e);
+    if (e != ERR_OK) {
+        return;
+    }
+    t0 = HAL_GetTick();
+    while (total < VFS_READ_GOAL) {
+        size_t got = 0u;
+        e = vfs_read(fd, g_chunk, VFS_CHUNK, &got);
+        if (e != ERR_OK) {
+            log_err("vfs_rd", e);
+            break;
+        }
+        if (got == 0u) {
+            if (vfs_seek(fd, 0u) != ERR_OK) {
+                break;
+            }
+            continue;
+        }
+        total += (uint32_t)got;
+    }
+    dt = HAL_GetTick() - t0;
+    (void)vfs_close(fd);
+    board_console_puts("vfs_bytes ");
+    put_u32(total);
+    board_console_puts("\r\n");
+    board_console_puts("vfs_ms ");
+    put_u32(dt);
+    board_console_puts("\r\n");
+    kBps = (dt == 0u) ? 0u : ((total / 1024u) * 1000u) / dt;
+    board_console_puts("vfs_kBps ");
+    put_u32(kBps);
+    board_console_puts("\r\n");
+    if (kBps >= 15360u) {
+        board_console_puts("vfs_mbps ok\r\n");
+    } else {
+        board_console_puts("vfs_mbps fail\r\n");
+    }
+}
+
+static void vfs_bringup(void)
+{
+    err_t e;
+
+    e = board_emmc_init();
+    log_err("emmc", e);
+    if (e != ERR_OK) {
+        return;
+    }
+    log_kv("emmc_blocks", board_emmc_block_count());
+    e = vfs_mount();
+    log_err("vfs", e);
+    if (e != ERR_OK) {
+        return;
+    }
+    vfs_list_user();
+    vfs_bench();
+}
+
 int main(void)
 {
     uint8_t id[3] = {0, 0, 0};
@@ -141,7 +285,7 @@ int main(void)
     HAL_Init();
     led_init();
     board_console_init(0);
-    board_console_puts("M7 stm32h745-disco s2\r\n");
+    board_console_puts("M7 stm32h745-disco s3\r\n");
 
     e = board_clock_init();
     board_console_init(0);
@@ -183,6 +327,8 @@ int main(void)
     log_err("mpu_test", e);
     log_kv("mpu_faults", board_mpu_faults());
     log_kv("mpu_mmfar", board_mpu_last_mmfar());
+
+    vfs_bringup();
 
     e = board_disp_init();
     log_err("disp", e);

@@ -13,3 +13,6 @@
 [submodule "third_party/stm32-ft5336"]
 	path = third_party/stm32-ft5336
 	url = https://github.com/STMicroelectronics/stm32-ft5336.git
+[submodule "third_party/fatfs"]
+	path = third_party/fatfs
+	url = https://github.com/abbrev/fatfs.git

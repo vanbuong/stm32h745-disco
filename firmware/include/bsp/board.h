@@ -64,6 +64,10 @@ int32_t board_i2c4_write_reg(uint16_t addr, uint16_t reg, uint8_t *data, uint16_
 err_t board_input_init(void);
 uint8_t board_touch_present(void);
 
+err_t board_emmc_init(void);
+int board_emmc_ready(void);
+uint32_t board_emmc_block_count(void);
+
 #ifdef __cplusplus
 }
 #endif

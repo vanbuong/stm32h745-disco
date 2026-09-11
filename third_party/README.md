@@ -18,8 +18,9 @@ Policy (locked in `doc/Architecture.md` §3.1):
 | `cmsis_core/` | [cmsis_core](https://github.com/STMicroelectronics/cmsis_core) | v5.9.0_20220705 |
 | `stm32-rk043fn48h/` | [stm32-rk043fn48h](https://github.com/STMicroelectronics/stm32-rk043fn48h) | v1.0.3-2 |
 | `stm32-ft5336/` | [stm32-ft5336](https://github.com/STMicroelectronics/stm32-ft5336) | v2.0.1-2 |
+| `fatfs/` | [abbrev/fatfs](https://github.com/abbrev/fatfs) (ChaN FatFs) | R0.15b |
 
-`stm32h7xx-hal-driver` is both HAL (`stm32h7xx_hal_*.c`) and LL (`stm32h7xx_ll_*.c`, `USE_FULL_LL_DRIVER`). Panel timings are header-only; FT5336 is compiled in the M7 image with I2C4 in our BSP.
+`stm32h7xx-hal-driver` is both HAL (`stm32h7xx_hal_*.c`) and LL (`stm32h7xx_ll_*.c`, `USE_FULL_LL_DRIVER`). Panel timings are header-only; FT5336 is compiled in the M7 image with I2C4 in our BSP. FatFs `ff.c` is compiled on M7; `diskio` and `ffconf.h` are ours (`firmware/src/bsp/.../emmc.c`, `firmware/src/port/fatfs/`).
 
 ```
 git submodule update --init --recursive
@@ -27,7 +28,7 @@ git submodule update --init --recursive
 
 | Core | HAL | LL |
 | --- | --- | --- |
-| M7 | RCC, PWR, Cortex/MPU, GPIO AF, SDRAM, QSPI, LTDC, DMA2D, I2C4 | FMC, USART3, GPIO (LED) |
+| M7 | RCC, PWR, Cortex/MPU, GPIO AF, SDRAM, QSPI, LTDC, DMA2D, I2C4, MMC/SDMMC1 | FMC, USART3, GPIO (LED), SDMMC |
 | M4 | none | GPIO (LED) |
 
 ## Pull when a sprint needs it
@@ -35,7 +36,6 @@ git submodule update --init --recursive
 | Sprint | Submodule | Why |
 | --- | --- | --- |
 | QSPI assets | [stm32-mt25tl01g](https://github.com/STMicroelectronics/stm32-mt25tl01g) | Quad/mmap commands beyond Sprint 1's 1-1-1 READ. |
-| 3 VFS | FatFS (elm-chan or `fatfs`) | `diskio` for SDMMC1 is our code. |
 | 4 shell | [lvgl](https://github.com/lvgl/lvgl) | Only `src/ui/backend_lvgl`. |
 | OSAL | [FreeRTOS-Kernel](https://github.com/FreeRTOS/FreeRTOS-Kernel) | Not Cube `stm32-mw-freertos` unless we need their CMSIS-RTOS glue. |
 | 8 audio | [stm32-wm8994](https://github.com/STMicroelectronics/stm32-wm8994), Helix | Codec + MP3. SAI DMA is our BSP. |

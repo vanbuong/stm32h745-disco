@@ -68,3 +68,30 @@ int vfs_in_user_jail(const char *norm)
     }
     return is_user_root(norm);
 }
+
+err_t vfs_jail_rel(const char *norm, char *rel, size_t rel_sz)
+{
+    size_t n = strlen(VFS_JAIL_PREFIX);
+    const char *rest;
+
+    if (norm == NULL || rel == NULL || rel_sz < 2u) {
+        return ERR_INVAL;
+    }
+    if (!is_user_root(norm)) {
+        return ERR_DENIED;
+    }
+    rest = norm + n;
+    if (rest[0] == '\0' || (rest[0] == '/' && rest[1] == '\0')) {
+        rel[0] = '/';
+        rel[1] = '\0';
+        return ERR_OK;
+    }
+    if (rest[0] != '/') {
+        return ERR_DENIED;
+    }
+    if (strlen(rest) + 1u > rel_sz) {
+        return ERR_NOSPC;
+    }
+    memcpy(rel, rest, strlen(rest) + 1u);
+    return ERR_OK;
+}

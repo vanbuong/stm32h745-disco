@@ -152,6 +152,7 @@ third_party/
   cmsis_core/
   stm32-ft5336/              ST component (now)
   stm32-rk043fn48h/          ST component (now)
+  fatfs/                     elm-chan FatFs R0.15b (now)
   stm32-mt25tl01g/           ST component (QSPI commands, when needed)
   stm32-wm8994/              ST component (Sprint 8)
   stm32-lan8742/             ST component (Sprint 9)
@@ -277,9 +278,7 @@ UART (ZNP): `uart_open` / `uart_write` / `uart_read` / `uart_set_gpio` (RESET). 
 
 ### 7.3 VFS
 
-POSIX-like subset: `open/read/write/close/seek/stat/opendir/readdir/mkdir/unlink/rename`. Paths are UTF-8, `/` separated, rooted at a jail (`/user` for the explorer).
-
-No raw `FIL` / `fs_file_t` in apps.
+POSIX-like subset in `vfs.h`: `mount/open/read/write/seek/close/stat/opendir/readdir/mkdir`. Paths are UTF-8, `/` separated, jailed at `/user`. FatFs `FIL` stays in `src/svc/vfs.c`; apps never include `ff.h`. Host tests use a RAM tree (`tests/host/vfs_ram.c`) so they do not link FatFs.
 
 ### 7.4 Media
 
@@ -570,7 +569,7 @@ Timeout `0` = try, `0xFFFFFFFF` = forever. `osal_malloc` may return NULL; caller
 /qspi          not a VFS mount; assets are pointers / IDs
 ```
 
-Rejected paths: `..` segment, NUL, backslash, leading `//`, any canonical path outside `/user` for explorer APIs. `vfs_realpath` is the single normalizer; host-tested.
+Rejected paths: `..` segment, NUL, backslash, leading `//`, any canonical path outside `/user` for explorer APIs. `vfs_normalize` / `vfs_jail_rel` are the normalizers; host-tested.
 
 ## 17. Zigbee join and interview
 

@@ -19,11 +19,27 @@ function(stm32_add_firmware CORE_ID)
                 "Missing stm32-ft5336 at ${ST_ROOT}/stm32-ft5336.\n"
                 "Run: git submodule update --init --recursive")
         endif()
+        if(NOT EXISTS ${ST_ROOT}/fatfs/source/ff.c)
+            message(FATAL_ERROR
+                "Missing FatFs at ${ST_ROOT}/fatfs.\n"
+                "Run: git submodule update --init --recursive")
+        endif()
         set(FT5336_SRC
             ${ST_ROOT}/stm32-ft5336/ft5336.c
             ${ST_ROOT}/stm32-ft5336/ft5336_reg.c
         )
+        set(FATFS_SRC
+            ${ST_ROOT}/fatfs/source/ff.c
+            ${ST_ROOT}/fatfs/source/ffunicode.c
+        )
+        set(FFCONF ${CMAKE_SOURCE_DIR}/firmware/src/port/fatfs/ffconf.h)
         set_source_files_properties(${FT5336_SRC} PROPERTIES COMPILE_FLAGS "-w")
+        set_source_files_properties(${FATFS_SRC} PROPERTIES
+            COMPILE_FLAGS "-w -include ${FFCONF}")
+        set_source_files_properties(
+            ${BSP}/emmc.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/svc/vfs.c
+            PROPERTIES COMPILE_FLAGS "-include ${FFCONF}")
         set(APP_SRC
             ${BSP}/startup.c
             ${BSP}/main_m7.c
@@ -36,10 +52,14 @@ function(stm32_add_firmware CORE_ID)
             ${BSP}/lcd.c
             ${BSP}/i2c4.c
             ${BSP}/input.c
+            ${BSP}/emmc.c
             ${CMAKE_SOURCE_DIR}/firmware/src/bsp/mpu_map.c
             ${CMAKE_SOURCE_DIR}/firmware/src/bsp/disp_geom.c
             ${CMAKE_SOURCE_DIR}/firmware/src/svc/memtest.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/svc/vfs.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/svc/vfs_path.c
             ${FT5336_SRC}
+            ${FATFS_SRC}
         )
     elseif(CORE_ID STREQUAL "M4")
         set(CPU_FLAGS -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard)
@@ -58,6 +78,7 @@ function(stm32_add_firmware CORE_ID)
     target_include_directories(${TGT} PRIVATE
         ${CUBE}
         ${CMAKE_SOURCE_DIR}/firmware/include
+        ${CMAKE_SOURCE_DIR}/firmware/src/port/fatfs
         ${BSP}
     )
     target_include_directories(${TGT} SYSTEM PRIVATE
@@ -66,6 +87,7 @@ function(stm32_add_firmware CORE_ID)
         ${ST_CMSIS_CORE}/Core/Include
         ${ST_ROOT}/stm32-rk043fn48h
         ${ST_ROOT}/stm32-ft5336
+        ${ST_ROOT}/fatfs/source
     )
     target_compile_definitions(${TGT} PRIVATE
         STM32H745xx

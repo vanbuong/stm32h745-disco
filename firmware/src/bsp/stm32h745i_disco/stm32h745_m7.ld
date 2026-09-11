@@ -4,6 +4,7 @@ MEMORY
 {
     FLASH (rx)  : ORIGIN = 0x08000000, LENGTH = 1024K
     DTCM  (rwx) : ORIGIN = 0x20000000, LENGTH = 128K
+    AXIRAM (rwx): ORIGIN = 0x24000000, LENGTH = 512K
 }
 
 _estack = ORIGIN(DTCM) + LENGTH(DTCM);
@@ -40,4 +41,10 @@ SECTIONS
         . = ALIGN(4);
         _ebss = .;
     } > DTCM
+
+    .dma_buf (NOLOAD) : ALIGN(32)
+    {
+        KEEP(*(.dma_buf))
+        . = ALIGN(32);
+    } > AXIRAM
 }

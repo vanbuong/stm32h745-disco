@@ -127,9 +127,11 @@ Status: **done** (host-tested clip/RGB565; board boot log is the HIL check).
 
 ### Sprint 3 — Storage VFS
 
-- SDMMC1 + FatFS (or equivalent) behind `vfs_*`.
+Status: **done** (host-tested jail, extension dispatch, RAM VFS dir walk; board boot log is the HIL check).
+
+- SDMMC1 + FatFs R0.15b behind `vfs_*`. `diskio` is our BSP (polling + IDMA bounce in AXI SRAM).
 - Mount `/user` on eMMC; reject path escape (`..`, absolute outside jail).
-- Directory listing, sequential read benchmark.
+- Directory listing, sequential read benchmark (`/user/s3.bin`).
 - **Exit:** host tests for path jail and extension dispatch; HIL sequential read ≥ 15 MB/s on large files (see REQ-STG-02).
 
 ### Sprint 4 — LVGL shell

@@ -75,12 +75,12 @@ Device is `STM32H745XIH6` on **STM32H745I-DISCO** (`.settings/ide.store.json`). 
 
 CI: format, layering, cppcheck, clang-tidy, coverage, and both ELF images — see `doc/CICD.md`.
 
-## Sprint 2 boot log (USART3 115200)
+## Sprint 3 boot log (USART3 115200)
 
-After Sprint 1 memory bring-up the M7 inits LTDC/DMA2D and I2C4/FT5336, paints color bars, times 60 full-screen fills, then tracks a touch crosshair. LD2 (PI13) still blinks:
+After memory, display, and eMMC bring-up the M7 mounts FAT on `/user`, lists it, sequential-reads `/user/s3.bin` (creates a 1 MB file if missing, then reads 8 MB by looping), then paints color bars and tracks a touch crosshair. LD2 (PI13) still blinks:
 
 ```
-M7 stm32h745-disco s2
+M7 stm32h745-disco s3
 clk ok
 sysclk 1C9C3800
 mpu on
@@ -95,6 +95,18 @@ qspi_word FFFFFFFF
 mpu_test ok
 mpu_faults 00000001
 mpu_mmfar 2407FFE0
+emmc ok
+emmc_blocks <count>
+vfs ok
+vfs_dir ok
+vfs_ent ...
+vfs_ents N
+vfs_mk ok
+vfs_open ok
+vfs_bytes 8388608
+vfs_ms ...
+vfs_kBps ...
+vfs_mbps ok
 disp ok
 input ok
 touch ok
@@ -104,7 +116,7 @@ fps 60
 fps ok
 ```
 
-`touch none` is OK on boards that ship GT911 instead of FT5336 (bars and FPS still run). `qspi_word FFFFFFFF` means the NOR is erased; mmap worked (no bus fault). Do not execute that window until assets are programmed. `fps ok` is ≥ 30 FPS of DMA2D fill + LTDC vblank swap.
+`emmc fail` / `vfs fail` is a soft error (no crash); bars still run. `vfs_mbps ok` is ≥ 15 MB/s. Formal REQ-STG-02 uses a ≥ 64 MB file; the demo file is 1 MB looped so first boot stays short. `touch none` is OK on boards that ship GT911 instead of FT5336. `qspi_word FFFFFFFF` means the NOR is erased; mmap worked (no bus fault).
 
 ## License
 
