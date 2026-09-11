@@ -1,19 +1,19 @@
 #include "bsp/board.h"
-#include "bsp/disp_geom.h"
 #include "hal/disp.h"
 #include "hal/input.h"
 #include "svc/memtest.h"
 #include "svc/vfs.h"
+#include "ui/backend.h"
+#include "ui/shell.h"
 
 #include "cube.h"
 
 #include <string.h>
 
-#define FPS_FRAMES 60u
-#define CROSS_ARM 8
 #define VFS_CHUNK 16384u
 #define VFS_FILE_BYTES (1024u * 1024u)
 #define VFS_READ_GOAL (8u * 1024u * 1024u)
+#define UI_FPS_MS 2000u
 
 static void led_init(void)
 {
@@ -56,80 +56,6 @@ static void put_u32(uint32_t v)
         v /= 10u;
     }
     board_console_puts(&buf[i]);
-}
-
-static void draw_bars(void)
-{
-    static const uint8_t rgb[8][3] = {
-        {255, 255, 255}, {255, 255, 0}, {0, 255, 255}, {0, 255, 0},
-        {255, 0, 255},   {255, 0, 0},   {0, 0, 255},   {0, 0, 0},
-    };
-    disp_rect_t r;
-    unsigned i;
-
-    r.y = 0u;
-    r.h = BOARD_LCD_H;
-    r.w = (uint16_t)(BOARD_LCD_W / 8u);
-    for (i = 0u; i < 8u; i++) {
-        r.x = (uint16_t)(i * r.w);
-        (void)disp_fill(&r, disp_rgb565(rgb[i][0], rgb[i][1], rgb[i][2]));
-    }
-}
-
-static void draw_cross(int16_t x, int16_t y)
-{
-    disp_rect_t h;
-    disp_rect_t v;
-    int16_t x0 = (int16_t)(x - CROSS_ARM);
-    int16_t y0 = (int16_t)(y - CROSS_ARM);
-
-    if (x0 < 0) {
-        x0 = 0;
-    }
-    if (y0 < 0) {
-        y0 = 0;
-    }
-    h.x = (uint16_t)x0;
-    h.y = (uint16_t)y;
-    h.w = (uint16_t)(CROSS_ARM * 2 + 1);
-    h.h = 1u;
-    v.x = (uint16_t)x;
-    v.y = (uint16_t)y0;
-    v.w = 1u;
-    v.h = (uint16_t)(CROSS_ARM * 2 + 1);
-    (void)disp_fill(&h, disp_rgb565(255u, 255u, 255u));
-    (void)disp_fill(&v, disp_rgb565(255u, 255u, 255u));
-}
-
-static void fps_fill(void)
-{
-    disp_rect_t full = {0u, 0u, BOARD_LCD_W, BOARD_LCD_H};
-    uint32_t t0;
-    uint32_t dt;
-    uint32_t fps;
-    uint32_t i;
-    uint16_t red = disp_rgb565(255u, 0u, 0u);
-    uint16_t blue = disp_rgb565(0u, 0u, 255u);
-
-    t0 = HAL_GetTick();
-    for (i = 0u; i < FPS_FRAMES; i++) {
-        (void)disp_fill(&full, ((i & 1u) != 0u) ? blue : red);
-        disp_swap();
-    }
-    dt = HAL_GetTick() - t0;
-    fps = (dt == 0u) ? 0u : ((FPS_FRAMES * 1000u) / dt);
-
-    board_console_puts("fps_ms ");
-    put_u32(dt);
-    board_console_puts("\r\n");
-    board_console_puts("fps ");
-    put_u32(fps);
-    board_console_puts("\r\n");
-    if (fps >= 30u) {
-        board_console_puts("fps ok\r\n");
-    } else {
-        board_console_puts("fps fail\r\n");
-    }
 }
 
 static uint8_t g_chunk[VFS_CHUNK];
@@ -251,23 +177,56 @@ static void vfs_bench(void)
     }
 }
 
-static void vfs_bringup(void)
+static uint8_t vfs_bringup(void)
 {
     err_t e;
 
     e = board_emmc_init();
     log_err("emmc", e);
     if (e != ERR_OK) {
-        return;
+        return 0u;
     }
     log_kv("emmc_blocks", board_emmc_block_count());
     e = vfs_mount();
     log_err("vfs", e);
     if (e != ERR_OK) {
-        return;
+        return 0u;
     }
     vfs_list_user();
     vfs_bench();
+    return 1u;
+}
+
+static void ui_fps_probe(void)
+{
+    uint32_t t0;
+    uint32_t dt;
+    uint32_t f0;
+    uint32_t n;
+    uint32_t fps;
+
+    f0 = ui_backend_frames();
+    t0 = HAL_GetTick();
+    while ((HAL_GetTick() - t0) < UI_FPS_MS) {
+        ui_backend_handler();
+    }
+    dt = HAL_GetTick() - t0;
+    n = ui_backend_frames() - f0;
+    fps = (dt == 0u) ? 0u : ((n * 1000u) / dt);
+    board_console_puts("ui_frames ");
+    put_u32(n);
+    board_console_puts("\r\n");
+    board_console_puts("ui_ms ");
+    put_u32(dt);
+    board_console_puts("\r\n");
+    board_console_puts("ui_fps ");
+    put_u32(fps);
+    board_console_puts("\r\n");
+    if (fps >= 20u) {
+        board_console_puts("ui_fps ok\r\n");
+    } else {
+        board_console_puts("ui_fps fail\r\n");
+    }
 }
 
 int main(void)
@@ -276,16 +235,15 @@ int main(void)
     uint32_t word = 0;
     uint32_t fail_off = 0;
     uint32_t blink_at = 0;
+    uint32_t last_ms;
     uint8_t led_on = 0;
-    uint8_t have_ptr = 0;
-    int16_t px = 0;
-    int16_t py = 0;
+    uint8_t vfs_ok;
     err_t e;
 
     HAL_Init();
     led_init();
     board_console_init(0);
-    board_console_puts("M7 stm32h745-disco s3\r\n");
+    board_console_puts("M7 stm32h745-disco s4\r\n");
 
     e = board_clock_init();
     board_console_init(0);
@@ -328,7 +286,7 @@ int main(void)
     log_kv("mpu_faults", board_mpu_faults());
     log_kv("mpu_mmfar", board_mpu_last_mmfar());
 
-    vfs_bringup();
+    vfs_ok = vfs_bringup();
 
     e = board_disp_init();
     log_err("disp", e);
@@ -340,34 +298,29 @@ int main(void)
         board_console_puts("touch none\r\n");
     }
 
-    draw_bars();
-    disp_swap();
-    board_console_puts("bars ok\r\n");
-    fps_fill();
-    draw_bars();
-    disp_swap();
+    shell_init();
+    shell_status_set_storage(vfs_ok);
+    e = ui_backend_init();
+    log_err("ui", e);
+    if (e == ERR_OK) {
+        board_console_puts("shell ready\r\n");
+        ui_fps_probe();
+    }
 
-    blink_at = HAL_GetTick() + 250u;
+    last_ms = HAL_GetTick();
+    blink_at = last_ms + 250u;
     for (;;) {
-        input_event_t ev;
+        uint32_t now = HAL_GetTick();
+        uint32_t dt = now - last_ms;
 
-        if (input_poll(&ev)) {
-            if (ev.kind == INPUT_PTR_UP) {
-                have_ptr = 0u;
-            } else if (ev.kind == INPUT_PTR_DOWN || ev.kind == INPUT_PTR_MOVE) {
-                have_ptr = 1u;
-                px = ev.x;
-                py = ev.y;
-            }
-            draw_bars();
-            if (have_ptr != 0u) {
-                draw_cross(px, py);
-            }
-            disp_swap();
+        last_ms = now;
+        shell_tick(dt);
+        if (e == ERR_OK) {
+            ui_backend_handler();
         }
 
-        if ((int32_t)(HAL_GetTick() - blink_at) >= 0) {
-            blink_at = HAL_GetTick() + 250u;
+        if ((int32_t)(now - blink_at) >= 0) {
+            blink_at = now + 250u;
             if (led_on != 0u) {
                 LL_GPIO_ResetOutputPin(GPIOI, LL_GPIO_PIN_13);
                 led_on = 0u;

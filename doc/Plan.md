@@ -139,9 +139,11 @@ Status: **done** (host-tested jail, extension dispatch, RAM VFS dir walk; board 
 
 ### Sprint 4 — LVGL shell
 
-- LVGL ported **only** in `ui/backend_lvgl`.
+Status: **done** (host-tested nav stack, launcher geometry, stub registry; board boot log is the HIL check).
+
+- LVGL v9.5.0 ported **only** in `ui/backend_lvgl`.
 - Theme tokens, 32 px status bar, launcher grid, navigation stack.
-- Dummy apps that push/pop screens (Files stub, Game stub, Home stub).
+- Dummy apps that push/pop screens (Files stub with a scroll list, Game/Home/Music/Network/Settings stubs).
 - Launcher 3×2: Files, Home, Game, Music, Network, Settings.
 - **Exit:** launcher opens and returns from two stub apps; 20 FPS UI with touch scroll.
 

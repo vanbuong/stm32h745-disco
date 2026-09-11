@@ -75,12 +75,12 @@ Device is `STM32H745XIH6` on **STM32H745I-DISCO** (`.settings/ide.store.json`). 
 
 CI: format, layering, cppcheck, clang-tidy, coverage, and both ELF images — see `doc/CICD.md`.
 
-## Sprint 3 boot log (USART3 115200)
+## Sprint 4 boot log (USART3 115200)
 
-After memory, display, and eMMC bring-up the M7 mounts FAT on `/user`, lists it, sequential-reads `/user/s3.bin` (creates a 1 MB file if missing, then reads 8 MB by looping), then paints color bars and tracks a touch crosshair. LD2 (PI13) still blinks:
+After memory, eMMC, and display bring-up the M7 starts the LVGL shell (32 px status + 3×2 launcher). Files is a stub list you can scroll; Back returns to the launcher. LD2 (PI13) still blinks:
 
 ```
-M7 stm32h745-disco s3
+M7 stm32h745-disco s4
 clk ok
 sysclk 1C9C3800
 mpu on
@@ -110,13 +110,15 @@ vfs_mbps ok
 disp ok
 input ok
 touch ok
-bars ok
-fps_ms 1000
-fps 60
-fps ok
+ui ok
+shell ready
+ui_frames ...
+ui_ms 2000
+ui_fps ...
+ui_fps ok
 ```
 
-`emmc fail` / `vfs fail` is a soft error (no crash); bars still run. `vfs_mbps ok` is ≥ 15 MB/s. Formal REQ-STG-02 uses a ≥ 64 MB file; the demo file is 1 MB looped so first boot stays short. `touch none` is OK on boards that ship GT911 instead of FT5336. `qspi_word FFFFFFFF` means the NOR is erased; mmap worked (no bus fault).
+Tap a tile logs `shell_push <id>`; Back logs `shell_pop`. `emmc fail` / `vfs fail` is a soft error (status shows eMMC error); the shell still runs. `ui_fps ok` is ≥ 20 FPS. `touch none` is OK on boards that ship GT911 instead of FT5336. `qspi_word FFFFFFFF` means the NOR is erased; mmap worked (no bus fault).
 
 ## License
 

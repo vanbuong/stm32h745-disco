@@ -316,13 +316,26 @@ void disp_swap(void)
         return;
     }
     next = (uint8_t)(g_front ^ 1u);
+    board_disp_show(g_fb[next]);
+}
+
+void board_disp_show(const void *fb)
+{
+    if (!g_ready || fb == NULL) {
+        return;
+    }
+    SCB_CleanDCache_by_Addr((uint32_t *)(uintptr_t)fb, (int32_t)BOARD_FB_BYTES);
     /* Poke SRCR so HAL_LTDC_Reload cannot arm LTDC_IT_RR (no IRQ vector). */
-    if (HAL_LTDC_SetAddress_NoReload(&g_ltdc, (uint32_t)(uintptr_t)g_fb[next], 0u) != HAL_OK) {
+    if (HAL_LTDC_SetAddress_NoReload(&g_ltdc, (uint32_t)(uintptr_t)fb, 0u) != HAL_OK) {
         return;
     }
     g_ltdc.Instance->SRCR = LTDC_SRCR_VBR;
     while (__HAL_LTDC_GET_FLAG(&g_ltdc, LTDC_FLAG_RR) == 0u) {
     }
     __HAL_LTDC_CLEAR_FLAG(&g_ltdc, LTDC_FLAG_RR);
-    g_front = next;
+    if (fb == g_fb[0]) {
+        g_front = 0u;
+    } else if (fb == g_fb[1]) {
+        g_front = 1u;
+    }
 }

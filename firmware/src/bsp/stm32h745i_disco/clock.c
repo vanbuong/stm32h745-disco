@@ -60,3 +60,8 @@ err_t board_clock_init(void)
     g_pclk1_hz = HAL_RCC_GetPCLK1Freq();
     return ERR_OK;
 }
+
+uint32_t board_millis(void)
+{
+    return HAL_GetTick();
+}

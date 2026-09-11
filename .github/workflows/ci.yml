@@ -72,7 +72,9 @@ jobs:
             firmware/src/svc/media_probe.c \
             firmware/src/svc/auto.c \
             firmware/src/svc/memtest.c \
-            firmware/src/bsp/mpu_map.c
+            firmware/src/bsp/mpu_map.c \
+            firmware/src/shell/nav.c \
+            firmware/src/shell/launcher_geom.c
 
   cross:
     runs-on: ubuntu-24.04

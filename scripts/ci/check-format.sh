@@ -11,6 +11,7 @@ while IFS= read -r f; do
     firmware/src/port/cube/stm32h7xx_hal_conf.h) continue ;;
     firmware/src/port/cube/ft5336_conf.h) continue ;;
     firmware/src/port/fatfs/ffconf.h) continue ;;
+    firmware/src/port/lvgl/lv_conf.h) continue ;;
     esac
     if [[ -f "$f" ]]; then
         files+=("$f")

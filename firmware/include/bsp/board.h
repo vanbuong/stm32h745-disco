@@ -32,8 +32,12 @@ extern "C" {
 
 #define BOARD_FT5336_ADDR 0x70u
 
+#define BOARD_LVGL_MEM_BASE 0x24010000u
+#define BOARD_LVGL_MEM_BYTES (96u * 1024u)
+
 uint32_t board_sysclk_hz(void);
 uint32_t board_pclk1_hz(void);
+uint32_t board_millis(void);
 
 err_t board_clock_init(void);
 void board_console_init(uint32_t pclk1_hz);
@@ -56,6 +60,7 @@ uint32_t board_mpu_last_mmfar(void);
 err_t board_mpu_selftest(void);
 
 err_t board_disp_init(void);
+void board_disp_show(const void *fb);
 err_t board_i2c4_init(void);
 err_t board_i2c4_lock(void);
 void board_i2c4_unlock(void);

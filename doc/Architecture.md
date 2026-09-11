@@ -134,7 +134,7 @@ firmware/
     hal/           disp.h, input.h, audio_out.h, net_if.h, uart.h
     svc/           vfs.h, media.h, audio.h, net.h, home.h, zb_host.h, znp_mt.h, auto.h, time.h
     game/          game_sim.h, gfx.h
-    ui/            shell.h, nav.h, theme.h
+    ui/            shell.h, nav.h, theme.h, launcher.h, backend.h, event.h
     app/           apps.h
   src/
     app/           launcher, files, image, text, player, game, home, settings
@@ -155,6 +155,7 @@ third_party/
   stm32-ft5336/              ST component (now)
   stm32-rk043fn48h/          ST component (now)
   fatfs/                     elm-chan FatFs R0.15b (now)
+  lvgl/                      upstream LVGL v9.5.0 (now)
   tinyusb/                   upstream TinyUSB (later USB MSC sprint)
   stm32-mt25tl01g/           ST component (QSPI commands, when needed)
   stm32-wm8994/              ST component (Sprint 8)
@@ -490,7 +491,7 @@ Network ownership: pick **one** core at build time (default M4 if audio+net isol
 - CMake presets: `Debug` / `Release` (Ninja, both cores; STM32 VS Code default), `m7-debug`, `m4-debug`, `host-tests`.
 - STM32Cube: `third_party/stm32h7xx-hal-driver` (HAL + LL), only included from `src/port/cube` and `src/bsp`. STM32CubeIDE for VS Code uses `.settings/ide.store.json` and `.vscode/launch.json`.
 - Logs: UART3 115200 8N1, tagged `core,lvl,mod,msg`. No `printf` to ITM as the only log.
-- Host tests compile `svc` + `ipc` protocol + `game_sim` + `znp_mt` + `auto` with a POSIX OSAL stub.
+- Host tests compile `svc` + `ipc` protocol + `game_sim` + `znp_mt` + `auto` + **shell/nav** with a POSIX OSAL stub. They must not link LVGL.
 - HIL tests run on the Discovery board via VCP.
 - Pull-request CI is specified in `CICD.md`: format, layering, cppcheck, clang-tidy, gcov floors, ARM GCC link.
 

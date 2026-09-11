@@ -190,7 +190,7 @@ Two CMake presets in CI:
 - `Debug` → Ninja, both `firmware-m7.elf` and `firmware-m4.elf` (STM32 VS Code path)
 - `m7-debug` / `m4-debug` → Unix Makefiles, one core each
 
-CI only needs **link success** and a size report (`arm-none-eabi-size`). Flash/run is HIL. The cross job checks out git submodules (`stm32h7xx-hal-driver` HAL+LL, `cmsis-device-h7`, `cmsis_core`).
+CI only needs **link success** and a size report (`arm-none-eabi-size`). Flash/run is HIL. The cross job checks out git submodules (`stm32h7xx-hal-driver` HAL+LL, `cmsis-device-h7`, `cmsis_core`, FatFs, LVGL).
 
 `scripts/ci/size-report.sh` prints text + `.bss/.data/.text` vs budgets:
 
