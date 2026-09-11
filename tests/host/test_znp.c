@@ -14,14 +14,14 @@ static void test_roundtrip(void)
     uint8_t len;
     size_t n;
 
-    TEST_ASSERT_TRUE(znp_mt_encode(0x21, 0x02, pl, 3, frame, sizeof(frame), &n) == ERR_OK);
-    TEST_ASSERT_TRUE(n == 8);
-    TEST_ASSERT_TRUE(frame[0] == ZNP_SOF);
-    TEST_ASSERT_TRUE(znp_mt_decode(frame, n, &cmd0, &cmd1, outp, sizeof(outp), &len) == ERR_OK);
-    TEST_ASSERT_TRUE(cmd0 == 0x21);
-    TEST_ASSERT_TRUE(cmd1 == 0x02);
-    TEST_ASSERT_TRUE(len == 3);
-    TEST_ASSERT_TRUE(memcmp(outp, pl, 3) == 0);
+    TEST_ASSERT_EQUAL_INT(ERR_OK, znp_mt_encode(0x21, 0x02, pl, 3, frame, sizeof(frame), &n));
+    TEST_ASSERT_EQUAL_UINT(8u, n);
+    TEST_ASSERT_EQUAL_HEX8(ZNP_SOF, frame[0]);
+    TEST_ASSERT_EQUAL_INT(ERR_OK, znp_mt_decode(frame, n, &cmd0, &cmd1, outp, sizeof(outp), &len));
+    TEST_ASSERT_EQUAL_HEX8(0x21, cmd0);
+    TEST_ASSERT_EQUAL_HEX8(0x02, cmd1);
+    TEST_ASSERT_EQUAL_UINT8(3, len);
+    TEST_ASSERT_EQUAL_HEX8_ARRAY(pl, outp, 3);
 }
 
 static void test_bad(void)
@@ -33,16 +33,17 @@ static void test_bad(void)
     uint8_t outp[8];
     size_t n;
 
-    TEST_ASSERT_TRUE(znp_mt_encode(0x01, 0x00, NULL, 0, frame, sizeof(frame), &n) == ERR_OK);
+    TEST_ASSERT_EQUAL_INT(ERR_OK, znp_mt_encode(0x01, 0x00, NULL, 0, frame, sizeof(frame), &n));
     frame[n - 1u] ^= 0xFFu;
-    TEST_ASSERT_TRUE(znp_mt_decode(frame, n, &cmd0, &cmd1, outp, sizeof(outp), &len) ==
-                     ERR_CORRUPT);
+    TEST_ASSERT_EQUAL_INT(ERR_CORRUPT,
+                          znp_mt_decode(frame, n, &cmd0, &cmd1, outp, sizeof(outp), &len));
     frame[0] = 0x00;
-    TEST_ASSERT_TRUE(znp_mt_decode(frame, n, &cmd0, &cmd1, outp, sizeof(outp), &len) ==
-                     ERR_CORRUPT);
-    TEST_ASSERT_TRUE(znp_mt_encode(0x01, 0x00, NULL, 1, frame, sizeof(frame), &n) == ERR_INVAL);
-    TEST_ASSERT_TRUE(znp_mt_encode(0x01, 0x00, NULL, 0, frame, 3, &n) == ERR_NOSPC);
-    TEST_ASSERT_TRUE(znp_mt_decode(NULL, 8, &cmd0, &cmd1, outp, sizeof(outp), &len) == ERR_INVAL);
+    TEST_ASSERT_EQUAL_INT(ERR_CORRUPT,
+                          znp_mt_decode(frame, n, &cmd0, &cmd1, outp, sizeof(outp), &len));
+    TEST_ASSERT_EQUAL_INT(ERR_INVAL, znp_mt_encode(0x01, 0x00, NULL, 1, frame, sizeof(frame), &n));
+    TEST_ASSERT_EQUAL_INT(ERR_NOSPC, znp_mt_encode(0x01, 0x00, NULL, 0, frame, 3, &n));
+    TEST_ASSERT_EQUAL_INT(ERR_INVAL,
+                          znp_mt_decode(NULL, 8, &cmd0, &cmd1, outp, sizeof(outp), &len));
 }
 
 void test_znp_run(void)
