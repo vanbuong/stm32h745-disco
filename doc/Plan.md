@@ -153,7 +153,7 @@ Status: **done** (host-tested nav stack, launcher geometry, stub registry; board
 
 ### Sprint 5 — File explorer
 
-Status: **done** (host-tested listing, open-with, Back restores scroll; viewers remain stubs until Sprint 6).
+Status: **done** (host-tested listing, open-with, Back restores scroll).
 
 - List of `/user` with breadcrumb cwd, empty / unmounted / IO / unknown-type prompt.
 - Open-with: `.txt/.md/.c/.h/.log` → text, `.jpg/.jpeg/.png/.bmp` → image, `.mp3/.wav` → player.
@@ -162,7 +162,7 @@ Status: **done** (host-tested listing, open-with, Back restores scroll; viewers 
 
 ### Sprint 5b — Host LVGL simulator (Ubuntu + Windows)
 
-Status: **done** (SDL2 window on Ubuntu; Windows link is a CI gate. Viewers remain stubs until Sprint 6).
+Status: **done** (SDL2 window on Ubuntu; Windows link is a CI gate).
 
 Run the same shell on a PC so Files/launcher can be checked without a Discovery board. **Ubuntu and Windows are both first-class.** One backend, not two window toolkits.
 
@@ -181,9 +181,11 @@ Lock:
 
 ### Sprint 6 — Text and image viewers
 
-- Text: UTF-8, wrap, windowed read (do not load huge files).
-- Image: JPEG HW codec when possible, SW PNG/BMP, fit-to-screen, pan, next/prev in folder.
-- **Exit:** 10 MB log scrolls; 2 MP JPEG downscales without killing the shell; corrupt file shows an error modal.
+Status: **done** (host-tested windowed UTF-8 text, SW JPEG/PNG/BMP, error state; JPEG HW is `ERR_UNSUPPORTED` until the HAL JPEG port).
+
+- Text: UTF-8, wrap, windowed read (`TEXT_WIN_MAX` 32 KB; files larger than 256 KB are paged). Invalid bytes become `?`. CRLF/LF/CR are line breaks.
+- Image: software JPEG (ChaN TJpgDec), PNG, BMP; contain-fit into 480×200 RGB565. Next/prev in the folder. JPEG hardware codec is tried first and falls back to SW.
+- **Exit:** 10 MB log scrolls via windows; 2 MP JPEG downscales (TJpgDec 1/2–1/8 + contain-fit) without allocating a full RGB buffer; corrupt file shows an error and Back returns to Files.
 
 ### Sprint 7 — M4 bring-up and IPC
 

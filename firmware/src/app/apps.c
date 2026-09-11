@@ -1,6 +1,8 @@
 #include "app/apps.h"
 
 #include "app/files.h"
+#include "app/image_view.h"
+#include "svc/text_view.h"
 
 #include <stddef.h>
 #include <string.h>
@@ -42,6 +44,32 @@ static void viewer_start(void *args)
     g_view_path = (const char *)args;
 }
 
+static void text_start(void *args)
+{
+    g_view_path = (const char *)args;
+    if (g_view_path != NULL) {
+        (void)text_view_open(g_view_path);
+    }
+}
+
+static void text_stop(void)
+{
+    text_view_close();
+}
+
+static void image_start(void *args)
+{
+    g_view_path = (const char *)args;
+    if (g_view_path != NULL) {
+        (void)image_view_open(g_view_path);
+    }
+}
+
+static void image_stop(void)
+{
+    image_view_close();
+}
+
 static const ui_app_t g_apps[] = {
     {APP_ID_FILES, "Files", "files", files_start, files_stop, stub_tick, stub_event},
     {APP_ID_HOME, "Home", "home", stub_start, stub_stop, stub_tick, stub_event},
@@ -49,8 +77,8 @@ static const ui_app_t g_apps[] = {
     {APP_ID_PLAYER, "Music", "player", viewer_start, stub_stop, stub_tick, stub_event},
     {APP_ID_NETWORK, "Network", "network", stub_start, stub_stop, stub_tick, stub_event},
     {APP_ID_SETTINGS, "Settings", "settings", stub_start, stub_stop, stub_tick, stub_event},
-    {APP_ID_TEXT, "Text", "text", viewer_start, stub_stop, stub_tick, stub_event},
-    {APP_ID_IMAGE, "Image", "image", viewer_start, stub_stop, stub_tick, stub_event},
+    {APP_ID_TEXT, "Text", "text", text_start, text_stop, stub_tick, stub_event},
+    {APP_ID_IMAGE, "Image", "image", image_start, image_stop, stub_tick, stub_event},
 };
 
 void apps_init(void)

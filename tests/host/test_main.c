@@ -13,6 +13,8 @@ void test_mem_run(void);
 void test_disp_run(void);
 void test_shell_run(void);
 void test_files_run(void);
+void test_text_run(void);
+void test_image_run(void);
 
 int main(void)
 {
@@ -24,6 +26,8 @@ int main(void)
     test_disp_run();
     test_shell_run();
     test_files_run();
+    test_text_run();
+    test_image_run();
     printf("%d checks, %d failed\n", g_checks, g_fails);
     return g_fails == 0 ? 0 : 1;
 }

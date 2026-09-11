@@ -65,11 +65,19 @@ list(APPEND LVGL_SRC
 set(SIM_SRC
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/vfs_path.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/media_probe.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/text_view.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/media_image.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/media_bmp.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/media_jpeg.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/media_png.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/tjpgd/tjpgd.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/puff/puff.c
     ${CMAKE_SOURCE_DIR}/firmware/src/shell/nav.c
     ${CMAKE_SOURCE_DIR}/firmware/src/shell/shell.c
     ${CMAKE_SOURCE_DIR}/firmware/src/shell/launcher_geom.c
     ${CMAKE_SOURCE_DIR}/firmware/src/app/apps.c
     ${CMAKE_SOURCE_DIR}/firmware/src/app/files.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/app/image_view.c
     ${CMAKE_SOURCE_DIR}/firmware/src/ui/backend_lvgl/ui_lvgl.c
     ${CMAKE_SOURCE_DIR}/firmware/src/ui/backend_lvgl/lv_port_sim.c
     ${CMAKE_SOURCE_DIR}/tests/host/sim/sim_main.c
@@ -81,6 +89,9 @@ set(SIM_SRC
 add_executable(host_sim ${SIM_SRC})
 target_include_directories(host_sim PRIVATE
     ${CMAKE_SOURCE_DIR}/firmware/include
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/tjpgd
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/puff
     ${CMAKE_SOURCE_DIR}/firmware/src/port/lvgl_sim
     ${CMAKE_SOURCE_DIR}/firmware/src/ui/backend_lvgl
     ${CMAKE_SOURCE_DIR}/tests/host/sim
@@ -91,9 +102,17 @@ if(MSVC)
     target_compile_definitions(host_sim PRIVATE _CRT_SECURE_NO_WARNINGS)
     target_compile_options(host_sim PRIVATE /W3)
     set_source_files_properties(${LVGL_SRC} PROPERTIES COMPILE_FLAGS "/w")
+    set_source_files_properties(
+        ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/tjpgd/tjpgd.c
+        ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/puff/puff.c
+        PROPERTIES COMPILE_FLAGS "/w")
 else()
     target_compile_options(host_sim PRIVATE -Wall -Wextra)
     set_source_files_properties(${LVGL_SRC} PROPERTIES COMPILE_FLAGS "-w")
+    set_source_files_properties(
+        ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/tjpgd/tjpgd.c
+        ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/puff/puff.c
+        PROPERTIES COMPILE_FLAGS "-w")
 endif()
 if(UNIX)
     target_link_libraries(host_sim PRIVATE m)

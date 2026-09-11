@@ -23,6 +23,18 @@ SECTIONS
         . = ALIGN(4);
     } > FLASH
 
+    .ARM.extab :
+    {
+        *(.ARM.extab* .gnu.linkonce.armextab.*)
+    } > FLASH
+
+    .ARM.exidx :
+    {
+        __exidx_start = .;
+        *(.ARM.exidx* .gnu.linkonce.armexidx.*)
+        __exidx_end = .;
+    } > FLASH
+
     .data : ALIGN(4)
     {
         _sdata = .;

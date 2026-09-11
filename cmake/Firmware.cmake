@@ -47,6 +47,10 @@ function(stm32_add_firmware CORE_ID)
             COMPILE_FLAGS "-w -include ${FFCONF}")
         set_source_files_properties(${LVGL_SRC} PROPERTIES COMPILE_FLAGS "-w")
         set_source_files_properties(
+            ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/tjpgd/tjpgd.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/puff/puff.c
+            PROPERTIES COMPILE_FLAGS "-w")
+        set_source_files_properties(
             ${BSP}/emmc.c
             ${CMAKE_SOURCE_DIR}/firmware/src/svc/vfs.c
             PROPERTIES COMPILE_FLAGS "-include ${FFCONF}")
@@ -69,11 +73,19 @@ function(stm32_add_firmware CORE_ID)
             ${CMAKE_SOURCE_DIR}/firmware/src/svc/vfs.c
             ${CMAKE_SOURCE_DIR}/firmware/src/svc/vfs_path.c
             ${CMAKE_SOURCE_DIR}/firmware/src/svc/media_probe.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/svc/text_view.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/svc/media_image.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/svc/media_bmp.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/svc/media_jpeg.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/svc/media_png.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/tjpgd/tjpgd.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/puff/puff.c
             ${CMAKE_SOURCE_DIR}/firmware/src/shell/nav.c
             ${CMAKE_SOURCE_DIR}/firmware/src/shell/shell.c
             ${CMAKE_SOURCE_DIR}/firmware/src/shell/launcher_geom.c
             ${CMAKE_SOURCE_DIR}/firmware/src/app/apps.c
             ${CMAKE_SOURCE_DIR}/firmware/src/app/files.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/app/image_view.c
             ${CMAKE_SOURCE_DIR}/firmware/src/ui/backend_lvgl/lv_port.c
             ${CMAKE_SOURCE_DIR}/firmware/src/ui/backend_lvgl/ui_lvgl.c
             ${FT5336_SRC}
@@ -97,6 +109,9 @@ function(stm32_add_firmware CORE_ID)
     target_include_directories(${TGT} PRIVATE
         ${CUBE}
         ${CMAKE_SOURCE_DIR}/firmware/include
+        ${CMAKE_SOURCE_DIR}/firmware/src/svc
+        ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/tjpgd
+        ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/puff
         ${CMAKE_SOURCE_DIR}/firmware/src/port/fatfs
         ${CMAKE_SOURCE_DIR}/firmware/src/port/lvgl
         ${CMAKE_SOURCE_DIR}/firmware/src/ui/backend_lvgl

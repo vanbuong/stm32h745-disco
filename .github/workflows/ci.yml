@@ -35,6 +35,7 @@ jobs:
             --filter 'firmware/src/svc' \
             --filter 'firmware/src/ipc' \
             --exclude 'firmware/src/osal' \
+            --exclude 'firmware/src/svc/vendor' \
             --fail-under-line 80 \
             --xml build-host/coverage.xml \
             --html-details build-host/coverage.html
@@ -62,20 +63,27 @@ jobs:
             --inline-suppr \
             --suppress=missingIncludeSystem \
             --std=c11 \
-            -i tests
+            -i tests \
+            -i firmware/src/svc/vendor
       - name: clang-tidy
         run: |
-          clang-tidy -p build-host \
+            clang-tidy -p build-host \
             firmware/src/ipc/ipc_ring.c \
             firmware/src/svc/vfs_path.c \
             firmware/src/svc/znp_mt.c \
             firmware/src/svc/media_probe.c \
+            firmware/src/svc/text_view.c \
+            firmware/src/svc/media_image.c \
+            firmware/src/svc/media_bmp.c \
+            firmware/src/svc/media_jpeg.c \
+            firmware/src/svc/media_png.c \
             firmware/src/svc/auto.c \
             firmware/src/svc/memtest.c \
             firmware/src/bsp/mpu_map.c \
             firmware/src/shell/nav.c \
             firmware/src/shell/launcher_geom.c \
-            firmware/src/app/files.c
+            firmware/src/app/files.c \
+            firmware/src/app/image_view.c
 
   cross:
     runs-on: ubuntu-24.04

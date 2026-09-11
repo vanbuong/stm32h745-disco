@@ -243,7 +243,7 @@ int main(void)
     HAL_Init();
     led_init();
     board_console_init(0);
-    board_console_puts("M7 stm32h745-disco s5\r\n");
+    board_console_puts("M7 stm32h745-disco s6\r\n");
 
     e = board_clock_init();
     board_console_init(0);

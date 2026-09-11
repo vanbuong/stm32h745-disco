@@ -38,6 +38,7 @@ git submodule update --init --recursive
 | --- | --- | --- |
 | QSPI assets | [stm32-mt25tl01g](https://github.com/STMicroelectronics/stm32-mt25tl01g) | Quad/mmap commands beyond Sprint 1's 1-1-1 READ. |
 | 4 shell | [lvgl](https://github.com/lvgl/lvgl) | Done. Only `src/ui/backend_lvgl`. |
+| 6 viewers | TJpgDec + puff | Done. Vendored under `firmware/src/svc/vendor/` (standalone ChaN TJpgDec, Mark Adler puff). Not LVGL's `libs/tjpgd`. LibJPEG stays out. |
 | OSAL | [FreeRTOS-Kernel](https://github.com/FreeRTOS/FreeRTOS-Kernel) | Not Cube `stm32-mw-freertos` unless we need their CMSIS-RTOS glue. |
 | 8 audio | [stm32-wm8994](https://github.com/STMicroelectronics/stm32-wm8994), Helix | Codec + MP3. SAI DMA is our BSP. |
 | 9 net | [stm32-lan8742](https://github.com/STMicroelectronics/stm32-lan8742), LwIP | PHY. `ethernetif` is our port. |

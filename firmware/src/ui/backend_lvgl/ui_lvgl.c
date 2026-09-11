@@ -2,7 +2,9 @@
 
 #include "app/apps.h"
 #include "app/files.h"
+#include "app/image_view.h"
 #include "lv_port.h"
+#include "svc/text_view.h"
 #include "ui/launcher.h"
 #include "ui/shell.h"
 #include "ui/theme.h"
@@ -11,6 +13,7 @@
 
 #include "lvgl.h"
 
+#include <stdint.h>
 #include <string.h>
 
 static lv_obj_t *s_status;
@@ -20,7 +23,10 @@ static lv_obj_t *s_content;
 static lv_obj_t *s_list;
 static uint32_t s_gen = 0xFFFFFFFFu;
 static uint32_t s_files_gen = 0xFFFFFFFFu;
+static uint32_t s_text_gen = 0xFFFFFFFFu;
+static uint32_t s_img_gen = 0xFFFFFFFFu;
 static uint8_t s_last_min = 0xFFu;
+static lv_image_dsc_t s_img_dsc;
 
 static void log_nav(const char *op, const char *id)
 {
@@ -196,6 +202,64 @@ static void files_cancel_cb(lv_event_t *e)
     files_prompt_cancel();
 }
 
+static void text_page_cb(lv_event_t *e)
+{
+    int dir;
+
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
+        return;
+    }
+    dir = (int)(intptr_t)lv_event_get_user_data(e);
+    (void)text_view_page(dir);
+}
+
+static void image_nav_cb(lv_event_t *e)
+{
+    int dir;
+
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
+        return;
+    }
+    dir = (int)(intptr_t)lv_event_get_user_data(e);
+    (void)image_view_next(dir);
+}
+
+static void put_u32(char *out, size_t n, uint32_t v)
+{
+    char tmp[11];
+    int i = 10;
+    size_t o = 0u;
+
+    if (out == NULL || n == 0u) {
+        return;
+    }
+    tmp[10] = '\0';
+    if (v == 0u) {
+        tmp[--i] = '0';
+    }
+    while (v > 0u && i > 0) {
+        tmp[--i] = (char)('0' + (v % 10u));
+        v /= 10u;
+    }
+    while (tmp[i] != '\0' && o + 1u < n) {
+        out[o++] = tmp[i++];
+    }
+    out[o] = '\0';
+}
+
+static void add_nav_btn(lv_obj_t *bar, int32_t x, const char *txt, lv_event_cb_t cb, int dir)
+{
+    lv_obj_t *btn = lv_button_create(bar);
+    lv_obj_t *lab;
+
+    lv_obj_set_pos(btn, x, 0);
+    lv_obj_set_size(btn, THEME_HIT_MIN_PX, THEME_APPBAR_H);
+    lv_obj_add_event_cb(btn, cb, LV_EVENT_CLICKED, (void *)(intptr_t)dir);
+    lab = lv_label_create(btn);
+    lv_label_set_text(lab, txt);
+    lv_obj_center(lab);
+}
+
 static void row_label(char *out, size_t n, const files_row_t *r)
 {
     char sz[12];
@@ -308,11 +372,99 @@ static void build_files(void)
     lv_obj_scroll_to_y(s_list, files_scroll(), LV_ANIM_OFF);
 }
 
+static void build_text(void)
+{
+    lv_obj_t *bar;
+    lv_obj_t *box;
+    lv_obj_t *lab;
+    char title[48];
+    const char *name = text_view_name();
+    uint32_t pct = text_view_progress();
+    size_t o = 0u;
+    const char *p;
+
+    title[0] = '\0';
+    p = (name != NULL && name[0] != '\0') ? name : "Text";
+    while (*p != '\0' && o + 1u < sizeof(title)) {
+        title[o++] = *p++;
+    }
+    if (o + 2u < sizeof(title)) {
+        title[o++] = ' ';
+    }
+    {
+        char num[12];
+        put_u32(num, sizeof(num), pct);
+        p = num;
+        while (*p != '\0' && o + 1u < sizeof(title)) {
+            title[o++] = *p++;
+        }
+        if (o + 1u < sizeof(title)) {
+            title[o++] = '%';
+        }
+    }
+    title[o] = '\0';
+    bar = make_bar(title);
+    if (text_view_size() > TEXT_WIN_MAX) {
+        add_nav_btn(bar, THEME_PANEL_W - 2 * THEME_HIT_MIN_PX, "<", text_page_cb, -1);
+        add_nav_btn(bar, THEME_PANEL_W - THEME_HIT_MIN_PX, ">", text_page_cb, 1);
+    }
+    box = lv_obj_create(s_content);
+    lv_obj_set_pos(box, 0, THEME_APPBAR_H);
+    lv_obj_set_size(box, THEME_PANEL_W, THEME_CONTENT_H - THEME_APPBAR_H);
+    lv_obj_set_style_bg_color(box, lv_color_hex(THEME_BG), 0);
+    lv_obj_set_style_border_width(box, 0, 0);
+    lv_obj_set_style_pad_all(box, 8, 0);
+    lab = lv_label_create(box);
+    lv_label_set_long_mode(lab, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(lab, THEME_PANEL_W - 16);
+    lv_label_set_text(lab, text_view_text());
+    lv_obj_set_style_text_color(lab, lv_color_hex(THEME_TEXT), 0);
+}
+
+static void build_image(void)
+{
+    lv_obj_t *bar;
+    const char *name = image_view_name();
+
+    bar = make_bar((name != NULL && name[0] != '\0') ? name : "Image");
+    add_nav_btn(bar, THEME_PANEL_W - 2 * THEME_HIT_MIN_PX, "<", image_nav_cb, -1);
+    add_nav_btn(bar, THEME_PANEL_W - THEME_HIT_MIN_PX, ">", image_nav_cb, 1);
+    if (image_view_status() != ERR_OK || image_view_pixels() == NULL || image_view_w() == 0u) {
+        add_label(s_content, "Can't open image", 16, THEME_APPBAR_H + 16, 440, 24, THEME_ERR,
+                  LV_FONT_DEFAULT);
+        add_label(s_content,
+                  (image_view_err_str()[0] != '\0') ? image_view_err_str() : "truncated or corrupt",
+                  16, THEME_APPBAR_H + 48, 440, 24, THEME_MUTED, &lv_font_montserrat_12);
+        return;
+    }
+    memset(&s_img_dsc, 0, sizeof(s_img_dsc));
+    s_img_dsc.header.magic = LV_IMAGE_HEADER_MAGIC;
+    s_img_dsc.header.cf = LV_COLOR_FORMAT_RGB565;
+    s_img_dsc.header.w = image_view_w();
+    s_img_dsc.header.h = image_view_h();
+    s_img_dsc.header.stride = (uint32_t)image_view_stride() * 2u;
+    s_img_dsc.data_size = (uint32_t)image_view_stride() * (uint32_t)image_view_h() * 2u;
+    s_img_dsc.data = (const uint8_t *)image_view_pixels();
+    {
+        lv_obj_t *img = lv_image_create(s_content);
+        lv_obj_set_pos(img, 0, THEME_APPBAR_H);
+        lv_image_set_src(img, &s_img_dsc);
+    }
+}
+
 static void build_app(const char *id, const char *title)
 {
     const char *path;
 
     s_list = NULL;
+    if (id != NULL && strcmp(id, APP_ID_TEXT) == 0) {
+        build_text();
+        return;
+    }
+    if (id != NULL && strcmp(id, APP_ID_IMAGE) == 0) {
+        build_image();
+        return;
+    }
     make_bar((title != NULL) ? title : "");
     if (id != NULL && strcmp(id, APP_ID_FILES) == 0) {
         build_files();
@@ -404,10 +556,14 @@ err_t ui_backend_init(void)
 
     s_gen = 0xFFFFFFFFu;
     s_files_gen = 0xFFFFFFFFu;
+    s_text_gen = 0xFFFFFFFFu;
+    s_img_gen = 0xFFFFFFFFu;
     refresh_status();
     rebuild_content();
     s_gen = shell_nav_gen();
     s_files_gen = files_view_gen();
+    s_text_gen = text_view_gen();
+    s_img_gen = image_view_gen();
     return ERR_OK;
 }
 
@@ -415,10 +571,14 @@ void ui_backend_handler(void)
 {
     uint32_t gen = shell_nav_gen();
     uint32_t fgen = files_view_gen();
+    uint32_t tgen = text_view_gen();
+    uint32_t igen = image_view_gen();
 
-    if (gen != s_gen || fgen != s_files_gen) {
+    if (gen != s_gen || fgen != s_files_gen || tgen != s_text_gen || igen != s_img_gen) {
         s_gen = gen;
         s_files_gen = fgen;
+        s_text_gen = tgen;
+        s_img_gen = igen;
         rebuild_content();
     }
     if (shell_status()->min != s_last_min) {

@@ -64,7 +64,7 @@ cmake --build --preset host-sim
 build-sim\host_sim.exe
 ```
 
-The window is 480×272 at 2× scale. Demo files are seeded under `user/` next to the binary (`hello.txt`, `readme.md`, `sub/`, …). Override with `H745_SIM_USER` or `host_sim /path/to/folder`. Close the window to quit.
+The window is 480×272 at 2× scale. Demo files are seeded under `user/` next to the binary (`hello.txt`, `notes.txt`, `photo.jpg` / `.png` / `.bmp`, `sub/`, …). Override with `H745_SIM_USER` or `host_sim /path/to/folder`. Close the window to quit.
 
 Cross-compile M7 / M4 (needs `gcc-arm-none-eabi` and the ST submodules):
 
@@ -96,12 +96,12 @@ Device is `STM32H745XIH6` on **STM32H745I-DISCO** (`.settings/ide.store.json`). 
 
 CI: format, layering, cppcheck, clang-tidy, coverage, and both ELF images — see `doc/CICD.md`.
 
-## Sprint 5 boot log (USART3 115200)
+## Sprint 6 boot log (USART3 115200)
 
-After memory, eMMC, and display bring-up the M7 starts the LVGL shell (32 px status + 3×2 launcher). Files lists `/user`; tap a folder or a known type to open a stub viewer. Back in a folder restores the list. LD2 (PI13) still blinks:
+After memory, eMMC, and display bring-up the M7 starts the LVGL shell (32 px status + 3×2 launcher). Files lists `/user`; tap a folder or a known type to open the text or image viewer (player is still a stub). Back in a folder restores the list. LD2 (PI13) still blinks:
 
 ```
-M7 stm32h745-disco s5
+M7 stm32h745-disco s6
 clk ok
 sysclk 1C9C3800
 mpu on
@@ -139,7 +139,7 @@ ui_fps ...
 ui_fps ok
 ```
 
-Tap a tile logs `shell_push <id>`. Files logs `files /user` (or the cwd) when entering a folder; opening a file logs `shell_push text|image|player`. Back in a nested folder logs `files <parent>`; Back at `/user` logs `shell_pop`. `emmc fail` / `vfs fail` is a soft error (status shows eMMC error); the shell still runs. `ui_fps ok` is ≥ 20 FPS. `touch none` is OK on boards that ship GT911 instead of FT5336. `qspi_word FFFFFFFF` means the NOR is erased; mmap worked (no bus fault). Text/image decode is Sprint 6.
+Tap a tile logs `shell_push <id>`. Files logs `files /user` (or the cwd) when entering a folder; opening a file logs `shell_push text|image|player`. Back in a nested folder logs `files <parent>`; Back at `/user` logs `shell_pop`. `emmc fail` / `vfs fail` is a soft error (status shows eMMC error); the shell still runs. `ui_fps ok` is ≥ 20 FPS. `touch none` is OK on boards that ship GT911 instead of FT5336. `qspi_word FFFFFFFF` means the NOR is erased; mmap worked (no bus fault). Text wraps and pages large logs; a corrupt image shows “Can't open image” and Back returns to Files.
 
 ## License
 

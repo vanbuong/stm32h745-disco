@@ -289,12 +289,16 @@ POSIX-like subset in `vfs.h`: `mount/open/read/write/seek/close/stat/opendir/rea
 ### 7.4 Media
 
 ```c
-media_kind_t media_probe(const char *path, media_info_t *info);
-int media_decode_image(const char *path, image_buf_t *out, const image_req_t *req);
+media_kind_t media_probe_ext(const char *path);
+err_t media_decode_image(const char *path, image_buf_t *out, const image_req_t *req);
+err_t media_decode_image_mem(const uint8_t *data, uint32_t size, image_buf_t *out,
+                             const image_req_t *req);
 int media_open_audio(const char *path, audio_stream_t *s);
 ```
 
-JPEG uses the STM32 JPEG codec when present. PNG/BMP are software. Failures return codes, never abort the UI.
+JPEG uses the STM32 JPEG codec when present (`media_jpeg_hw_decode`); otherwise ChaN TJpgDec (software, also the host-test path). PNG/BMP are software. Destination is contain-fit RGB565 in the 480×200 content area. Failures return codes, never abort the UI.
+
+Text paging: `text_view_*` keeps one `TEXT_WIN_MAX` (32 KB) window. Files larger than 256 KB are still shown; peak RAM for that buffer is the constant (plus a same-sized raw read scratch). On the MCU both live in SDRAM at `+0x2C0000`.
 
 ### 7.5 Game (sim + gfx)
 
