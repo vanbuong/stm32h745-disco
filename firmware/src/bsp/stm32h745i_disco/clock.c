@@ -65,3 +65,8 @@ uint32_t board_millis(void)
 {
     return HAL_GetTick();
 }
+
+void board_cm4_boot(void)
+{
+    HAL_RCCEx_EnableBootCore(RCC_BOOT_C2);
+}

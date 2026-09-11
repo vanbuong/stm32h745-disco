@@ -189,9 +189,11 @@ Status: **done** (host-tested windowed UTF-8 text, SW JPEG/PNG/BMP, error state;
 
 ### Sprint 7 — M4 bring-up and IPC
 
-- M4 independent image, HSEM notify, lockless rings.
-- `ipc_msg` version check and credit/back-pressure.
-- Heartbeat + log relay to M7.
+Status: **done** (host-tested lockless wrap/overflow, credits, version, heartbeat watch; HIL: ping-pong RTT and M4 status).
+
+- M4 independent image, HSEM notify (polled), lockless SRAM4 rings.
+- `ipc_msg` version check and credit/back-pressure (`ERR_NOSPC`, no overwrite).
+- Heartbeat + log relay to M7. Status bar **M4** goes red if the peer is silent > 500 ms.
 - **Exit:** host tests for ring wrap and overflow; HIL round-trip < 2 ms; M4 halt is visible in the status bar.
 
 ### Sprint 8 — Audio pipeline

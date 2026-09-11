@@ -39,6 +39,7 @@ void shell_init(void)
     g_status.hour = 0u;
     g_status.min = 0u;
     g_status.storage_ok = 0u;
+    g_status.m4 = 0u;
     g_status.net = 0u;
     g_status.zb = 1u;
     g_now_ms = 0u;
@@ -135,4 +136,9 @@ const shell_status_t *shell_status(void)
 void shell_status_set_storage(uint8_t ok)
 {
     g_status.storage_ok = (ok != 0u) ? 1u : 0u;
+}
+
+void shell_status_set_m4(uint8_t ok)
+{
+    g_status.m4 = (ok != 0u) ? 1u : 0u;
 }

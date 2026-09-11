@@ -13,6 +13,7 @@ typedef struct {
     uint8_t hour;
     uint8_t min;
     uint8_t storage_ok;
+    uint8_t m4;  /* 0 err/down, 1 ok */
     uint8_t net; /* 0 hidden, 1 err, 2 warn, 3 ok */
     uint8_t zb;
 } shell_status_t;
@@ -30,6 +31,7 @@ uint32_t shell_nav_gen(void);
 void *shell_top_args(void);
 const shell_status_t *shell_status(void);
 void shell_status_set_storage(uint8_t ok);
+void shell_status_set_m4(uint8_t ok);
 
 #ifdef __cplusplus
 }

@@ -67,6 +67,8 @@ function(stm32_add_firmware CORE_ID)
             ${BSP}/i2c4.c
             ${BSP}/input.c
             ${BSP}/emmc.c
+            ${BSP}/hsem.c
+            ${BSP}/ipc_host.c
             ${CMAKE_SOURCE_DIR}/firmware/src/bsp/mpu_map.c
             ${CMAKE_SOURCE_DIR}/firmware/src/bsp/disp_geom.c
             ${CMAKE_SOURCE_DIR}/firmware/src/svc/memtest.c
@@ -88,6 +90,8 @@ function(stm32_add_firmware CORE_ID)
             ${CMAKE_SOURCE_DIR}/firmware/src/app/image_view.c
             ${CMAKE_SOURCE_DIR}/firmware/src/ui/backend_lvgl/lv_port.c
             ${CMAKE_SOURCE_DIR}/firmware/src/ui/backend_lvgl/ui_lvgl.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/ipc/ipc_ring.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/ipc/ipc_link.c
             ${FT5336_SRC}
             ${FATFS_SRC}
             ${LVGL_SRC}
@@ -100,6 +104,9 @@ function(stm32_add_firmware CORE_ID)
         set(APP_SRC
             ${BSP}/startup.c
             ${BSP}/main_m4.c
+            ${BSP}/hsem.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/ipc/ipc_ring.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/ipc/ipc_link.c
         )
     else()
         message(FATAL_ERROR "stm32_add_firmware expects M7 or M4, got ${CORE_ID}")

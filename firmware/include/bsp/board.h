@@ -21,6 +21,9 @@ extern "C" {
 #define BOARD_QSPI_BASE 0x90000000u
 #define BOARD_SRAM4_BASE 0x38000000u
 #define BOARD_SRAM4_BYTES (64u * 1024u)
+#define BOARD_M4_SYSCLK_HZ BOARD_HCLK_HZ
+#define BOARD_HSEM_M7_TO_M4 0u
+#define BOARD_HSEM_M4_TO_M7 1u
 
 #define BOARD_LCD_W 480u
 #define BOARD_LCD_H 272u
@@ -40,6 +43,13 @@ uint32_t board_pclk1_hz(void);
 uint32_t board_millis(void);
 
 err_t board_clock_init(void);
+void board_cm4_boot(void);
+void board_hsem_init(void);
+void board_hsem_notify(uint32_t sem);
+uint8_t board_hsem_poll(uint32_t sem);
+err_t board_ipc_init(void);
+void board_ipc_poll(uint32_t now_ms);
+uint8_t board_ipc_peer_alive(uint32_t now_ms);
 void board_console_init(uint32_t pclk1_hz);
 void board_console_puts(const char *s);
 void board_console_put_hex32(uint32_t v);

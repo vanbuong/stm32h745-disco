@@ -96,16 +96,17 @@ Device is `STM32H745XIH6` on **STM32H745I-DISCO** (`.settings/ide.store.json`). 
 
 CI: format, layering, cppcheck, clang-tidy, coverage, and both ELF images — see `doc/CICD.md`.
 
-## Sprint 6 boot log (USART3 115200)
+## Sprint 7 boot log (USART3 115200)
 
-After memory, eMMC, and display bring-up the M7 starts the LVGL shell (32 px status + 3×2 launcher). Files lists `/user`; tap a folder or a known type to open the text or image viewer (player is still a stub). Back in a folder restores the list. LD2 (PI13) still blinks:
+After memory, eMMC, and display bring-up the M7 starts the LVGL shell (32 px status + 3×2 launcher). Files lists `/user`; tap a folder or a known type to open the text or image viewer (player is still a stub). Back in a folder restores the list. LD2 (PI13) still blinks. The status bar shows **M4** next to eMMC (green while the M4 heartbeat is fresh; red if M4 is halted or silent > 500 ms):
 
 ```
-M7 stm32h745-disco s6
+M7 stm32h745-disco s7
 clk ok
 sysclk 1C9C3800
 mpu on
 cache on
+ipc ok
 sdram ok
 walk ok
 qspi ok
@@ -137,7 +138,11 @@ ui_frames ...
 ui_ms 2000
 ui_fps ...
 ui_fps ok
+m4 ready
+ipc_rtt <us> us
 ```
+
+`m4 ready` and `ipc_rtt` may appear earlier or later depending on when M4 attaches. `ipc_rtt` is a DWT ping-pong in microseconds (budget ≤ 2000). `m4: m4 ready` is the M4 log line relayed over IPC (M4 does not use USART3). Halt M4 in the debugger: the **M4** status label turns red within 1 s; the launcher stays navigable.
 
 Tap a tile logs `shell_push <id>`. Files logs `files /user` (or the cwd) when entering a folder; opening a file logs `shell_push text|image|player`. Back in a nested folder logs `files <parent>`; Back at `/user` logs `shell_pop`. `emmc fail` / `vfs fail` is a soft error (status shows eMMC error); the shell still runs. `ui_fps ok` is ≥ 20 FPS. `touch none` is OK on boards that ship GT911 instead of FT5336. `qspi_word FFFFFFFF` means the NOR is erased; mmap worked (no bus fault). Text wraps and pages large logs; a corrupt image shows “Can't open image” and Back returns to Files.
 

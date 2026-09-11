@@ -69,6 +69,7 @@ jobs:
         run: |
             clang-tidy -p build-host \
             firmware/src/ipc/ipc_ring.c \
+            firmware/src/ipc/ipc_link.c \
             firmware/src/svc/vfs_path.c \
             firmware/src/svc/znp_mt.c \
             firmware/src/svc/media_probe.c \

@@ -125,9 +125,10 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    board_console_puts("host-sim stm32h745-disco s6\n");
+    board_console_puts("host-sim stm32h745-disco s7\n");
     shell_init();
     shell_status_set_storage(1u);
+    shell_status_set_m4(1u);
     e = ui_backend_init();
     if (e != ERR_OK) {
         fprintf(stderr, "sim: ui_backend_init failed (%d) — need a display/SDL\n", (int)e);

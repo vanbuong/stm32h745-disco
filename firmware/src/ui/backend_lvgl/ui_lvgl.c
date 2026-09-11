@@ -19,6 +19,7 @@
 static lv_obj_t *s_status;
 static lv_obj_t *s_time;
 static lv_obj_t *s_stor;
+static lv_obj_t *s_m4;
 static lv_obj_t *s_content;
 static lv_obj_t *s_list;
 static uint32_t s_gen = 0xFFFFFFFFu;
@@ -26,6 +27,8 @@ static uint32_t s_files_gen = 0xFFFFFFFFu;
 static uint32_t s_text_gen = 0xFFFFFFFFu;
 static uint32_t s_img_gen = 0xFFFFFFFFu;
 static uint8_t s_last_min = 0xFFu;
+static uint8_t s_last_m4 = 0xFFu;
+static uint8_t s_last_stor = 0xFFu;
 static lv_image_dsc_t s_img_dsc;
 
 static void log_nav(const char *op, const char *id)
@@ -511,7 +514,10 @@ static void refresh_status(void)
     lv_label_set_text(s_time, clock);
     lv_obj_set_style_text_color(s_stor, lv_color_hex((st->storage_ok != 0u) ? THEME_OK : THEME_ERR),
                                 0);
+    lv_obj_set_style_text_color(s_m4, lv_color_hex((st->m4 != 0u) ? THEME_OK : THEME_ERR), 0);
     s_last_min = st->min;
+    s_last_m4 = st->m4;
+    s_last_stor = st->storage_ok;
 }
 
 err_t ui_backend_init(void)
@@ -543,6 +549,11 @@ err_t ui_backend_init(void)
     lv_label_set_text(s_stor, "eMMC");
     lv_obj_set_pos(s_stor, 80, 8);
     lv_obj_set_style_text_font(s_stor, &lv_font_montserrat_12, 0);
+
+    s_m4 = lv_label_create(s_status);
+    lv_label_set_text(s_m4, "M4");
+    lv_obj_set_pos(s_m4, 140, 8);
+    lv_obj_set_style_text_font(s_m4, &lv_font_montserrat_12, 0);
 
     s_content = lv_obj_create(scr);
     lv_obj_set_pos(s_content, 0, THEME_STATUS_H);
@@ -581,7 +592,8 @@ void ui_backend_handler(void)
         s_img_gen = igen;
         rebuild_content();
     }
-    if (shell_status()->min != s_last_min) {
+    if (shell_status()->min != s_last_min || shell_status()->m4 != s_last_m4 ||
+        shell_status()->storage_ok != s_last_stor) {
         refresh_status();
     }
     lv_timer_handler();

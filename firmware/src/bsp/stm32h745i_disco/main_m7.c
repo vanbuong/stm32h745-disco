@@ -243,7 +243,7 @@ int main(void)
     HAL_Init();
     led_init();
     board_console_init(0);
-    board_console_puts("M7 stm32h745-disco s6\r\n");
+    board_console_puts("M7 stm32h745-disco s7\r\n");
 
     e = board_clock_init();
     board_console_init(0);
@@ -254,6 +254,9 @@ int main(void)
     board_console_puts("mpu on\r\n");
     board_cache_init();
     board_console_puts("cache on\r\n");
+
+    e = board_ipc_init();
+    log_err("ipc", e);
 
     e = board_sdram_init();
     log_err("sdram", e);
@@ -300,6 +303,7 @@ int main(void)
 
     shell_init();
     shell_status_set_storage(vfs_ok);
+    shell_status_set_m4(0u);
     e = ui_backend_init();
     log_err("ui", e);
     if (e == ERR_OK) {
@@ -314,6 +318,8 @@ int main(void)
         uint32_t dt = now - last_ms;
 
         last_ms = now;
+        board_ipc_poll(now);
+        shell_status_set_m4(board_ipc_peer_alive(now));
         shell_tick(dt);
         if (e == ERR_OK) {
             ui_backend_handler();

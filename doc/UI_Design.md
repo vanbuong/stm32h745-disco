@@ -92,9 +92,10 @@ Left → right:
 1. **Time** `HH:MM` (RTC). Tap opens Date/Time in Settings.
 2. **Net cluster:** Ethernet icon (ok/warn/err), optional Wi-Fi icon if compiled in.
 3. **Storage:** eMMC mounted (ok) or error.
-4. **Audio pill:** truncated title when playing; tap opens Player.
-5. **Zigbee radio:** `ok` if ZNP up and network formed, `warn` if last-known only, `err` if UART/ZNP missing. Tap opens Home → Network.
-6. **Activity:** thin indeterminate bar during FS/decode/interview/`home_cmd` (does not block touch).
+4. **M4:** green while the M4 heartbeat is fresh; red if silent > 500 ms (or never up).
+5. **Audio pill:** truncated title when playing; tap opens Player.
+6. **Zigbee radio:** `ok` if ZNP up and network formed, `warn` if last-known only, `err` if UART/ZNP missing. Tap opens Home → Network.
+7. **Activity:** thin indeterminate bar during FS/decode/interview/`home_cmd` (does not block touch).
 
 Status bar is not a menu. No hamburger that hides primary navigation.
 
@@ -390,6 +391,7 @@ Status icons (left to right, 8 px pad):
 | ETH | 24 | ok / warn / err / hidden |
 | Wi-Fi | 24 | compiled-out = 0 width |
 | eMMC | 24 | ok / err |
+| M4 | 24 | ok / err |
 | Zigbee | 24 | ok formed / warn last-known / err no radio |
 | Audio pill | flex | hidden if stopped |
 | Activity | 480×2 under bar | hidden if idle |

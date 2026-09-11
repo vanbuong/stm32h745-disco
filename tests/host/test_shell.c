@@ -137,7 +137,10 @@ static void test_shell_status(void)
     st = shell_status();
     CHECK(st != NULL);
     CHECK(st->storage_ok == 1u);
+    CHECK(st->m4 == 0u);
     CHECK(st->hour == 0u);
+    shell_status_set_m4(1u);
+    CHECK(shell_status()->m4 == 1u);
     shell_tick(60000u);
     CHECK(shell_status()->min == 1u);
     shell_tick(60u * 60000u);

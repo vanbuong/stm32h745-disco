@@ -182,7 +182,7 @@ Two firmware images: `m7` and `m4`. They share only `include/ipc`.
           IPC client, display, touch           IPC server
 ```
 
-Bring-up order: **M7-only** until display, storage, and shell work. Enable M4 when audio or offloaded net is needed. Do not put FatFS or LVGL on M4.
+Bring-up order: M7 initializes clocks, MPU, and SRAM4, then formats the IPC control block and boots M4 (`RCC_GCR_BOOT_C2`). M4 waits for `m7_ready` before attaching. Do not put FatFS or LVGL on M4.
 
 If Zephyr is adopted, keep the same split: M7 `stm32h745i_disco/stm32h745xx/m7`, M4 `.../m4`, IPC via HSEM mailbox then OpenAMP.
 
@@ -397,10 +397,12 @@ SRAM4 sketch (64 KB):
 
 | Offset | Size | Use |
 | --- | --- | --- |
-| 0 | 256 | Control: magic, versions, head/tail, ready flags |
-| 256 | 16 KB | M7→M4 ring |
-| 16640 | 16 KB | M4→M7 ring |
+| 0 | 256 | Control: magic `IPC1`, version, nslots, ready flags, M4 heartbeat, kick counters |
+| 256 | 16 KB | M7→M4 ring (head/tail at start of window, then 60 slots) |
+| 16640 | 16 KB | M4→M7 ring (same layout) |
 | 33024 | rest | Reserved (future RPMsg vring) |
+
+Rings are SPSC and lockless: the producer only advances `head`, the consumer only advances `tail`. Occupancy is `(uint16_t)(head - tail)` so all N slots are usable. A full ring returns `ERR_NOSPC` and does not overwrite. HSEM (sem 0 M7→M4, sem 1 M4→M7) is a notify; both cores also poll and drain every main-loop pass, so correctness does not depend on the IRQ. Vector table stays the 16 Cortex-M exceptions; HSEM IER is armed but NVIC is not.
 
 Latency budget: command round-trip **< 2 ms** for control messages. Audio PCM does not ride this ring; it uses a dedicated DMA buffer.
 
@@ -414,7 +416,7 @@ sequenceDiagram
   U->>T: ipc_send(AUDIO_PLAY, path_id)
   T->>S: copy header+payload, advance head
   T->>H: notify M4
-  H->>M: ISR / task wake
+  H->>M: poll notify / drain ring
   M->>S: pop message
   M-->>S: AUDIO_ACK
   H->>T: notify M7

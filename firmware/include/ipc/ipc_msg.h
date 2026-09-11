@@ -24,6 +24,10 @@ extern "C" {
 #define IPC_SYS_HEARTBEAT 1u
 #define IPC_SYS_READY 2u
 #define IPC_SYS_PANIC 3u
+#define IPC_SYS_PING 4u
+#define IPC_SYS_PONG 5u
+
+#define IPC_LOG_LINE 1u
 
 #define IPC_AUDIO_PLAY 10u
 #define IPC_AUDIO_PAUSE 11u
@@ -34,6 +38,18 @@ extern "C" {
 #define IPC_AUDIO_ACK 16u
 #define IPC_AUDIO_NAK 17u
 #define IPC_AUDIO_UNDERRUN 18u
+
+#define IPC_SHM_MAGIC 0x31435049u /* 'IPC1' */
+#define IPC_SHM_CTRL 256u
+#define IPC_SHM_RING 16384u
+#define IPC_SHM_BYTES (64u * 1024u)
+#define IPC_DOWN_OFF IPC_SHM_CTRL
+#define IPC_UP_OFF (IPC_SHM_CTRL + IPC_SHM_RING)
+#define IPC_RING_SLOTS 60u
+#define IPC_HB_TIMEOUT_MS 500u
+#define IPC_HB_PERIOD_MS 100u
+#define IPC_ROLE_M7 0u
+#define IPC_ROLE_M4 1u
 
 typedef struct __attribute__((packed)) {
     uint16_t magic;
