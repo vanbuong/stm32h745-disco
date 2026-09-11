@@ -9,6 +9,21 @@ function(stm32_add_firmware CORE_ID)
         set(LINKER ${BSP}/stm32h745_m7.ld)
         set(CORE_DEFINE CORE_CM7)
         set(TGT firmware-m7)
+        if(NOT EXISTS ${ST_ROOT}/stm32-rk043fn48h/rk043fn48h.h)
+            message(FATAL_ERROR
+                "Missing stm32-rk043fn48h at ${ST_ROOT}/stm32-rk043fn48h.\n"
+                "Run: git submodule update --init --recursive")
+        endif()
+        if(NOT EXISTS ${ST_ROOT}/stm32-ft5336/ft5336.h)
+            message(FATAL_ERROR
+                "Missing stm32-ft5336 at ${ST_ROOT}/stm32-ft5336.\n"
+                "Run: git submodule update --init --recursive")
+        endif()
+        set(FT5336_SRC
+            ${ST_ROOT}/stm32-ft5336/ft5336.c
+            ${ST_ROOT}/stm32-ft5336/ft5336_reg.c
+        )
+        set_source_files_properties(${FT5336_SRC} PROPERTIES COMPILE_FLAGS "-w")
         set(APP_SRC
             ${BSP}/startup.c
             ${BSP}/main_m7.c
@@ -18,8 +33,13 @@ function(stm32_add_firmware CORE_ID)
             ${BSP}/cache.c
             ${BSP}/sdram.c
             ${BSP}/qspi.c
+            ${BSP}/lcd.c
+            ${BSP}/i2c4.c
+            ${BSP}/input.c
             ${CMAKE_SOURCE_DIR}/firmware/src/bsp/mpu_map.c
+            ${CMAKE_SOURCE_DIR}/firmware/src/bsp/disp_geom.c
             ${CMAKE_SOURCE_DIR}/firmware/src/svc/memtest.c
+            ${FT5336_SRC}
         )
     elseif(CORE_ID STREQUAL "M4")
         set(CPU_FLAGS -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard)
@@ -44,6 +64,8 @@ function(stm32_add_firmware CORE_ID)
         ${ST_HAL_DIR}/Inc
         ${ST_CMSIS_DEV}/Include
         ${ST_CMSIS_CORE}/Core/Include
+        ${ST_ROOT}/stm32-rk043fn48h
+        ${ST_ROOT}/stm32-ft5336
     )
     target_compile_definitions(${TGT} PRIVATE
         STM32H745xx

@@ -16,8 +16,10 @@ Policy (locked in `doc/Architecture.md` §3.1):
 | `stm32h7xx-hal-driver/` | [stm32h7xx-hal-driver](https://github.com/STMicroelectronics/stm32h7xx-hal-driver) | v1.11.6 |
 | `cmsis-device-h7/` | [cmsis-device-h7](https://github.com/STMicroelectronics/cmsis-device-h7) | v1.10.7 |
 | `cmsis_core/` | [cmsis_core](https://github.com/STMicroelectronics/cmsis_core) | v5.9.0_20220705 |
+| `stm32-rk043fn48h/` | [stm32-rk043fn48h](https://github.com/STMicroelectronics/stm32-rk043fn48h) | v1.0.3-2 |
+| `stm32-ft5336/` | [stm32-ft5336](https://github.com/STMicroelectronics/stm32-ft5336) | v2.0.1-2 |
 
-`stm32h7xx-hal-driver` is both HAL (`stm32h7xx_hal_*.c`) and LL (`stm32h7xx_ll_*.c`, `USE_FULL_LL_DRIVER`).
+`stm32h7xx-hal-driver` is both HAL (`stm32h7xx_hal_*.c`) and LL (`stm32h7xx_ll_*.c`, `USE_FULL_LL_DRIVER`). Panel timings are header-only; FT5336 is compiled in the M7 image with I2C4 in our BSP.
 
 ```
 git submodule update --init --recursive
@@ -25,14 +27,13 @@ git submodule update --init --recursive
 
 | Core | HAL | LL |
 | --- | --- | --- |
-| M7 | RCC, PWR, Cortex/MPU, GPIO AF, SDRAM, QSPI | FMC, USART3, GPIO (LED) |
+| M7 | RCC, PWR, Cortex/MPU, GPIO AF, SDRAM, QSPI, LTDC, DMA2D, I2C4 | FMC, USART3, GPIO (LED) |
 | M4 | none | GPIO (LED) |
 
 ## Pull when a sprint needs it
 
 | Sprint | Submodule | Why |
 | --- | --- | --- |
-| 2 display | [stm32-ft5336](https://github.com/STMicroelectronics/stm32-ft5336), [stm32-rk043fn48h](https://github.com/STMicroelectronics/stm32-rk043fn48h) | Touch + RK043FN48H timings. LTDC/DMA2D stay in our BSP via HAL. |
 | QSPI assets | [stm32-mt25tl01g](https://github.com/STMicroelectronics/stm32-mt25tl01g) | Quad/mmap commands beyond Sprint 1's 1-1-1 READ. |
 | 3 VFS | FatFS (elm-chan or `fatfs`) | `diskio` for SDMMC1 is our code. |
 | 4 shell | [lvgl](https://github.com/lvgl/lvgl) | Only `src/ui/backend_lvgl`. |

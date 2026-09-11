@@ -27,6 +27,8 @@ typedef struct {
 
 void disp_get_info(disp_info_t *info);
 void disp_flush(const disp_rect_t *r, const void *pixels);
+err_t disp_fill(const disp_rect_t *r, uint16_t rgb565);
+void disp_swap(void);
 
 #ifdef __cplusplus
 }

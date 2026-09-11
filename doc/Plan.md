@@ -118,9 +118,11 @@ Status: **done** (host-tested walking/MPU map; board boot log is the HIL check).
 
 ### Sprint 2 — Display and touch BSP
 
+Status: **done** (host-tested clip/RGB565; board boot log is the HIL check).
+
 - LTDC RGB565, double framebuffer in SDRAM, DMA2D fill/copy — our BSP + HAL, not `BSP_LCD_*`.
 - Submodule ST components `stm32-rk043fn48h` (panel timings) and `stm32-ft5336` (touch). I2C4 bus mutex in our BSP.
-- `disp_flush` + `input_poll` only; no LVGL yet.
+- `disp_flush` + `input_poll` only; no LVGL yet. Reload and touch INT are polled (no extra IRQs).
 - **Exit:** color bars, touch crosshair, ≥ 30 FPS full-screen fill.
 
 ### Sprint 3 — Storage VFS
@@ -228,7 +230,7 @@ Rationale: 40 px minimum hit targets, more room for lists and images, matches LV
 | ETH / QSPI pin mux | Pick one policy; test both XiP and Ethernet |
 | FatFS + LVGL on one core | FS work on a worker thread; UI thread never blocks on eMMC |
 | M7 D-cache vs DMA/IPC | Non-cacheable SRAM4; cache API for DMA |
-| TouchGFX samples leaking in | Ban TouchGFX in review; LVGL-only backend |
+| TouchGFX samples leaking in | Ban TouchGFX in review; LVGL-only backend; no STM32CubeH7 monolith |
 | Game in LVGL widgets | Keep `game_sim` + `gfx_*`; LVGL canvas is a backend, not the model |
 | Home UI talking MT/MQTT | `home_*` only; `mock` so UI is not blocked on a dongle |
 | USART3 stolen for ZNP | Console stays USART3; ZNP on USART1 |

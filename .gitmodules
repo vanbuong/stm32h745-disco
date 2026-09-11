@@ -7,3 +7,9 @@
 [submodule "third_party/cmsis_core"]
 	path = third_party/cmsis_core
 	url = https://github.com/STMicroelectronics/cmsis_core.git
+[submodule "third_party/stm32-rk043fn48h"]
+	path = third_party/stm32-rk043fn48h
+	url = https://github.com/STMicroelectronics/stm32-rk043fn48h.git
+[submodule "third_party/stm32-ft5336"]
+	path = third_party/stm32-ft5336
+	url = https://github.com/STMicroelectronics/stm32-ft5336.git

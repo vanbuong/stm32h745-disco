@@ -150,8 +150,8 @@ third_party/
   stm32h7xx-hal-driver/      ST HAL + LL (submodule, now)
   cmsis-device-h7/
   cmsis_core/
-  stm32-ft5336/              ST component (Sprint 2)
-  stm32-rk043fn48h/          ST component (Sprint 2)
+  stm32-ft5336/              ST component (now)
+  stm32-rk043fn48h/          ST component (now)
   stm32-mt25tl01g/           ST component (QSPI commands, when needed)
   stm32-wm8994/              ST component (Sprint 8)
   stm32-lan8742/             ST component (Sprint 9)
@@ -262,14 +262,16 @@ First port: FreeRTOS. Second port: Zephyr. CMSIS-RTOS2 is acceptable as an inter
 
 ```c
 typedef struct { uint16_t w, h, stride; disp_fmt_t fmt; } disp_info_t;
+void disp_get_info(disp_info_t *info);
 void disp_flush(const disp_rect_t *r, const void *pixels);
-void disp_blit_dma2d(...);   /* optional accelerator */
+err_t disp_fill(const disp_rect_t *r, uint16_t rgb565);
+void disp_swap(void);
 
 typedef enum { INPUT_PTR_DOWN, INPUT_PTR_MOVE, INPUT_PTR_UP, INPUT_KEY, INPUT_BTN } input_kind_t;
 bool input_poll(input_event_t *out);
 ```
 
-LVGL `flush_cb` and `indev_read_cb` are adapters over these two calls. Zephyr `display_write` / `input` subsystems replace the BSP, not the apps.
+LVGL `flush_cb` and `indev_read_cb` are adapters over `disp_flush` / `input_poll`. Zephyr `display_write` / `input` subsystems replace the BSP, not the apps.
 
 UART (ZNP): `uart_open` / `uart_write` / `uart_read` / `uart_set_gpio` (RESET). Default ZNP link is **USART1** on the Arduino header (PB6/PB7), 115200 8N1. **USART3 is the console** and must not be used for ZNP. Optional RTS/CTS and a RESET GPIO live in the BSP pin map (Arduino or STMod+).
 

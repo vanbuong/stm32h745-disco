@@ -75,12 +75,12 @@ Device is `STM32H745XIH6` on **STM32H745I-DISCO** (`.settings/ide.store.json`). 
 
 CI: format, layering, cppcheck, clang-tidy, coverage, and both ELF images — see `doc/CICD.md`.
 
-## Sprint 1 boot log (USART3 115200)
+## Sprint 2 boot log (USART3 115200)
 
-After clocks, MPU, cache, SDRAM, and QSPI init the M7 prints on the ST-LINK VCP, then blinks LD2 (PI13):
+After Sprint 1 memory bring-up the M7 inits LTDC/DMA2D and I2C4/FT5336, paints color bars, times 60 full-screen fills, then tracks a touch crosshair. LD2 (PI13) still blinks:
 
 ```
-M7 stm32h745-disco s1 cube
+M7 stm32h745-disco s2
 clk ok
 sysclk 1C9C3800
 mpu on
@@ -95,9 +95,16 @@ qspi_word FFFFFFFF
 mpu_test ok
 mpu_faults 00000001
 mpu_mmfar 2407FFE0
+disp ok
+input ok
+touch ok
+bars ok
+fps_ms 1000
+fps 60
+fps ok
 ```
 
-`qspi_word FFFFFFFF` means the NOR is erased; mmap worked (no bus fault). Do not execute that window until assets are programmed.
+`touch none` is OK on boards that ship GT911 instead of FT5336 (bars and FPS still run). `qspi_word FFFFFFFF` means the NOR is erased; mmap worked (no bus fault). Do not execute that window until assets are programmed. `fps ok` is ≥ 30 FPS of DMA2D fill + LTDC vblank swap.
 
 ## License
 

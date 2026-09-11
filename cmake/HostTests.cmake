@@ -6,6 +6,7 @@ set(HOST_SRC
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/auto.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/memtest.c
     ${CMAKE_SOURCE_DIR}/firmware/src/bsp/mpu_map.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/bsp/disp_geom.c
     ${CMAKE_SOURCE_DIR}/firmware/src/osal/posix/osal.c
     ${CMAKE_SOURCE_DIR}/tests/host/test_main.c
     ${CMAKE_SOURCE_DIR}/tests/host/test_ipc.c
@@ -13,6 +14,7 @@ set(HOST_SRC
     ${CMAKE_SOURCE_DIR}/tests/host/test_znp.c
     ${CMAKE_SOURCE_DIR}/tests/host/test_media_auto.c
     ${CMAKE_SOURCE_DIR}/tests/host/test_mem.c
+    ${CMAKE_SOURCE_DIR}/tests/host/test_disp.c
 )
 
 add_executable(host_tests ${HOST_SRC})
