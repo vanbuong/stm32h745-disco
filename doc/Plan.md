@@ -162,7 +162,7 @@ Status: **done** (host-tested listing, open-with, Back restores scroll; viewers 
 
 ### Sprint 5b — Host LVGL simulator (Ubuntu + Windows)
 
-Status: **planned** (after Sprint 5). Not implemented yet.
+Status: **done** (SDL2 window on Ubuntu; Windows link is a CI gate. Viewers remain stubs until Sprint 6).
 
 Run the same shell on a PC so Files/launcher can be checked without a Discovery board. **Ubuntu and Windows are both first-class.** One backend, not two window toolkits.
 

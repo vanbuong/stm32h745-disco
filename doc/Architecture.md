@@ -498,7 +498,7 @@ Network ownership: pick **one** core at build time (default M4 if audio+net isol
 - Host tests compile `svc` + `ipc` protocol + `game_sim` + `znp_mt` + `auto` + **shell/nav** with a POSIX OSAL stub. They must not link LVGL, SDL, or FatFs.
 - Host simulator (Sprint 5b) **does** link LVGL + SDL2. It is a developer window, not the coverage suite. Ubuntu and Windows are both required; CI only has to **link**.
 - HIL tests run on the Discovery board via VCP.
-- Pull-request CI is specified in `CICD.md`: format, layering, cppcheck, clang-tidy, gcov floors, ARM GCC link.
+- Pull-request CI is specified in `CICD.md`: format, layering, cppcheck, clang-tidy, gcov floors, ARM GCC link. After Sprint 5b, also link `host-sim` on Ubuntu and Windows.
 
 ## 12. Later Zephyr + LVGL migration
 

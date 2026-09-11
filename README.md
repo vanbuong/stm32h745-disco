@@ -45,7 +45,26 @@ cmake --build --preset host-tests
 ctest --test-dir build-host --output-on-failure
 ```
 
-PC LVGL window (Sprint 5b, **not implemented yet**): same shell as the board via SDL2 on **Ubuntu and Windows**. `host-tests` will stay LVGL-free; the simulator is a separate `host-sim` preset. See `doc/Plan.md`.
+PC LVGL window (Sprint 5b) — same shell as the board, SDL2, **Ubuntu and Windows**. Unit tests stay LVGL-free.
+
+Ubuntu:
+
+```
+sudo apt-get install -y libsdl2-dev ninja-build
+cmake --preset host-sim
+cmake --build --preset host-sim
+./build-sim/host_sim
+```
+
+Windows (Ninja + SDL2 via CMake FetchContent if not installed):
+
+```
+cmake --preset host-sim
+cmake --build --preset host-sim
+build-sim\host_sim.exe
+```
+
+The window is 480×272 at 2× scale. Demo files are seeded under `user/` next to the binary (`hello.txt`, `readme.md`, `sub/`, …). Override with `H745_SIM_USER` or `host_sim /path/to/folder`. Close the window to quit.
 
 Cross-compile M7 / M4 (needs `gcc-arm-none-eabi` and the ST submodules):
 

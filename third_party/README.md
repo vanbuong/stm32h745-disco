@@ -21,7 +21,7 @@ Policy (locked in `doc/Architecture.md` §3.1):
 | `fatfs/` | [abbrev/fatfs](https://github.com/abbrev/fatfs) (ChaN FatFs) | R0.15b |
 | `lvgl/` | [lvgl](https://github.com/lvgl/lvgl) | v9.5.0 |
 
-`stm32h7xx-hal-driver` is both HAL (`stm32h7xx_hal_*.c`) and LL (`stm32h7xx_ll_*.c`, `USE_FULL_LL_DRIVER`). Panel timings are header-only; FT5336 is compiled in the M7 image with I2C4 in our BSP. FatFs `ff.c` is compiled on M7; `diskio` and `ffconf.h` are ours (`firmware/src/bsp/.../emmc.c`, `firmware/src/port/fatfs/`). LVGL is compiled on M7 only; `lv_conf.h` lives in `firmware/src/port/lvgl/` and apps never include `lvgl.h`.
+`stm32h7xx-hal-driver` is both HAL (`stm32h7xx_hal_*.c`) and LL (`stm32h7xx_ll_*.c`, `USE_FULL_LL_DRIVER`). Panel timings are header-only; FT5336 is compiled in the M7 image with I2C4 in our BSP. FatFs `ff.c` is compiled on M7; `diskio` and `ffconf.h` are ours (`firmware/src/bsp/.../emmc.c`, `firmware/src/port/fatfs/`). LVGL is compiled on M7 and in the Sprint 5b `host-sim` SDL binary; `lv_conf.h` lives in `firmware/src/port/lvgl/` (MCU) and `firmware/src/port/lvgl_sim/` (PC). Apps never include `lvgl.h`.
 
 ```
 git submodule update --init --recursive

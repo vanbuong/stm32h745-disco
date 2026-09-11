@@ -44,7 +44,7 @@ flowchart TB
 | clang-tidy | ubuntu | No | Yes (errors + selected warnings) |
 | Host tests + coverage | ubuntu gcc | No | Yes (fail + coverage floor) |
 | Cross-compile M7/M4 | ubuntu + `gcc-arm-none-eabi` | No | Yes |
-| Host sim link (Sprint 5b) | ubuntu + windows, SDL2 | No | Yes after 5b (link only) |
+| Host sim link (Sprint 5b) | ubuntu + windows, SDL2 | No | Yes (link only) |
 | CodeQL | GitHub | No | Yes on high/critical |
 | HIL | Self-hosted + DISCO | Yes | No until Sprint 13 |
 
@@ -219,9 +219,7 @@ cmake --preset host-sim
 cmake --build --preset host-sim
 ```
 
-CI jobs: `ubuntu-24.04` and `windows-latest` **link** `host_sim`. Do not require a display, xvfb, or screenshot gate. Do not fold LVGL/SDL into the gcov floor.
-
-Until Sprint 5b is implemented, this job does not exist and must not block merge.
+CI jobs: `ubuntu-24.04` and `windows-2022` **link** `host_sim`. Do not require a display, xvfb, or screenshot gate. Do not fold LVGL/SDL into the gcov floor.
 
 ### 5.8 CodeQL
 

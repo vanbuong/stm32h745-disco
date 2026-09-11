@@ -97,3 +97,24 @@ jobs:
             build/Debug/firmware-m4.elf
             build-m7/firmware-m7.elf
             build-m4/firmware-m4.elf
+
+  host-sim:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Ubuntu packages
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build libsdl2-dev
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
+      - name: Windows Ninja
+        if: runner.os == 'Windows'
+        run: choco install ninja --no-progress -y
+      - run: cmake --preset host-sim
+      - run: cmake --build --preset host-sim

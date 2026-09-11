@@ -65,12 +65,25 @@
         "COVERAGE": "ON",
         "CMAKE_C_COMPILER": "gcc"
       }
+    },
+    {
+      "name": "host-sim",
+      "displayName": "Host LVGL SDL simulator",
+      "description": "PC window (Ubuntu/Windows). Requires SDL2 (apt libsdl2-dev or FetchContent).",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-sim",
+      "cacheVariables": {
+        "HOST_SIM": "ON",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
     }
   ],
   "buildPresets": [
     { "name": "Debug", "configurePreset": "Debug" },
     { "name": "Release", "configurePreset": "Release" },
     { "name": "host-tests", "configurePreset": "host-tests" },
+    { "name": "host-sim", "configurePreset": "host-sim" },
     { "name": "m7-debug", "configurePreset": "m7-debug" },
     { "name": "m4-debug", "configurePreset": "m4-debug" }
   ]
