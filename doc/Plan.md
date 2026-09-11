@@ -39,6 +39,9 @@ Game and Home use the same `ui_app_t` contract as Files. Game logic is a host-te
 | Game | `game_sim` + `gfx_*` | Same modules; gfx via Zephyr display |
 | Wi-Fi | Optional ESP32 AT/SPI driver | Same `net_*` API |
 | Build | CMake + STM32Cube HAL in `port/cube` | `west` + DTS |
+| Cube package | Component repos only (HAL/LL, ft5336, …) | Zephyr DTS; ST components dropped |
+
+**Vendor rule:** write our Discovery BSP; do not submodule [STM32CubeH7](https://github.com/STMicroelectronics/STM32CubeH7) or `stm32h745i-disco-bsp`. Pull chip drivers and upstream middleware per sprint — see `Architecture.md` §3.1 and `third_party/README.md`.
 
 M7-only is acceptable through Sprint 5. M4 starts when audio or offloaded net lands.
 
@@ -115,8 +118,8 @@ Status: **done** (host-tested walking/MPU map; board boot log is the HIL check).
 
 ### Sprint 2 — Display and touch BSP
 
-- LTDC RGB565, double framebuffer in SDRAM, DMA2D fill/copy.
-- Backlight, display on, FT5336 on I2C4 with bus mutex.
+- LTDC RGB565, double framebuffer in SDRAM, DMA2D fill/copy — our BSP + HAL, not `BSP_LCD_*`.
+- Submodule ST components `stm32-rk043fn48h` (panel timings) and `stm32-ft5336` (touch). I2C4 bus mutex in our BSP.
 - `disp_flush` + `input_poll` only; no LVGL yet.
 - **Exit:** color bars, touch crosshair, ≥ 30 FPS full-screen fill.
 
@@ -256,3 +259,4 @@ Rationale: 40 px minimum hit targets, more room for lists and images, matches LV
 | `Requirements_and_Test_Cases.md` | Shall statements + tests + RTM + CI reqs |
 | `CICD.md` | GitHub Actions, static analysis, coverage gates |
 | `Plan.md` | This file |
+| `third_party/README.md` | CubeH7 vs our BSP vs component submodules |

@@ -2,7 +2,7 @@
 
 Portable HMI architecture for the STM32H745I-DISCO. Application code must not call FreeRTOS, Zephyr, LVGL, TouchGFX, FatFS, or STM32 HAL directly.
 
-**Contents:** 1 Goals · 2 Hardware · 3 Layers · 4 Tree · 5 Cores · 6 Memory · 7 Interfaces · 8 UI · 9 Services · 10 Pins · 11 Build/CI · 12 Zephyr · 13 Boot · 14 Threads · 15 OSAL · 16 VFS · 17 Zigbee · 18 Automation · 19 Audio · 20 Log · 21 Errors · 22 Migration
+**Contents:** 1 Goals · 2 Hardware · 3 Layers · 3.1 Vendor · 4 Tree · 5 Cores · 6 Memory · 7 Interfaces · 8 UI · 9 Services · 10 Pins · 11 Build/CI · 12 Zephyr · 13 Boot · 14 Threads · 15 OSAL · 16 VFS · 17 Zigbee · 18 Automation · 19 Audio · 20 Log · 21 Errors · 22 Migration
 
 ## 1. Goals
 
@@ -100,6 +100,28 @@ flowchart TB
   AUD --> IPC
 ```
 
+## 3.1 CubeH7 / vendor policy
+
+Do **not** submodule the monolith [`STM32CubeH7`](https://github.com/STMicroelectronics/STM32CubeH7). That tree is every H7 Nucleo/DK/EVAL BSP, every demo (including TouchGFX), and ST forks of FreeRTOS, FatFS, LwIP, USB, mbedTLS. It would fight the portability rules and the later Zephyr swap.
+
+Write **our** board BSP in `firmware/src/bsp/stm32h745i_disco/`. It owns clocks, MPU, pin mux, I2C4 mutex, cache, dual-core bring-up, and the `board_*` / `disp_*` / `input_*` / `uart_*` implementations. Apps never call `BSP_LCD_*` or include `stm32h745i_discovery.h`.
+
+[`stm32h745i-disco-bsp`](https://github.com/STMicroelectronics/stm32h745i-disco-bsp) is a **read-only reference** (pin tables, SDRAM/QSPI/LTDC sequences). Do not link it. It pulls Cube Utilities, LCD log/fonts, and HAL types that we do not want above `port/cube`.
+
+Pull **specific** ST component repos (chip datasheet drivers, not board wrappers) and **upstream** middleware, as git submodules, when a sprint needs them:
+
+| Need | Take | Skip |
+| --- | --- | --- |
+| MCU registers, HAL, LL | `stm32h7xx-hal-driver`, `cmsis-device-h7`, `cmsis_core` (already) | Full `STM32CubeH7` |
+| Panel timing, touch, codec, NOR, PHY | `stm32-rk043fn48h`, `stm32-ft5336`, `stm32-wm8994`, `stm32-mt25tl01g`, `stm32-lan8742` | `stm32h745i-disco-bsp`, other boards' components |
+| SDRAM | Keep our `HAL_SDRAM_*` (Sprint 1). `stm32-mt48lc4m32b2` only if timings need a refresh | Board `bsp_sdram.c` |
+| RTOS / UI / FS / net / MP3 | Upstream FreeRTOS-Kernel, LVGL, FatFS, LwIP, Helix | Cube `Middlewares/Third_Party/*` and TouchGFX |
+| USB, mbedTLS, LibJPEG | Only if a later requirement appears | Default out |
+
+Component `.c` files compile into the BSP target and may include HAL. Wrap them so `src/app` and `src/shell` still see only `disp.h` / `input.h` / `vfs.h`. Format, cppcheck, and coverage exclude `third_party/`. Pin tags to the CubeH7 1.13.0 set (same family as HAL v1.11.6) unless a component release note says otherwise.
+
+When Zephyr lands, ST components behind `disp_*`/`input_*` go away with `port/cube`; apps do not move.
+
 ## 4. Recommended source tree
 
 ```
@@ -125,9 +147,15 @@ firmware/
     host/          PC unit tests, no HAL
     hil/           on-target scripts and fixtures
 third_party/
-  stm32h7xx-hal-driver/      ST HAL + LL (submodule)
+  stm32h7xx-hal-driver/      ST HAL + LL (submodule, now)
   cmsis-device-h7/
   cmsis_core/
+  stm32-ft5336/              ST component (Sprint 2)
+  stm32-rk043fn48h/          ST component (Sprint 2)
+  stm32-mt25tl01g/           ST component (QSPI commands, when needed)
+  stm32-wm8994/              ST component (Sprint 8)
+  stm32-lan8742/             ST component (Sprint 9)
+  lvgl/  FreeRTOS-Kernel/  fatfs/  lwip/  helix/   upstream, per sprint
 .settings/                   STM32CubeIDE for VS Code device store
 .vscode/                     CMake Tools + ST-LINK launch/tasks
 ```

@@ -2,7 +2,7 @@
 
 HMI firmware for the **STM32H745I-DISCO**: dual-core shell with file explorer, image and text viewers, audio, game, and **Zigbee home automation** (TI ZNP host) on the 4.3" 480×272 panel.
 
-The first implementation is **FreeRTOS + LVGL + STM32Cube HAL/LL**. Board bring-up uses ST's [`stm32h7xx-hal-driver`](https://github.com/STMicroelectronics/stm32h7xx-hal-driver) as a git submodule (HAL for RCC/PWR/MPU/SDRAM/QSPI, LL for USART/GPIO). Apps still never include those headers.
+The first implementation is **FreeRTOS + LVGL + STM32Cube HAL/LL**. The board BSP is **ours** (`firmware/src/bsp`); ST HAL/LL and later chip drivers are git submodules. The full [`STM32CubeH7`](https://github.com/STMicroelectronics/STM32CubeH7) package is **not** in tree — see [third_party/README.md](third_party/README.md). Apps still never include those headers.
 
 ## Documentation
 
@@ -14,6 +14,7 @@ The first implementation is **FreeRTOS + LVGL + STM32Cube HAL/LL**. Board bring-
 | [doc/UI_Design.md](doc/UI_Design.md) | Shell, screens, navigation and pairing flows |
 | [doc/Requirements_and_Test_Cases.md](doc/Requirements_and_Test_Cases.md) | Shall statements, tests, traceability, CI reqs |
 | [doc/CICD.md](doc/CICD.md) | GitHub Actions, static analysis, coverage gates |
+| [third_party/README.md](third_party/README.md) | What we vendor from ST vs write ourselves |
 
 ## Hardware (used by the design)
 
