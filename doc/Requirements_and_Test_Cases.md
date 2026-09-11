@@ -1,19 +1,337 @@
-# System Requirements & Test Case Matrix
+# Requirements and Test Cases
 
-## 1. Storage & Media Layer
-* **REQ-STG-01:** The system shall support mounting a FatFS filesystem on the 4 GB internal eMMC via an SDMMC peripheral interface.
-* **REQ-STG-02:** The system shall read binary media chunks from the eMMC at a minimum sequential transfer rate of 15 MB/s.
-* **TC-STG-01 (Local PC Unit Test):** Verify the file extension dispatcher logic matches `.mp3` and `.wav` formats to their target callbacks correctly without hitting real hardware drivers.
-* **TC-STG-02 (System HIL Test):** Profile sequential eMMC read speeds using hardware timer tracking during continuous asset transfers.
+Scope: STM32H745I-DISCO HMI described in `Architecture.md` and `UI_Design.md`.
 
-## 2. Inter-Core Communication (IPC)
-* **REQ-IPC-01:** Core communication must use a lockless circular ring-buffer topology isolated inside Shared SRAM4 Memory (`0x38000000`).
-* **REQ-IPC-02:** Message latency over the shared data link layer must not exceed 2 milliseconds.
-* **TC-IPC-01 (Local PC Unit Test):** Validate that the circular queue logic handles boundary overflows gracefully without corrupting adjacent memory addresses.
-* **TC-IPC-02 (System HIL Test):** Confirm M7 intercepts the HSEM interrupt vector and decodes M4 payload variables within the required < 2 ms window.
+**Priority:** M = Must (P0), S = Should (P1), C = Could (P2).
 
-## 3. Audio & Network Automation
-* **REQ-AUD-01:** The system shall stream raw 16-bit PCM stereo data via the SAI2 DMA configuration configured as a continuous ping-pong ring buffer.
-* **REQ-NET-01:** The network layer must feature automatic hot-swapping failover logic to redirect packets from Ethernet (LwIP) to Wi-Fi (ESP32) if the primary link goes down.
-* **TC-AUD-01 (Local PC Unit Test):** Assert the stability of the audio mixer's mathematical clipping thresholds under extreme combined waveforms.
-* **TC-NET-01 (System HIL Test):** Physically disconnect the RJ45 Ethernet link under active telemetry load and verify that the M4 network layer restores communication over the ESP32 within a predefined timeout.
+**Verification:** UT = host unit test, IT = on-target integration, HIL = hardware-in-the-loop with timing/instruments, INSP = review.
+
+IDs are stable. Do not reuse a retired ID.
+
+---
+
+## 1. System and portability
+
+| ID | Pri | Requirement | Verify |
+| --- | --- | --- | --- |
+| REQ-SYS-01 | M | The product shall run on STM32H745I-DISCO with a 480×272 panel. | INSP, HIL |
+| REQ-SYS-02 | M | Application sources under `src/app` and `src/shell` shall not include LVGL, TouchGFX, FreeRTOS, Zephyr, FatFS, or STM32 HAL headers. | UT (include-guard / grep CI) |
+| REQ-SYS-03 | M | OS services shall be used only through `osal_*`. | INSP, UT |
+| REQ-SYS-04 | M | Filesystem access from apps shall use `vfs_*` only. | INSP, UT |
+| REQ-SYS-05 | M | Display and touch shall be used by the UI backend only through `disp_*` and `input_*`. | INSP |
+| REQ-SYS-06 | S | A second OSAL port (Zephyr) shall be addable without changing app source. | INSP |
+| REQ-SYS-07 | M | Both cores shall service a watchdog within the configured period once enabled. | HIL |
+| REQ-SYS-08 | S | Firmware shall log on USART3 at 115200 8N1 with core and module tags. | IT |
+
+### Tests
+
+**TC-SYS-01 (UT) — Layering**  
+GIVEN the firmware tree  
+WHEN CI scans `src/app` and `src/shell` includes  
+THEN no forbidden headers are listed.
+
+**TC-SYS-02 (HIL) — Bring-up**  
+GIVEN a programmed Discovery board  
+WHEN reset is released  
+THEN VCP shows M7 banner within 2 s and the panel leaves the reset splash for the launcher.
+
+**TC-SYS-03 (HIL) — Watchdog**  
+GIVEN watchdogs enabled  
+WHEN the UI thread is deliberately stalled past the timeout in a debug build  
+THEN the system resets and Backup SRAM records the reason.
+
+---
+
+## 2. Memory and cache
+
+| ID | Pri | Requirement | Verify |
+| --- | --- | --- | --- |
+| REQ-MEM-01 | M | Framebuffers shall reside in SDRAM at `0xD0000000` and shall not exceed the 8 MB usable window. | INSP, IT |
+| REQ-MEM-02 | M | SRAM4 at `0x38000000` shall be mapped non-cacheable (or Device) and reserved for IPC. | INSP, UT |
+| REQ-MEM-03 | M | DMA buffers shared with peripherals shall be aligned and either non-cacheable or maintained with `bsp_cache_*`. | INSP, HIL |
+| REQ-MEM-04 | M | QSPI shall be memory-mapped for read-only assets before UI start. | IT |
+| REQ-MEM-05 | S | M7 hot paths may be placed in ITCM; M4 shall not use SDRAM. | INSP |
+
+### Tests
+
+**TC-MEM-01 (IT) — SDRAM**  
+Walking 1s / 0s over 8 MB; fail on mismatch.
+
+**TC-MEM-02 (UT) — IPC region**  
+Linker symbols for SRAM4 rings lie inside `0x38000000`–`0x38010000` and do not overlap.
+
+**TC-MEM-03 (HIL) — Cache**  
+M7 writes a DMA/IPC payload, issues the documented cache op (or uses non-cacheable memory), M4 reads expected bytes.
+
+---
+
+## 3. Inter-core IPC
+
+| ID | Pri | Requirement | Verify |
+| --- | --- | --- | --- |
+| REQ-IPC-01 | M | Cores shall exchange versioned messages with a fixed header (magic, version, type, seq, length). Payloads shall contain no pointers. | UT |
+| REQ-IPC-02 | M | The first transport shall be lockless rings in SRAM4 plus HSEM notification. | IT |
+| REQ-IPC-03 | M | Control-message round-trip latency shall be ≤ 2 ms under idle UI. | HIL |
+| REQ-IPC-04 | M | A full ring shall fail send with an error and shall not overwrite unread messages. | UT |
+| REQ-IPC-05 | M | If M4 stops heartbeating for > 500 ms, M7 shall show a degraded status and shall not deadlock the UI. | HIL |
+| REQ-IPC-06 | S | Transport shall be replaceable with OpenAMP without changing `ipc_msg.h` or apps. | INSP |
+
+### Tests
+
+**TC-IPC-01 (UT) — Wrap**  
+Push N+1 messages of size S into a ring of capacity N; expect overflow error; pop N; contents match first N.
+
+**TC-IPC-02 (UT) — Framing**  
+Truncated and bad-magic headers are rejected; seq monotonic.
+
+**TC-IPC-03 (HIL) — Latency**  
+1000 ping-pongs; p99 ≤ 2 ms (DWT cycle counter).
+
+**TC-IPC-04 (HIL) — M4 halt**  
+Halt M4 in debug; status bar shows M4 error within 1 s; launcher still navigable.
+
+---
+
+## 4. Storage and VFS
+
+| ID | Pri | Requirement | Verify |
+| --- | --- | --- | --- |
+| REQ-STG-01 | M | The system shall mount a FAT filesystem on the on-board 4 GB eMMC via SDMMC. | HIL |
+| REQ-STG-02 | S | Sequential reads of a ≥ 64 MB file shall sustain ≥ 15 MB/s average. | HIL |
+| REQ-STG-03 | M | Apps shall see a jailed tree rooted at `/user`. Paths containing `..` or extra `/` that escape the jail shall be rejected. | UT |
+| REQ-STG-04 | M | VFS shall report mount failure without crashing; UI shall show Retry. | HIL |
+| REQ-STG-05 | M | Directory iteration shall be incremental (no requirement to load the whole directory into AXI SRAM). | UT, IT |
+| REQ-STG-06 | S | QSPI assets shall not be writable through the explorer. | UT, IT |
+
+### Tests
+
+**TC-STG-01 (UT) — Jail**  
+`/user/../user/x`, `/user/foo/../../etc`, `//user`, NUL in path → rejected; `/user/a/b.txt` → accepted.
+
+**TC-STG-02 (UT) — Dispatch**  
+`.mp3 .wav` → audio; `.jpg .jpeg .png .bmp` → image; `.txt .md .c .h .log` → text; unknown → none.
+
+**TC-STG-03 (HIL) — Mount**  
+Boot with valid FAT; `/user` lists. Boot with corrupted MBR; error screen, Retry.
+
+**TC-STG-04 (HIL) — Throughput**  
+Read 64 MB file, TIM/DWT elapsed; average ≥ 15 MB/s. Record in the test log even if S-priority is waived on a given board.
+
+---
+
+## 5. UI shell
+
+| ID | Pri | Requirement | Verify |
+| --- | --- | --- | --- |
+| REQ-UI-01 | M | The panel shall use RGB565 (default) at 480×272 with double buffering. | IT |
+| REQ-UI-02 | M | A 32 px status bar shall remain visible on all screens. | IT |
+| REQ-UI-03 | M | Interactive controls shall be at least 40×40 px. | INSP |
+| REQ-UI-04 | M | The launcher shall open registered apps and Back shall return to the launcher. | HIL |
+| REQ-UI-05 | M | The UI thread shall not call blocking VFS or decode APIs. | UT, INSP |
+| REQ-UI-06 | S | List scrolling shall maintain ≥ 20 FPS. | HIL |
+| REQ-UI-07 | M | Touch down/move/up shall be delivered with coordinates in panel space. | HIL |
+| REQ-UI-08 | S | User button shall return to the launcher. | HIL |
+| REQ-UI-09 | M | Errors shall use a modal with human-readable text, never a blank screen or HAL assert in production builds. | HIL |
+
+### Tests
+
+**TC-UI-01 (HIL) — Nav**  
+Launcher → Files → Back → Launcher; coordinates of tiles register within 8 px of center.
+
+**TC-UI-02 (HIL) — FPS**  
+Scroll a 200-row dummy list; frame counter ≥ 20 FPS over 3 s.
+
+**TC-UI-03 (UT) — Non-blocking**  
+UI tick unit test fails the build if a stub VFS that sleeps is invoked on the UI thread.
+
+---
+
+## 6. File explorer
+
+| ID | Pri | Requirement | Verify |
+| --- | --- | --- | --- |
+| REQ-FE-01 | M | The explorer shall list directories and files under `/user` with name and type icon. | HIL |
+| REQ-FE-02 | M | Tapping a directory shall open it; Back shall restore parent, scroll offset, and selection. | HIL |
+| REQ-FE-03 | M | Tapping a file shall open the registered viewer or a Properties + fallback dialog. | HIL |
+| REQ-FE-04 | M | Empty and error states shall be distinct. | HIL |
+| REQ-FE-05 | S | A grid view shall be available for folders that contain images. | HIL |
+| REQ-FE-06 | C | Rename and delete shall require confirmation. | HIL |
+
+### Tests
+
+**TC-FE-01 (HIL)**  
+Fixture tree `/user/a/b/c.txt`. Navigate to `c.txt`, Back twice, first-level names still visible, previous scroll restored.
+
+**TC-FE-02 (HIL)**  
+Empty folder shows empty state; folder with 1 file does not.
+
+**TC-FE-03 (UT)**  
+Open-with table as in TC-STG-02.
+
+---
+
+## 7. Image viewer
+
+| ID | Pri | Requirement | Verify |
+| --- | --- | --- | --- |
+| REQ-IMG-01 | M | The viewer shall display JPEG, PNG, and BMP from VFS. | HIL |
+| REQ-IMG-02 | M | Images larger than the decode buffer shall be downscaled to fit the buffer and then shown with contain-fit. | HIL |
+| REQ-IMG-03 | M | JPEG shall use the STM32 JPEG hardware codec when available, with a software fallback path compiled for host tests. | UT, HIL |
+| REQ-IMG-04 | M | A corrupt or truncated image shall show an error and leave the explorer usable. | HIL |
+| REQ-IMG-05 | S | Swipe or next/prev controls shall move among images in the same folder. | HIL |
+| REQ-IMG-06 | S | Pan when zoomed; double-tap toggles fit and 1:1 (if 1:1 fits memory). | HIL |
+| REQ-IMG-07 | S | Decode shall run off the UI thread with a busy indicator. | IT |
+
+### Tests
+
+**TC-IMG-01 (HIL)**  
+Open 480×272 JPEG, 1920×1080 JPEG, 100×100 PNG, 24-bit BMP; all render.
+
+**TC-IMG-02 (HIL)**  
+Open truncated JPEG; modal error; Back to list.
+
+**TC-IMG-03 (UT)**  
+Software decoder on PC for a golden JPEG; pixel checksum of a 16×16 center crop.
+
+**TC-IMG-04 (HIL)**  
+Next/prev skips `notes.txt` in a mixed folder.
+
+---
+
+## 8. Text viewer
+
+| ID | Pri | Requirement | Verify |
+| --- | --- | --- | --- |
+| REQ-TXT-01 | M | The viewer shall show UTF-8 text with word wrap. | HIL |
+| REQ-TXT-02 | M | Files larger than 256 KB shall be read in windows; peak RAM for the text buffer shall be bounded in documentation and enforced by a constant. | UT, IT |
+| REQ-TXT-03 | M | CRLF and LF shall display as line breaks. | UT |
+| REQ-TXT-04 | S | Font size shall be adjustable (at least two steps). | HIL |
+| REQ-TXT-05 | M | Invalid UTF-8 shall be replaced, not abort. | UT |
+| REQ-TXT-06 | C | Markdown styling for `.md`. | HIL |
+
+### Tests
+
+**TC-TXT-01 (UT)**  
+Windowed reader over a 1 MB generated file; only one window resident; random seek to 90% shows the expected line prefix.
+
+**TC-TXT-02 (UT)**  
+Invalid UTF-8 sequence becomes U+FFFD or `?`; function returns OK.
+
+**TC-TXT-03 (HIL)**  
+Open `/user/notes/utf8.txt` (English + Vietnamese); wrap at 480 px; scroll to end.
+
+---
+
+## 9. Audio
+
+| ID | Pri | Requirement | Verify |
+| --- | --- | --- | --- |
+| REQ-AUD-01 | M | The system shall output 16-bit stereo PCM on the WM8994 via SAI DMA in a ping-pong buffer. | HIL |
+| REQ-AUD-02 | M | MP3 and WAV playback shall be available through `media_*` + IPC to M4. | HIL |
+| REQ-AUD-03 | M | Play, pause, resume, and volume shall not block the UI thread. | HIL |
+| REQ-AUD-04 | M | Audio shall continue while the explorer is scrolled (no audible underrun in a quiet room at 44.1 kHz). | HIL |
+| REQ-AUD-05 | S | A mini-player shall appear while audio is active. | HIL |
+| REQ-AUD-06 | S | Mixer/clipping shall be unit-tested on host. | UT |
+
+### Tests
+
+**TC-AUD-01 (UT)**  
+Mixer clip: sum of two full-scale sines never exceeds int16; zero input → zero output.
+
+**TC-AUD-02 (HIL)**  
+Play 30 s MP3; pause at 10 s; resume; headphones hear continuity.
+
+**TC-AUD-03 (HIL)**  
+Play WAV; scroll explorer for 10 s; flag underrun counter remains 0.
+
+**TC-AUD-04 (HIL)**  
+Volume IPC 0…100 maps to codec without I2C bus lockup (touch still works).
+
+---
+
+## 10. Network and time
+
+| ID | Pri | Requirement | Verify |
+| --- | --- | --- | --- |
+| REQ-NET-01 | M | Ethernet link up/down shall be reflected on the status bar within 2 s. | HIL |
+| REQ-NET-02 | S | The device shall obtain IPv4 via DHCP or use a stored static address. | HIL |
+| REQ-NET-03 | C | If an ESP32 expansion is compiled in, loss of Ethernet shall fail over to Wi-Fi within 10 s. | HIL |
+| REQ-NET-04 | M | Network shall be initialized on exactly one core. | INSP, IT |
+| REQ-NET-05 | M | Status bar shall show RTC time after boot (NTP is not required for M). | HIL |
+| REQ-NET-06 | C | NTP shall set RTC when a server is reachable. | HIL |
+
+### Tests
+
+**TC-NET-01 (HIL)**  
+Unplug RJ45 under ping; icon goes `err` in ≤ 2 s.
+
+**TC-NET-02 (HIL)**  
+DHCP lease displayed on Network screen.
+
+**TC-NET-03 (HIL, optional hardware)**  
+Ethernet unplug with ESP32 present; Wi-Fi carries ICMP within 10 s.
+
+---
+
+## 11. Time, settings, robustness
+
+| ID | Pri | Requirement | Verify |
+| --- | --- | --- | --- |
+| REQ-CFG-01 | S | Brightness and volume shall persist across reset. | HIL |
+| REQ-CFG-02 | M | About shall show M7 and M4 firmware versions. | IT |
+| REQ-RST-01 | M | Hard fault handlers shall log and reset in production; they shall not paint a white screen forever. | HIL |
+| REQ-RST-02 | S | eMMC surprise unmount (if reproduced) shall put VFS in error and keep shell alive. | HIL |
+
+---
+
+## 12. Host vs HIL policy
+
+| Kind | Where | What belongs |
+| --- | --- | --- |
+| UT | PC, CMake `host-tests` | Path jail, IPC rings, UTF-8, dispatcher, mixer math, image golden, include check |
+| IT | Board, no extra gear | Mount, display mode, QSPI map, versions |
+| HIL | Board + actions | Latency, FPS, failover, audio underrun, touch, throughput |
+
+Host tests must not link STM32 HAL.
+
+---
+
+## 13. Traceability (RTM)
+
+| Requirement | Tests |
+| --- | --- |
+| REQ-SYS-01 | TC-SYS-02 |
+| REQ-SYS-02 | TC-SYS-01 |
+| REQ-SYS-03 | TC-SYS-01 |
+| REQ-SYS-04 | TC-SYS-01, TC-STG-01 |
+| REQ-SYS-05 | TC-UI-01 |
+| REQ-SYS-06 | INSP |
+| REQ-SYS-07 | TC-SYS-03 |
+| REQ-SYS-08 | TC-SYS-02 |
+| REQ-MEM-01 | TC-MEM-01 |
+| REQ-MEM-02 | TC-MEM-02 |
+| REQ-MEM-03 | TC-MEM-03 |
+| REQ-MEM-04 | TC-SYS-02 |
+| REQ-IPC-01 | TC-IPC-02 |
+| REQ-IPC-02 | TC-IPC-03 |
+| REQ-IPC-03 | TC-IPC-03 |
+| REQ-IPC-04 | TC-IPC-01 |
+| REQ-IPC-05 | TC-IPC-04 |
+| REQ-STG-01 | TC-STG-03 |
+| REQ-STG-02 | TC-STG-04 |
+| REQ-STG-03 | TC-STG-01 |
+| REQ-STG-04 | TC-STG-03 |
+| REQ-STG-05 | TC-FE-01 |
+| REQ-UI-01..09 | TC-UI-01, TC-UI-02, TC-UI-03 |
+| REQ-FE-01..04 | TC-FE-01, TC-FE-02, TC-FE-03 |
+| REQ-IMG-01..04 | TC-IMG-01, TC-IMG-02, TC-IMG-03 |
+| REQ-IMG-05 | TC-IMG-04 |
+| REQ-TXT-01..05 | TC-TXT-01, TC-TXT-02, TC-TXT-03 |
+| REQ-AUD-01..04 | TC-AUD-02, TC-AUD-03, TC-AUD-04 |
+| REQ-AUD-06 | TC-AUD-01 |
+| REQ-NET-01 | TC-NET-01 |
+| REQ-NET-02 | TC-NET-02 |
+| REQ-NET-03 | TC-NET-03 |
+| REQ-NET-05 | TC-SYS-02 |
+
+Sprint 10 is not done until every **M** row has a passing test or an explicit waiver recorded here.
