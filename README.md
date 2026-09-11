@@ -1,6 +1,6 @@
 # stm32h745-disco
 
-HMI firmware for the **STM32H745I-DISCO**: dual-core shell with file explorer, image and text viewers, audio, **game**, and **home automation** on the 4.3" 480×272 panel.
+HMI firmware for the **STM32H745I-DISCO**: dual-core shell with file explorer, image and text viewers, audio, game, and **Zigbee home automation** (TI ZNP host) on the 4.3" 480×272 panel.
 
 The first implementation is **FreeRTOS + LVGL + STM32Cube**. Interfaces are written so the same apps can move to **Zephyr + LVGL** later.
 
@@ -23,13 +23,15 @@ The first implementation is **FreeRTOS + LVGL + STM32Cube**. Interfaces are writ
 - 4 GB eMMC (user files)
 - WM8994 audio, LAN8740A Ethernet
 - Wi-Fi only if an ESP32 is added on Arduino / STMod+
+- Zigbee via a **TI ZNP** module on USART1 (Arduino); STM32 is the host/coordinator
 
 ## Design rules (short)
 
-1. Apps do not call LVGL, FreeRTOS, FatFS, MQTT, or HAL.
-2. M7 owns UI, VFS, image decode, game sim, and the home device model. M4 owns SAI audio (and optional net).
+1. Apps do not call LVGL, FreeRTOS, FatFS, MQTT, MT, or HAL.
+2. M7 owns UI, VFS, image decode, game sim, Zigbee host, and local automations. M4 owns SAI audio (and optional net or ZNP UART).
 3. IPC is versioned messages in SRAM4, not shared C pointers.
 4. Explorer is jailed to `/user`. Home UI talks only to `home_*`. Game logic talks only to `game_module_t` / `gfx_*`.
+5. TI ZNP is an expansion on USART1; USART3 stays the console.
 
 ## Status
 

@@ -22,6 +22,7 @@ Portable HMI architecture for the STM32H745I-DISCO. Application code must not ca
 | Audio | WM8994 on SAI, I2C4 shared with touch |
 | Ethernet | LAN8740A MII; default pins collide with QSPI bank 2 |
 | Wi-Fi | **Not on board.** Optional ESP32 on Arduino/STMod+ |
+| Zigbee | **Not on board.** TI ZNP module on USART1 (Arduino) |
 | Shared SRAM | SRAM4 64 KB at `0x38000000` (D3 domain) |
 
 ## 3. Layered design
@@ -57,8 +58,8 @@ firmware/
   include/
     osal/          osal.h
     ipc/           ipc.h, ipc_msg.h
-    hal/           disp.h, input.h, audio_out.h, net_if.h
-    svc/           vfs.h, media.h, audio.h, net.h, home.h, time.h
+    hal/           disp.h, input.h, audio_out.h, net_if.h, uart.h
+    svc/           vfs.h, media.h, audio.h, net.h, home.h, zb_host.h, auto.h, time.h
     game/          game_sim.h, gfx.h
     ui/            shell.h, nav.h, theme.h
     app/           apps.h
@@ -86,8 +87,9 @@ Two firmware images: `m7` and `m4`. They share only `include/ipc`.
           Shell + LVGL backend                 SAI DMA ping-pong
           VFS, JPEG, text paging               MP3/WAV decode
           game_sim + gfx blit                  Optional LwIP / ESP32
-          home_* model                         IPC server
-          IPC client, display, touch           No framebuffer / no LVGL
+          zb_host + ZNP UART worker            Optional ZNP UART DMA
+          home_* + local auto_*                (no framebuffer / no LVGL)
+          IPC client, display, touch           IPC server
 ```
 
 Bring-up order: **M7-only** until display, storage, and shell work. Enable M4 when audio or offloaded net is needed. Do not put FatFS or LVGL on M4.
@@ -163,6 +165,8 @@ bool input_poll(input_event_t *out);
 
 LVGL `flush_cb` and `indev_read_cb` are adapters over these two calls. Zephyr `display_write` / `input` subsystems replace the BSP, not the apps.
 
+UART (ZNP): `uart_open` / `uart_write` / `uart_read` / `uart_set_gpio` (RESET). Default ZNP link is **USART1** on the Arduino header (PB6/PB7), 115200 8N1. **USART3 is the console** and must not be used for ZNP. Optional RTS/CTS and a RESET GPIO live in the BSP pin map (Arduino or STMod+).
+
 ### 7.3 VFS
 
 POSIX-like subset: `open/read/write/close/seek/stat/opendir/readdir/mkdir/unlink/rename`. Paths are UTF-8, `/` separated, rooted at a jail (`/user` for the explorer).
@@ -203,38 +207,70 @@ First bundled module: **Brick** (breakout-style paddle + bricks) on the 480×200
 
 While a game is foreground it may borrow the image-decode SDRAM window. Leaving the game releases that buffer.
 
-### 7.6 Home automation
+### 7.6 Home automation (Zigbee host)
 
-UI lists rooms and devices. It never parses MQTT, HA JSON, or HTTP.
+The STM32 is the **Zigbee host**. A TI **ZNP** (Z-Stack Network Processor, e.g. CC2652/CC1352/CC2538) is the radio, wired over UART. The panel shows the live device list, network controls, and local automations. Ethernet/MQTT is **not** required for Home.
 
-```c
-typedef enum { HOME_LIGHT, HOME_SWITCH, HOME_BINARY_SENSOR, HOME_CLIMATE } home_kind_t;
-
-int  home_connect(void);
-void home_disconnect(void);
-size_t home_rooms(home_room_t *out, size_t max);
-size_t home_devices(const char *room_id, home_device_t *out, size_t max);
-int  home_cmd(const char *device_id, const home_cmd_t *cmd);  /* on/off, brightness */
-void home_on_change(void (*cb)(const home_device_t *));
+```
+  Home UI  ──►  home_*  ──►  zb_host (device table, interview, bind)
+                     │              │
+                     │              ▼
+                     │         znp_mt  (SYS / ZDO / AF / SAPI)
+                     │              │
+                     │              ▼
+                     │         uart_*  → TI ZNP
+                     ▼
+                 auto_*  (rules on M7, host-testable)
 ```
 
-| Backend | When | Notes |
+`src/app/home` never includes MT command IDs, UART HAL, or MQTT.
+
+```c
+/* home_* — UI model */
+typedef enum { HOME_LIGHT, HOME_SWITCH, HOME_BINARY_SENSOR, HOME_CLIMATE } home_kind_t;
+
+size_t home_devices(const char *room_id, home_device_t *out, size_t max);
+int    home_cmd(const char *device_id, const home_cmd_t *cmd);
+int    home_set_meta(const char *device_id, const char *name, const char *room_id);
+void   home_on_change(void (*cb)(const home_device_t *));
+
+/* zb_host — coordinator */
+int zb_form(const zb_net_cfg_t *cfg);     /* channel mask, PAN, as coordinator */
+int zb_permit_join(uint8_t seconds);       /* 0 = close */
+int zb_leave(const uint8_t ieee[8]);
+int zb_interview(const uint8_t ieee[8]);   /* endpoints + simple descriptors */
+
+/* auto_* — local, no cloud */
+int auto_add(const auto_rule_t *r);
+int auto_eval(const home_device_t *changed);  /* called from zb_host reports */
+```
+
+| Layer | First port | Later |
 | --- | --- | --- |
-| `mock` | UI and host tests | Deterministic devices, no network |
-| `mqtt` | P1 on-target | Portable on LwIP and Zephyr; Home Assistant MQTT discovery **or** a small fixed topic map |
-| `ha_http` | P2 | Optional later; still behind `home_*` |
+| `uart_*` | STM32 USART DMA | Zephyr `uart` DT |
+| `znp_mt` | TI MT framing on UART | unchanged |
+| `zb_host` | Coordinator host on M7 | unchanged (or M4 UART + IPC `ZB`) |
+| `home_*` | Maps clusters → lights/switches/sensors | unchanged |
+| `auto_*` | Pure C rules | unchanged |
+| `mock` | Host tests / no dongle | still required |
 
-Credentials and broker URL live in `settings`, not in source. Last-known device state is cached so the dashboard opens offline with a banner.
+**Device table** (RAM + eMMC `/user/home/devices.bin`): IEEE, NWK addr, name, room, endpoints, in/out clusters, last OnOff/Level/temp/zone, LQI, last-seen. Kind is inferred from clusters (OnOff+Level → light, IAS Zone / Occupancy → binary sensor, Temperature → climate). Capacity: **8 rooms, 32 devices**.
 
-Commands run on a worker. Optimistic UI: toggle immediately, revert + toast on `home_cmd` failure.
+**Network state** (`/user/home/network.bin`): formed flag, channel, PAN, ext-PAN. The Zigbee network key stays on the ZNP NVM; the host does not copy it into git or logs. eMMC holds names/rooms/rules only.
 
-Capacity target: **8 rooms, 32 devices** in RAM.
+**Local automation** examples: occupancy → light on for N seconds; button → toggle; temperature threshold → switch. Triggers, conditions, and actions are data, not hardcoded screens. Rules persist in `/user/home/rules.bin`.
+
+**Bring-up:** M7 USART1 + DMA worker first. If UART ISR load fights LVGL, move `znp_mt` to M4 and keep `zb_host` / `home_*` on M7 over IPC endpoint `ZB`.
+
+**MQTT / Home Assistant:** P2 optional export behind `home_*`. Not the control path.
+
+Commands and interviews run on a worker. Optimistic UI: toggle immediately, revert + toast on `home_cmd` failure. Offline ZNP: banner “Radio not ready”, last-known device list still shown.
 
 ### 7.7 IPC
 
 Transport and protocol are separate.
 
-**Protocol** (`ipc_msg.h`): versioned header `{magic, ver, src, dst, type, flags, seq, len}` + payload. Endpoints: `SYS`, `AUDIO`, `NET`, `LOG`. Home automation uses `NET` (or local sockets on M7); it does not need a separate ring. No pointers in payloads.
+**Protocol** (`ipc_msg.h`): versioned header `{magic, ver, src, dst, type, flags, seq, len}` + payload. Endpoints: `SYS`, `AUDIO`, `NET`, `LOG`, optional `ZB`. No pointers in payloads. Zigbee host stays on M7 unless ZNP UART is offloaded to M4.
 
 **Transport now:** two lockless rings in SRAM4 + HSEM notify.
 
@@ -286,10 +322,12 @@ See `UI_Design.md` for layout and screens.
 | `media` | M7 | Probe and decode images; open audio files |
 | `audio` | M7 API, M4 engine | Play/pause/seek, volume, now-playing |
 | `net` | One core only | Link state, IPv4, optional failover |
-| `home` | M7 model; MQTT on the net core | Rooms, devices, commands, last-known cache |
+| `home` | M7 | Device list, rooms, commands, last-known cache |
+| `zb_host` / `znp_mt` | M7 (UART); optional M4 | TI ZNP coordinator: form, permit join, interview, AF |
+| `auto` | M7 | Local rules on attribute reports and time |
 | `game` | M7 | Sim tick + gfx; high scores in `/user/game` |
 | `time` | M7 | RTC display; NTP is P2 |
-| `settings` | M7 | Key/value in eMMC or backup SRAM (includes MQTT broker) |
+| `settings` | M7 | Key/value in eMMC (names, rooms, rules; not Zigbee keys) |
 
 Audio path: M7 sends `{play path | pause | volume}` over IPC. M4 decodes and feeds SAI DMA. M7 never blocks the UI thread on decode.
 
@@ -298,6 +336,8 @@ Network ownership: pick **one** core at build time (default M4 if audio+net isol
 ## 10. Pin and bus constraints
 
 - **I2C4:** FT5336 + WM8994. BSP provides a mutex; no driver talks to I2C4 directly.
+- **USART3:** ST-LINK VCP console only.
+- **USART1 (Arduino PB6/PB7):** default TI ZNP UART. Optional RESET GPIO on an Arduino pin. Do not share this UART with ESP32 AT; pick one expansion map per build.
 - **Ethernet vs QSPI bank 2:** document the chosen solder-bridge map in the BSP README. Prefer QSPI dual-flash for XiP unless Ethernet full-duplex + CRS/COL is required.
 - **LTDC pixel clock** and SDRAM bandwidth: RGB565 double-buffer + DMA2D is the safe default at 480×272.
 
@@ -318,6 +358,6 @@ If LVGL is already the backend, the remaining work is a **port swap**, not an ap
 4. Map `ipc` transport to `ipm` / OpenAMP; keep `ipc_msg.h`.
 5. Keep `src/app` and `src/shell` unchanged except Kconfig feature flags.
 6. Keep `game_module_t` / `gfx_*`; only the canvas flush changes.
-7. Keep `home_*`; swap the MQTT port (LwIP → Zephyr MQTT).
+7. Keep `home_*` / `zb_host` / `auto_*`; replace only `uart_*` (STM32 HAL → Zephyr UART). MT protocol stays.
 
 Do not introduce TouchGFX. Do not scatter `#ifdef ZEPHYR` inside apps.

@@ -91,8 +91,8 @@ Left → right:
 2. **Net cluster:** Ethernet icon (ok/warn/err), optional Wi-Fi icon if compiled in.
 3. **Storage:** eMMC mounted (ok) or error.
 4. **Audio pill:** truncated title when playing; tap opens Player.
-5. **Home bus (optional dot):** `ok` if MQTT connected, `warn` if using last-known, hidden on mock-only builds.
-6. **Activity:** thin indeterminate bar under the status bar during FS/decode/home_cmd (does not block touch).
+5. **Zigbee radio:** `ok` if ZNP up and network formed, `warn` if last-known only, `err` if UART/ZNP missing. Tap opens Home → Network.
+6. **Activity:** thin indeterminate bar during FS/decode/interview/`home_cmd` (does not block touch).
 
 Status bar is not a menu. No hamburger that hides primary navigation.
 
@@ -194,11 +194,11 @@ Mini-player (chrome): title + play/pause only. Tap title → full player.
 
 ### 7.6 Settings
 
-List of rows (44 px): Brightness, Volume, Time, Network, **Home broker**, About (fw versions of M7/M4, LVGL, FS free space).
+List of rows (44 px): Brightness, Volume, Time, Network, **Zigbee**, About (fw versions of M7/M4, ZNP version, LVGL, FS free space).
 
 Brightness PWM on the panel backlight. Persist in settings service.
 
-Home broker row (only if `HOME_MQTT`): host, port, user, password, enable. Test-connection action.
+Zigbee row: radio present/missing, channel, PAN, “Open network” shortcut. Full controls live in the Home app.
 
 ### 7.7 Network
 
@@ -232,26 +232,58 @@ Playfield is the content region (typically 480×200). **Not** a widget tree of b
 
 ### 7.9 Home
 
-App bar: Back | Home | Rooms.
+App bar: Back | Home | **[+ Pair]**  (and a ⋯ menu: Network, Automations).
 
-**Dashboard** (default): 2-column cards, 44+ px tall, for favorites / all devices if ≤ 8; otherwise rooms first.
+Four screens: **Devices**, **Device**, **Network**, **Automations**. Devices is the default. The panel is the Zigbee coordinator UI.
+
+**Devices** (list, not MQTT cards):
 
 ```
-┌─────────────────────┐  ┌─────────────────────┐
-│ Living   💡  ON     │  │ Hall     ⏻  OFF    │
-│          [=======]  │  │ Front door  closed  │
-└─────────────────────┘  └─────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│  Zigbee  ch 15   4 devices          [ Open join  59 s ]      │
+│  Living lamp     💡  ON     LQI 210                          │
+│  Hall switch     ⏻  OFF    LQI 180                          │
+│  Front door      🚪 closed  2 min ago                        │
+│  Motion stair    👁  clear                                  │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-- Light: big toggle + optional brightness slider (40 px thumb).
-- Switch: big toggle only.
-- Binary sensor: state text, not tappable as a command.
-- Climate (P2): temperature label; setpoint stepper later.
-- Tap card (not the toggle): device page (name, room, last update, error).
-- **Rooms** list: one row per room, count of devices, chevron.
-- Offline: amber banner “Using last known state” ; toggles queue or fail with toast.
-- Empty: “No devices. Enable mock or set broker in Settings.”
-- Never show raw MQTT topics as the primary name.
+- One row per device, 44 px, type icon + name + primary state + LQI or last-seen.
+- Unknown / interviewing: spinner + “Interviewing…”.
+- Empty: “No devices. Tap Pair to open the network.”
+- Radio down: amber banner “Radio not ready” + last-known list (toggles fail with toast).
+- Light: toggle on the row (40 px). Switch: same. Sensor: read-only state.
+- Tap row (not the toggle) → Device page.
+- Filter chips P2: room / type. Rooms are a name on the device, not a Zigbee concept.
+
+**Device**
+
+- Friendly name (edit), room (edit).
+- IEEE, NWK addr, endpoints (small meta, not the title).
+- Cluster controls: OnOff, Level slider, zone/temp readout.
+- Identify (blink), Remove from network (confirm modal).
+- Last-seen and LQI.
+
+**Network**
+
+- Form / factory-reset coordinator (double confirm).
+- Channel, PAN ID (read-only after form unless reset).
+- Permit join: 60 s / 120 s / Off, with on-screen countdown (status bar too).
+- ZNP version string from SYS ping.
+- Device count.
+
+**Pair** (modal or full screen during permit join)
+
+- Countdown, “Put the device in pairing mode”.
+- When a device announces: show IEEE, then interview progress, then “Rename and save”.
+- Auto-close join when timer ends.
+
+**Automations**
+
+- List of local rules: name, trigger summary, enable switch.
+- Editor (keep simple on 480×272): pick trigger device/attr, optional threshold, pick action device/cmd, optional delay.
+- Empty: “No automations. Rules run on this board, no cloud.”
+- Never show MT command names in the UI.
 
 ### 7.10 Common overlays
 
@@ -266,8 +298,8 @@ App bar: Back | Home | Rooms.
 - Explorer listing of 500 files: first screen in < 300 ms, rest incrementally.
 - Image first paint: JPEG ≤ 2 MP in < 1 s typical from eMMC.
 - Game playfield ≥ **30 FPS**.
-- Home dashboard of 32 devices: first paint < 400 ms from cache; live MQTT does not rebuild the whole list each message.
-- Never stall LVGL’s timer tick in a FS read, MQTT parse, or game load. Use worker + `ui_async`.
+- Home device list of 32 devices: first paint < 400 ms from eMMC cache; ZNP reports must not rebuild the whole list each frame.
+- Never stall LVGL’s timer tick in a FS read, MT UART parse, interview, or game load. Use worker + `ui_async`.
 
 ## 9. Mapping to LVGL (backend only)
 
@@ -281,7 +313,7 @@ App bar: Back | Home | Rooms.
 | Text | `lv_label` inside `lv_obj` scroll, text set from a window buffer |
 | Player | standard sliders/buttons |
 | Game playfield | `lv_canvas` or raw buffer; **not** one `lv_obj` per brick |
-| Home cards | flex row of buttons/switches bound to `home_device_t` |
+| Home cards | `lv_list` of device rows bound to `home_device_t` |
 
 Do not use SquareLine/EEZ generated code as the app model. Generated UI, if used, stays in `ui/backend_lvgl`.
 
@@ -292,7 +324,7 @@ Do not use SquareLine/EEZ generated code as the app model. Generated UI, if used
 | Icons, launcher glyphs, fonts | QSPI (or compiled-in C arrays for bring-up) |
 | User photos, notes, music | eMMC `/user` |
 | Game sprites / high scores | QSPI sprites; `/user/game` saves |
-| Home cache | RAM + settings blob (not a user-visible folder) |
+| Home cache | eMMC `/user/home` (devices, rules, names) + RAM table |
 | Thumbs cache | eMMC `/cache/thumbs` (optional, P2) |
 
 Icons: 24 px and 48 px, alpha, light-on-dark. One icon set, not per-toolkit bitmaps duplicated in SDRAM.
@@ -300,9 +332,9 @@ Icons: 24 px and 48 px, alpha, light-on-dark. One icon set, not per-toolkit bitm
 ## 11. Accessibility and copy
 
 - Contrast ≥ 4.5:1 for `text` on `bg`.
-- Errors in plain language: “Storage not ready”, “Cannot open image”, “File is too large”, “Home offline”, “Game paused”.
+- Errors in plain language: “Storage not ready”, “Cannot open image”, “File is too large”, “Radio not ready”, “Join closed”, “Game paused”.
 - English UI first; strings in a table for later i18n.
 
 ## 12. Future apps
 
-USB file copy, markdown preview, PDF, video, extra game modules, climate/scenes: new `ui_app_t` or `game_module_t` / `home_kind_t`. No chrome change if they follow app bar + content.
+USB file copy, markdown preview, PDF, video, extra game modules, climate/scenes, MQTT export of `home_*`: new modules. No chrome change if they follow app bar + content.

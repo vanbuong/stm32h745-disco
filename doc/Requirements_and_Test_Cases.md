@@ -302,40 +302,59 @@ Beat a previous high score; reboot; Game shows the stored high score.
 
 ---
 
-## 12. Home automation
+## 12. Home automation (Zigbee host)
 
 | ID | Pri | Requirement | Verify |
 | --- | --- | --- | --- |
-| REQ-HOME-01 | S | Apps shall access devices only through `home_*` (no MQTT/HTTP types in `src/app`). | UT |
-| REQ-HOME-02 | S | A `mock` backend shall provide ≥ 2 rooms and ≥ 4 devices so the UI runs with no broker. | UT, HIL |
-| REQ-HOME-03 | S | The dashboard shall show lights and switches with ≥ 40 px toggles, and binary sensors as read-only state. | HIL |
-| REQ-HOME-04 | S | `home_cmd` on/off for a light shall update the model; UI is optimistic and reverts on failure. | UT, HIL |
-| REQ-HOME-05 | S | Last-known state shall be shown if the bus is down, with a visible offline banner. | HIL |
+| REQ-HOME-01 | S | Apps shall access devices only through `home_*` (no MT, UART HAL, MQTT, or lwIP types in `src/app`). | UT |
+| REQ-HOME-02 | S | A `mock` backend shall provide ≥ 2 rooms and ≥ 4 devices so the UI runs with no ZNP dongle. | UT, HIL |
+| REQ-HOME-03 | S | The Devices screen shall list Zigbee devices with icon, name, primary state, and LQI or last-seen. Lights and switches shall have ≥ 40 px toggles; binary sensors shall be read-only. | HIL |
+| REQ-HOME-04 | S | `home_cmd` on/off (OnOff cluster) shall update the model; UI is optimistic and reverts on failure. | UT, HIL |
+| REQ-HOME-05 | S | If ZNP UART is down, the UI shall show “Radio not ready” and the last-known list without crashing. | HIL |
 | REQ-HOME-06 | S | The service shall support at least 8 rooms and 32 devices in RAM. | UT |
-| REQ-HOME-07 | S | An MQTT backend shall connect using broker settings (host, port, user, password) stored in `settings`. | HIL |
-| REQ-HOME-08 | C | MQTT Home Assistant discovery shall populate `home_device_t` without UI changes. | HIL |
+| REQ-HOME-07 | S | The host shall talk to a TI ZNP over `uart_*` (default USART1). USART3 shall remain the console. | INSP, HIL |
+| REQ-HOME-08 | S | After ZDO end-device announce, the host shall interview endpoints/simple descriptors and map clusters to `home_kind_t`. | UT, HIL |
 | REQ-HOME-09 | C | Climate setpoint and scene buttons (Good night / Away). | HIL |
-| REQ-HOME-10 | S | Home worker shall not block the UI thread on TCP/MQTT. | UT, INSP |
+| REQ-HOME-10 | S | MT UART, interview, and `home_cmd` shall not run on the UI thread. | UT, INSP |
+| REQ-HOME-11 | S | The user shall form a coordinator network and open permit-join for a bounded time (60 s or 120 s). Join shall auto-close. | HIL |
+| REQ-HOME-12 | S | Device IEEE, NWK, name, room, and last states shall persist in `/user/home` across reset. | HIL |
+| REQ-HOME-13 | S | Local automations (`auto_*`) shall run on the STM32: a trigger on a device attribute shall execute `home_cmd` without Ethernet or a cloud. | UT, HIL |
+| REQ-HOME-14 | S | The Device page shall show name, room, IEEE, LQI, last-seen, and cluster controls. | HIL |
+| REQ-HOME-15 | C | Optional MQTT export of `home_*` state (not the control path). | HIL |
+
+MQTT Home Assistant discovery (old REQ-HOME-08) is retired; IDs 07–08 now mean ZNP UART and interview.
 
 ### Tests
 
 **TC-HOME-01 (UT)**  
-Mock: list rooms; toggle light; callback fires with new state; failed cmd leaves or reverts state per API contract.
+Mock: list devices; toggle light; callback fires; failed cmd reverts.
 
 **TC-HOME-02 (UT)**  
-Fill 8 rooms × 4 devices (32); list and cmd still succeed; 33rd register returns an error.
+Fill 8 rooms × 4 devices (32); 33rd register returns an error.
 
 **TC-HOME-03 (UT)**  
-CI scan: `src/app/home` does not include MQTT or lwIP headers.
+CI scan: `src/app/home` does not include STM32 UART HAL, MT headers, MQTT, or lwIP.
 
 **TC-HOME-04 (HIL)**  
-Mock build, Ethernet unplugged: Home opens, toggle works, no crash.
+No dongle: Home opens, mock or last-known list, “Radio not ready” if `zb_host` has no SYS ping, no crash.
 
 **TC-HOME-05 (HIL)**  
-MQTT build with a test broker: dashboard shows a light; tap toggle; broker payload (or loopback) matches; kill broker; banner appears; last state remains.
+ZNP on USART1: SYS version; form coordinator; permit join; a test OnOff device appears on the Devices screen; toggle matches the bulb; reboot keeps the name.
 
 **TC-HOME-06 (HIL)**  
-Settings broker fields persist across reset.
+Device name and room persist in `/user/home` across reset.
+
+**TC-HOME-07 (UT)**  
+MT frame encode/decode: length and FCS mismatch rejected; valid SYS ping round-trip against a UART stub.
+
+**TC-HOME-08 (UT)**  
+Interview fixture (OnOff + Level endpoints) maps to `HOME_LIGHT`; IAS Zone maps to `HOME_BINARY_SENSOR`.
+
+**TC-HOME-09 (HIL)**  
+Permit join 60 s; countdown visible; after timeout new devices do not join.
+
+**TC-HOME-10 (UT / HIL)**  
+Rule: occupancy `occupied` → light On, 3 s delay → Off. Host test with mock reports; HIL with sensor + bulb, Ethernet unplugged.
 
 ---
 
@@ -343,7 +362,7 @@ Settings broker fields persist across reset.
 
 | ID | Pri | Requirement | Verify |
 | --- | --- | --- | --- |
-| REQ-CFG-01 | S | Brightness, volume, and Home broker settings shall persist across reset. | HIL |
+| REQ-CFG-01 | S | Brightness, volume, and Home names/rooms/rules shall persist across reset. | HIL |
 | REQ-CFG-02 | M | About shall show M7 and M4 firmware versions. | IT |
 | REQ-RST-01 | M | Hard fault handlers shall log and reset in production; they shall not paint a white screen forever. | HIL |
 | REQ-RST-02 | S | eMMC surprise unmount (if reproduced) shall put VFS in error and keep shell alive. | HIL |
@@ -354,9 +373,9 @@ Settings broker fields persist across reset.
 
 | Kind | Where | What belongs |
 | --- | --- | --- |
-| UT | PC, CMake `host-tests` | Path jail, IPC rings, UTF-8, dispatcher, mixer math, image golden, include check, **Brick sim**, **home mock** |
+| UT | PC, CMake `host-tests` | Path jail, IPC rings, UTF-8, dispatcher, mixer math, image golden, include check, **Brick sim**, **home mock**, **MT FCS**, **auto rules** |
 | IT | Board, no extra gear | Mount, display mode, QSPI map, versions |
-| HIL | Board + actions | Latency, FPS, failover, audio underrun, touch, throughput, **game FPS**, **MQTT toggle** |
+| HIL | Board + actions | Latency, FPS, failover, audio, throughput, **game FPS**, **ZNP join/toggle** |
 
 Host tests must not link STM32 HAL.
 
@@ -407,12 +426,17 @@ Host tests must not link STM32 HAL.
 | REQ-GAME-06 | TC-GAME-04 |
 | REQ-HOME-01 | TC-HOME-03 |
 | REQ-HOME-02 | TC-HOME-01, TC-HOME-04 |
-| REQ-HOME-03 | TC-HOME-04 |
+| REQ-HOME-03 | TC-HOME-04, TC-HOME-05 |
 | REQ-HOME-04 | TC-HOME-01, TC-HOME-05 |
-| REQ-HOME-05 | TC-HOME-05 |
+| REQ-HOME-05 | TC-HOME-04 |
 | REQ-HOME-06 | TC-HOME-02 |
-| REQ-HOME-07 | TC-HOME-05, TC-HOME-06 |
+| REQ-HOME-07 | TC-HOME-05, TC-HOME-07 |
+| REQ-HOME-08 | TC-HOME-08 |
 | REQ-HOME-10 | TC-HOME-03 |
+| REQ-HOME-11 | TC-HOME-09 |
+| REQ-HOME-12 | TC-HOME-06 |
+| REQ-HOME-13 | TC-HOME-10 |
+| REQ-HOME-14 | TC-HOME-05 |
 | REQ-CFG-01 | TC-HOME-06 |
 
-Sprint 12 is not done until every **M** row has a passing test or an explicit waiver recorded here. **S** rows for Game and Home are the Sprint 10–11 exit gates.
+Sprint 13 is not done until every **M** row has a passing test or an explicit waiver recorded here. **S** rows for Game and Home are the Sprint 10–12 exit gates.

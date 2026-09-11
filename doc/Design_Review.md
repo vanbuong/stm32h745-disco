@@ -27,7 +27,7 @@ Review of the first plan, requirements, and UI documents. The v2 specs in this f
 | Tests | A handful of cases, some testing the wrong layer | Host tests for pure logic; HIL for timing, storage, display, audio, failover |
 | Security / robustness | None | Path sandbox, bounded buffers, decoder failure, out-of-memory, and FS unmount |
 | Game loop | Named without screens, tick rate, or a testable sim | **Game** is a P1 app: host-testable `game_sim` + `gfx_*` playfield, not LVGL widgets |
-| Home automation | Absent | **Home** is a P1 app: device model + pluggable bus (`mock` then MQTT). UI never speaks MQTT or Home Assistant JSON |
+| Home automation | Absent, then MQTT-first | **Home** is a Zigbee **host** on STM32: TI ZNP over UART, device list, network form/join, local `auto_*`. MQTT is P2 export only |
 
 ## GUI recommendation (adopted in `UI_Design.md`)
 
@@ -52,6 +52,8 @@ That layout is framework-agnostic, maximizes the 480×240 content region, and ma
 | FS | FatFS on eMMC | Zephyr FS / LittleFS | `vfs_*` |
 | IPC | SRAM4 rings + HSEM | OpenAMP / RPMsg | `ipc_*` messages |
 | Net | LwIP on one core | Zephyr net stack | `net_*` |
+| Home | `zb_host` + TI ZNP UART + `auto_*` | Zephyr `uart`, same host | `home_*` |
+| Game | `game_sim` + `gfx_*` | same modules | `game_module_t` |
 | Image decode | JPEG HW codec + SW PNG/BMP | Same HAL, Zephyr JPEG driver | `media_*` |
 
 Start with LVGL, not TouchGFX. Switching OS later is cheaper than rewriting every screen.
