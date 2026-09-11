@@ -1,0 +1,89 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y clang-format
+      - run: chmod +x scripts/ci/check-format.sh scripts/ci/check-layering.sh scripts/ci/size-report.sh
+      - run: ./scripts/ci/check-format.sh
+
+  layering:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: chmod +x scripts/ci/check-layering.sh
+      - run: ./scripts/ci/check-layering.sh
+
+  host-tests:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y cmake gcovr
+      - run: cmake --preset host-tests
+      - run: cmake --build --preset host-tests
+      - run: ctest --test-dir build-host --output-on-failure
+      - name: coverage
+        run: |
+          gcovr --root . \
+            --filter 'firmware/src/svc' \
+            --filter 'firmware/src/ipc' \
+            --exclude 'firmware/src/osal' \
+            --fail-under-line 80 \
+            --xml build-host/coverage.xml \
+            --html-details build-host/coverage.html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: |
+            build-host/coverage.xml
+            build-host/coverage.html
+            build-host/coverage.css
+          if-no-files-found: ignore
+
+  static:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y cmake cppcheck clang-tidy
+      - run: cmake --preset host-tests
+      - run: cmake --build --preset host-tests
+      - name: cppcheck
+        run: |
+          cppcheck --project=build-host/compile_commands.json \
+            --enable=warning,performance,portability \
+            --error-exitcode=1 \
+            --inline-suppr \
+            --suppress=missingIncludeSystem \
+            --std=c11 \
+            -i tests
+      - name: clang-tidy
+        run: |
+          clang-tidy -p build-host \
+            firmware/src/ipc/ipc_ring.c \
+            firmware/src/svc/vfs_path.c \
+            firmware/src/svc/znp_mt.c \
+            firmware/src/svc/media_probe.c \
+            firmware/src/svc/auto.c
+
+  cross:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y cmake gcc-arm-none-eabi
+      - run: chmod +x scripts/ci/size-report.sh
+      - run: cmake --preset m7-debug && cmake --build --preset m7-debug
+      - run: cmake --preset m4-debug && cmake --build --preset m4-debug
+      - run: ./scripts/ci/size-report.sh build-m7/firmware-m7.elf build-m4/firmware-m4.elf
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware-elf
+          path: |
+            build-m7/firmware-m7.elf
+            build-m4/firmware-m4.elf

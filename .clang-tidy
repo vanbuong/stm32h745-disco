@@ -1,0 +1,13 @@
+---
+Checks: >
+  clang-diagnostic-*,
+  clang-analyzer-*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  readability-function-cognitive-complexity
+WarningsAsErrors: clang-analyzer-*
+HeaderFilterRegex: 'firmware/include/.*'
+FormatStyle: file
+CheckOptions:
+  - key: readability-function-cognitive-complexity.Threshold
+    value: '25'

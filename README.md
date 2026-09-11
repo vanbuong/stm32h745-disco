@@ -34,9 +34,24 @@ The first implementation is **FreeRTOS + LVGL + STM32Cube**. Interfaces are writ
 4. Explorer is jailed to `/user`. Home UI talks only to `home_*`. Game logic talks only to `game_module_t` / `gfx_*`.
 5. TI ZNP is an expansion on USART1; USART3 stays the console.
 
-## Status
+# Build
 
-Documentation v2 plus CI/CD spec. Firmware bring-up starts at Sprint 0 in `doc/Plan.md` (includes the first GitHub Actions workflow).
+Host tests (no board):
+
+```
+cmake --preset host-tests
+cmake --build --preset host-tests
+ctest --test-dir build-host --output-on-failure
+```
+
+Cross-compile M7 / M4 (needs `gcc-arm-none-eabi`):
+
+```
+cmake --preset m7-debug && cmake --build --preset m7-debug
+cmake --preset m4-debug && cmake --build --preset m4-debug
+```
+
+CI: format, layering, cppcheck, clang-tidy, coverage, and both ELF images — see `doc/CICD.md`.
 
 ## License
 

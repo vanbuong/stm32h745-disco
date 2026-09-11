@@ -1,0 +1,40 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 22, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "host-tests",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build-host",
+      "environment": { "CC": "gcc" },
+      "cacheVariables": {
+        "HOST_TESTS": "ON",
+        "COVERAGE": "ON",
+        "CMAKE_C_COMPILER": "gcc"
+      }
+    },
+    {
+      "name": "m7-debug",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build-m7",
+      "toolchainFile": "${sourceDir}/cmake/ArmGnu.cmake",
+      "cacheVariables": {
+        "CORE": "M7"
+      }
+    },
+    {
+      "name": "m4-debug",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build-m4",
+      "toolchainFile": "${sourceDir}/cmake/ArmGnu.cmake",
+      "cacheVariables": {
+        "CORE": "M4"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "host-tests", "configurePreset": "host-tests" },
+    { "name": "m7-debug", "configurePreset": "m7-debug" },
+    { "name": "m4-debug", "configurePreset": "m4-debug" }
+  ]
+}
