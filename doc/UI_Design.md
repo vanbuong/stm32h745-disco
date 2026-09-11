@@ -222,11 +222,13 @@ Mini-player (chrome): title + play/pause only. Tap title → full player.
 
 ### 7.6 Settings
 
-List of rows (44 px): Brightness, Volume, Time, Network, **Zigbee**, About (fw versions of M7/M4, ZNP version, LVGL, FS free space).
+List of rows (44 px): Brightness, Volume, Time, Network, **Zigbee**, **USB file transfer** (later), About (fw versions of M7/M4, ZNP version, LVGL, FS free space).
 
 Brightness PWM on the panel backlight. Persist in settings service.
 
 Zigbee row: radio present/missing, channel, PAN, “Open network” shortcut. Full controls live in the Home app.
+
+**USB file transfer** (later sprint): a toggle/page that starts exclusive USB MSC. Copy: the PC sees the whole FAT volume, including Home data; Files and audio stop until the cable is unplugged. Not a separate launcher app.
 
 ### 7.7 Network
 
@@ -365,7 +367,7 @@ Icons: 24 px and 48 px, alpha, light-on-dark. One icon set, not per-toolkit bitm
 
 ## 12. Future apps
 
-USB file copy, markdown preview, PDF, video, extra game modules, climate/scenes, MQTT export of `home_*`: new modules. No chrome change if they follow app bar + content.
+USB file copy is Settings exclusive MSC (not a new app). Markdown preview, PDF, video, extra game modules, climate/scenes, MQTT export of `home_*`: new modules. No chrome change if they follow app bar + content.
 
 ## 13. Chrome height formula
 

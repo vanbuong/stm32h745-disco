@@ -20,7 +20,9 @@ Game and Home use the same `ui_app_t` contract as Files. Game logic is a host-te
 - TouchGFX UI.
 - Writing a custom GPU toolkit.
 - Linux / MPU migration.
-- Full POSIX, USB mass-storage gadget, or network file server.
+- Full POSIX or a network file server.
+- littlefs (or any second user-visible filesystem). The explorer volume stays FAT.
+- USB MSC as always-on gadget (it is **in-scope later**, exclusive / opt-in — see Later — USB MSC).
 - Treating ESP32 or TI ZNP as on-board hardware (both are UART expansions).
 - A 3D / GPU game engine, or Home Assistant / zigbee2mqtt running **on** the STM32.
 - Binding Home UI to MQTT or HA dashboards as the primary control path.
@@ -32,7 +34,8 @@ Game and Home use the same `ui_app_t` contract as Files. Game logic is a host-te
 | --- | --- | --- |
 | RTOS | FreeRTOS on each core (M7 first) | Zephyr |
 | UI | LVGL over `disp_*` / `input_*` | LVGL on Zephyr |
-| FS | FatFS on eMMC behind `vfs_*` | Zephyr FS |
+| FS | FatFs (FAT) on eMMC behind `vfs_*` | Same FAT volume (Zephyr FAT or FatFs). No littlefs |
+| USB MSC | Out until a later sprint | TinyUSB device MSC; exclusive with FatFs |
 | IPC | SRAM4 rings + HSEM | OpenAMP / RPMsg |
 | Net | LwIP on a single core | Zephyr net |
 | Home | `home_*` + `zb_host` + TI ZNP UART + `auto_*` | Same host; Zephyr `uart` only |
@@ -211,6 +214,22 @@ Status: **done** (host-tested jail, extension dispatch, RAM VFS dir walk; board 
 - `osal/zephyr`, DTS for this board, OpenAMP transport, same apps.
 - Track as a spike after Sprint 4 so the HAL stays honest.
 - `uart_*` / `zb_host` / `auto_*` and game `gfx_*` must survive that spike without app changes.
+- `vfs_*` stays a **FAT** volume. Do not retarget `/user` to littlefs.
+
+### Later — USB MSC (not a product sprint yet)
+
+Opt-in **USB file transfer** so a PC can copy photos/music onto the eMMC. Do **not** implement this until a dedicated sprint; Sprint 4+ product work is unchanged.
+
+Lock:
+
+- **Stack:** upstream **TinyUSB** device MSC. Not Cube `USB_Device`.
+- **LUN:** the eMMC **FAT** volume (the same partition FatFs mounts). A PC cannot mount littlefs; that is one reason FAT stays.
+- **Mode:** exclusive, started from Settings (“USB file transfer”). Not always-on.
+- **While connected:** unmount FatFs, stop audio/decode/home flushes, idle the explorer. Never two writers on the same FAT.
+- **On unplug:** remount FatFs, drop VFS caches, refresh `/user`.
+- **Jail:** MSC exposes the **volume**, not the `/user` jail. The PC can see `/user/home` and can delete anything on that LUN. Document that in Settings copy.
+- **Speed:** board USB is OTG FS (~0.8–1 MB/s practical). Convenience, not a fast pipe.
+- **Power-loss on FAT:** for small records (`/user/home`, game saves) write `*.tmp` + rename + `f_sync` if needed. eMMC already has FTL; do not add littlefs wear-leveling on top.
 
 ## 5. Suggested GUI change (locked for v2)
 
@@ -231,6 +250,8 @@ Rationale: 40 px minimum hit targets, more room for lists and images, matches LV
 | I2C4 contention (touch vs codec) | BSP mutex; never I2C from ISR |
 | ETH / QSPI pin mux | Pick one policy; test both XiP and Ethernet |
 | FatFS + LVGL on one core | FS work on a worker thread; UI thread never blocks on eMMC |
+| USB MSC vs FatFs writers | Exclusive mode: unmount FatFs while the PC owns the LUN |
+| littlefs “safer writes” | Rejected: PC MSC needs FAT; eMMC has FTL; use tmp+rename on small records |
 | M7 D-cache vs DMA/IPC | Non-cacheable SRAM4; cache API for DMA |
 | TouchGFX samples leaking in | Ban TouchGFX in review; LVGL-only backend; no STM32CubeH7 monolith |
 | Game in LVGL widgets | Keep `game_sim` + `gfx_*`; LVGL canvas is a backend, not the model |

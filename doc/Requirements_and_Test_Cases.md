@@ -96,12 +96,14 @@ Halt M4 in debug; status bar shows M4 error within 1 s; launcher still navigable
 
 | ID | Pri | Requirement | Verify |
 | --- | --- | --- | --- |
-| REQ-STG-01 | M | The system shall mount a FAT filesystem on the on-board 4 GB eMMC via SDMMC. | HIL |
+| REQ-STG-01 | M | The system shall mount a FAT filesystem on the on-board 4 GB eMMC via SDMMC. The user-visible volume shall remain FAT; littlefs shall not be used. | HIL, INSP |
 | REQ-STG-02 | S | Sequential reads of a ≥ 64 MB file shall sustain ≥ 15 MB/s average. | HIL |
 | REQ-STG-03 | M | Apps shall see a jailed tree rooted at `/user`. Paths containing `..` or extra `/` that escape the jail shall be rejected. | UT |
 | REQ-STG-04 | M | VFS shall report mount failure without crashing; UI shall show Retry. | HIL |
 | REQ-STG-05 | M | Directory iteration shall be incremental (no requirement to load the whole directory into AXI SRAM). | UT, IT |
 | REQ-STG-06 | S | QSPI assets shall not be writable through the explorer. | UT, IT |
+| REQ-STG-07 | C | The device shall present the eMMC FAT volume as a USB MSC LUN when the user enables USB file transfer. Stack: TinyUSB, not Cube USB. | HIL |
+| REQ-STG-08 | C | While USB MSC is active the firmware shall not keep FatFs mounted on that volume. On host unplug it shall remount and drop VFS caches. | HIL |
 
 ### Tests
 
@@ -116,6 +118,9 @@ Boot with valid FAT; `/user` lists. Boot with corrupted MBR; error screen, Retry
 
 **TC-STG-04 (HIL) — Throughput**  
 Read 64 MB file, TIM/DWT elapsed; average ≥ 15 MB/s. Record in the test log even if S-priority is waived on a given board.
+
+**TC-STG-05 (HIL) — USB MSC exclusive** (when REQ-STG-07/08 are implemented)  
+Enable USB file transfer; PC mounts the FAT volume; explorer shows storage busy. Unplug; `/user` lists again. Firmware must not write the volume while the PC is mounted.
 
 ---
 
@@ -407,6 +412,9 @@ Host tests must not link STM32 HAL.
 | REQ-STG-03 | TC-STG-01 |
 | REQ-STG-04 | TC-STG-03 |
 | REQ-STG-05 | TC-FE-01 |
+| REQ-STG-06 | INSP, TC-FE-02 |
+| REQ-STG-07 | TC-STG-05 |
+| REQ-STG-08 | TC-STG-05 |
 | REQ-UI-01..09 | TC-UI-01, TC-UI-02, TC-UI-03 |
 | REQ-FE-01..04 | TC-FE-01, TC-FE-02, TC-FE-03 |
 | REQ-IMG-01..04 | TC-IMG-01, TC-IMG-02, TC-IMG-03 |

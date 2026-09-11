@@ -49,7 +49,8 @@ That layout is framework-agnostic, maximizes the 480×240 content region, and ma
 | OS | FreeRTOS (or CMSIS-RTOS2) | Zephyr `k_*` | `osal_*` |
 | UI | LVGL | LVGL on Zephyr (same widgets) | `ui_*` view-models + nav stack |
 | Display / touch | STM32 LTDC + FT5336 BSP | Zephyr display + input DT | `disp_*` / `input_*` |
-| FS | FatFS on eMMC | Zephyr FS / LittleFS | `vfs_*` |
+| FS | FatFS (FAT) on eMMC | Same FAT volume (Zephyr FAT / FatFs). **No LittleFS** | `vfs_*` |
+| USB MSC | Not in first sprints | TinyUSB device MSC, exclusive with FatFs | Settings “USB file transfer” |
 | IPC | SRAM4 rings + HSEM | OpenAMP / RPMsg | `ipc_*` messages |
 | Net | LwIP on one core | Zephyr net stack | `net_*` |
 | Home | `zb_host` + TI ZNP UART + `auto_*` | Zephyr `uart`, same host | `home_*` |
@@ -57,6 +58,8 @@ That layout is framework-agnostic, maximizes the 480×240 content region, and ma
 | Image decode | JPEG HW codec + SW PNG/BMP | Same HAL, Zephyr JPEG driver | `media_*` |
 
 Start with LVGL, not TouchGFX. Switching OS later is cheaper than rewriting every screen.
+
+**Storage lock (after v2):** keep FatFs FAT on `/user`. USB mass-storage is in-scope later (TinyUSB, exclusive unmount). Do not add LittleFS.
 
 ## Hardware facts used in v2
 

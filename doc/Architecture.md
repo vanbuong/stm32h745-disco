@@ -2,7 +2,7 @@
 
 Portable HMI architecture for the STM32H745I-DISCO. Application code must not call FreeRTOS, Zephyr, LVGL, TouchGFX, FatFS, or STM32 HAL directly.
 
-**Contents:** 1 Goals · 2 Hardware · 3 Layers · 3.1 Vendor · 4 Tree · 5 Cores · 6 Memory · 7 Interfaces · 8 UI · 9 Services · 10 Pins · 11 Build/CI · 12 Zephyr · 13 Boot · 14 Threads · 15 OSAL · 16 VFS · 17 Zigbee · 18 Automation · 19 Audio · 20 Log · 21 Errors · 22 Migration
+**Contents:** 1 Goals · 2 Hardware · 3 Layers · 3.1 Vendor · 4 Tree · 5 Cores · 6 Memory · 7 Interfaces · 8 UI · 9 Services · 10 Pins · 11 Build/CI · 12 Zephyr · 13 Boot · 14 Threads · 15 OSAL · 16 VFS · 16.1 USB MSC · 17 Zigbee · 18 Automation · 19 Audio · 20 Log · 21 Errors · 22 Migration
 
 ## 1. Goals
 
@@ -23,6 +23,7 @@ Portable HMI architecture for the STM32H745I-DISCO. Application code must not ca
 | eMMC | 4 GB, SDMMC1 |
 | Audio | WM8994 on SAI, I2C4 shared with touch |
 | Ethernet | LAN8740A MII; default pins collide with QSPI bank 2 |
+| USB | OTG FS (micro-AB). Later TinyUSB MSC; not used in Sprint 0–3 |
 | Wi-Fi | **Not on board.** Optional ESP32 on Arduino/STMod+ |
 | Zigbee | **Not on board.** TI ZNP module on USART1 (Arduino) |
 | Shared SRAM | SRAM4 64 KB at `0x38000000` (D3 domain) |
@@ -115,8 +116,9 @@ Pull **specific** ST component repos (chip datasheet drivers, not board wrappers
 | MCU registers, HAL, LL | `stm32h7xx-hal-driver`, `cmsis-device-h7`, `cmsis_core` (already) | Full `STM32CubeH7` |
 | Panel timing, touch, codec, NOR, PHY | `stm32-rk043fn48h`, `stm32-ft5336`, `stm32-wm8994`, `stm32-mt25tl01g`, `stm32-lan8742` | `stm32h745i-disco-bsp`, other boards' components |
 | SDRAM | Keep our `HAL_SDRAM_*` (Sprint 1). `stm32-mt48lc4m32b2` only if timings need a refresh | Board `bsp_sdram.c` |
-| RTOS / UI / FS / net / MP3 | Upstream FreeRTOS-Kernel, LVGL, FatFS, LwIP, Helix | Cube `Middlewares/Third_Party/*` and TouchGFX |
-| USB, mbedTLS, LibJPEG | Only if a later requirement appears | Default out |
+| RTOS / UI / FS / net / MP3 | Upstream FreeRTOS-Kernel, LVGL, FatFS, LwIP, Helix | Cube `Middlewares/Third_Party/*`, TouchGFX, **littlefs** |
+| USB MSC (later) | Upstream TinyUSB device MSC | Cube `USB_Device` / `USB_Host` |
+| mbedTLS, LibJPEG | Only if a later requirement appears | Default out |
 
 Component `.c` files compile into the BSP target and may include HAL. Wrap them so `src/app` and `src/shell` still see only `disp.h` / `input.h` / `vfs.h`. Format, cppcheck, and coverage exclude `third_party/`. Pin tags to the CubeH7 1.13.0 set (same family as HAL v1.11.6) unless a component release note says otherwise.
 
@@ -153,10 +155,11 @@ third_party/
   stm32-ft5336/              ST component (now)
   stm32-rk043fn48h/          ST component (now)
   fatfs/                     elm-chan FatFs R0.15b (now)
+  tinyusb/                   upstream TinyUSB (later USB MSC sprint)
   stm32-mt25tl01g/           ST component (QSPI commands, when needed)
   stm32-wm8994/              ST component (Sprint 8)
   stm32-lan8742/             ST component (Sprint 9)
-  lvgl/  FreeRTOS-Kernel/  fatfs/  lwip/  helix/   upstream, per sprint
+  lvgl/  FreeRTOS-Kernel/  fatfs/  lwip/  helix/  tinyusb/   upstream, per sprint
 .settings/                   STM32CubeIDE for VS Code device store
 .vscode/                     CMake Tools + ST-LINK launch/tasks
 ```
@@ -278,7 +281,7 @@ UART (ZNP): `uart_open` / `uart_write` / `uart_read` / `uart_set_gpio` (RESET). 
 
 ### 7.3 VFS
 
-POSIX-like subset in `vfs.h`: `mount/open/read/write/seek/close/stat/opendir/readdir/mkdir`. Paths are UTF-8, `/` separated, jailed at `/user`. FatFs `FIL` stays in `src/svc/vfs.c`; apps never include `ff.h`. Host tests use a RAM tree (`tests/host/vfs_ram.c`) so they do not link FatFs.
+POSIX-like subset in `vfs.h`: `mount/open/read/write/seek/close/stat/opendir/readdir/mkdir`. Paths are UTF-8, `/` separated, jailed at `/user`. The on-disk format is **FAT** (FatFs now; Zephyr FAT or FatFs later). Do **not** add littlefs. FatFs `FIL` stays in `src/svc/vfs.c`; apps never include `ff.h`. Host tests use a RAM tree (`tests/host/vfs_ram.c`) so they do not link FatFs. USB MSC (later) is exclusive with this mount — see §16.1.
 
 ### 7.4 Media
 
@@ -480,6 +483,7 @@ Network ownership: pick **one** core at build time (default M4 if audio+net isol
 - **USART1 (Arduino PB6/PB7):** default TI ZNP UART. Optional RESET GPIO on an Arduino pin. Do not share this UART with ESP32 AT; pick one expansion map per build.
 - **Ethernet vs QSPI bank 2:** document the chosen solder-bridge map in the BSP README. Prefer QSPI dual-flash for XiP unless Ethernet full-duplex + CRS/COL is required.
 - **LTDC pixel clock** and SDRAM bandwidth: RGB565 double-buffer + DMA2D is the safe default at 480×272.
+- **USB OTG FS:** later TinyUSB MSC only. Do not bring up Cube USB alongside it.
 
 ## 11. Build, log, test, CI
 
@@ -496,7 +500,7 @@ If LVGL is already the backend, the remaining work is a **port swap**, not an ap
 
 1. Replace `osal/freertos` with `osal/zephyr`.
 2. Replace `port/cube` + Cube clock init with Zephyr DTS (`stm32h745i_disco`).
-3. Map `disp_*` to Zephyr display, `input_*` to FT5336 input, `vfs_*` to Zephyr FS.
+3. Map `disp_*` to Zephyr display, `input_*` to FT5336 input, `vfs_*` to a **FAT** volume on eMMC (same layout). Do **not** switch `/user` to littlefs.
 4. Map `ipc` transport to `ipm` / OpenAMP; keep `ipc_msg.h`.
 5. Keep `src/app` and `src/shell` unchanged except Kconfig feature flags.
 6. Keep `game_module_t` / `gfx_*`; only the canvas flush changes.
@@ -562,7 +566,7 @@ Timeout `0` = try, `0xFFFFFFFF` = forever. `osal_malloc` may return NULL; caller
 ## 16. VFS jail and mounts
 
 ```
-/user          eMMC FAT  — explorer root
+/user          eMMC FAT  — explorer root (only user volume)
 /user/home     devices.bin, network.bin, rules.bin
 /user/game     brick.sav
 /log           optional rotate
@@ -570,6 +574,16 @@ Timeout `0` = try, `0xFFFFFFFF` = forever. `osal_malloc` may return NULL; caller
 ```
 
 Rejected paths: `..` segment, NUL, backslash, leading `//`, any canonical path outside `/user` for explorer APIs. `vfs_normalize` / `vfs_jail_rel` are the normalizers; host-tested.
+
+**FAT stays.** `/user` is a FAT volume on eMMC. littlefs is out: the board already has an eMMC FTL, and a later USB MSC LUN must be FAT so a PC can mount it. For small records that need power-loss safety, write `*.tmp`, `rename`, and `f_sync` — do not add a second filesystem.
+
+### 16.1 USB MSC (later)
+
+Opt-in exclusive **USB file transfer** (Settings), not always-on. TinyUSB device MSC presents the eMMC FAT volume as one LUN over OTG FS.
+
+While a host is connected: unmount FatFs, stop audio/decode/home flushes, do not list `/user`. On unplug: remount, drop caches. Never two writers on the same FAT.
+
+MSC exposes the **volume**, not the `/user` jail. The PC can see and delete `/user/home`. Apps still never include TinyUSB or Cube USB headers.
 
 ## 17. Zigbee join and interview
 

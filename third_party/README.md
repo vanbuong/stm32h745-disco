@@ -6,7 +6,7 @@ Policy (locked in `doc/Architecture.md` §3.1):
 
 1. **Our BSP** lives in `firmware/src/bsp/stm32h745i_disco/` and talks to hardware through `port/cube` (HAL/LL).
 2. **ST chip drivers** (touch, panel timings, codec, NOR, PHY) are pulled from ST's *component* repos, not from `stm32h745i-disco-bsp`.
-3. **Middleware** (LVGL, FreeRTOS, FatFS, LwIP, Helix) comes from upstream. Cube `Middlewares/` is not used unless an ST glue file is the only practical port.
+3. **Middleware** (LVGL, FreeRTOS, FatFS, LwIP, Helix, later TinyUSB) comes from upstream. Cube `Middlewares/` is not used unless an ST glue file is the only practical port. Do **not** add littlefs.
 4. Apps never include these trees. Format / cppcheck / coverage skip `third_party/`.
 
 ## In tree now (CubeH7 1.13.0 set)
@@ -40,7 +40,8 @@ git submodule update --init --recursive
 | OSAL | [FreeRTOS-Kernel](https://github.com/FreeRTOS/FreeRTOS-Kernel) | Not Cube `stm32-mw-freertos` unless we need their CMSIS-RTOS glue. |
 | 8 audio | [stm32-wm8994](https://github.com/STMicroelectronics/stm32-wm8994), Helix | Codec + MP3. SAI DMA is our BSP. |
 | 9 net | [stm32-lan8742](https://github.com/STMicroelectronics/stm32-lan8742), LwIP | PHY. `ethernetif` is our port. |
+| USB MSC (later) | [tinyusb](https://github.com/hathach/tinyusb) | Device MSC over OTG FS. Exclusive with FatFs. Not Cube `USB_Device`. |
 
 Reference only (clone locally, do not add): [stm32h745i-disco-bsp](https://github.com/STMicroelectronics/stm32h745i-disco-bsp) for pin maps and init sequences.
 
-Do not add: other H7 board BSPs, TouchGFX, USB device/host, mbedTLS, LibJPEG (use the H7 JPEG codec), `stm32-mw-*` copies of stacks we already take upstream.
+Do not add: other H7 board BSPs, TouchGFX, Cube USB device/host, **littlefs**, mbedTLS, LibJPEG (use the H7 JPEG codec), `stm32-mw-*` copies of stacks we already take upstream.
