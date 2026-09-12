@@ -38,8 +38,13 @@ static uint8_t s_last_m4 = 0xFFu;
 static uint8_t s_last_stor = 0xFFu;
 static uint8_t s_last_net = 0xFFu;
 static uint8_t s_last_audio = 0xFFu;
-static uint32_t s_player_gen = 0xFFFFFFFFu;
 static uint32_t s_net_gen = 0xFFFFFFFFu;
+static lv_obj_t *s_pl_title;
+static lv_obj_t *s_pl_elapsed;
+static lv_obj_t *s_pl_dur;
+static lv_obj_t *s_pl_state;
+static lv_obj_t *s_pl_vol;
+static lv_obj_t *s_pl_toggle;
 static lv_image_dsc_t s_img_dsc;
 
 static int32_t content_h(void)
@@ -113,8 +118,22 @@ static void back_cb(lv_event_t *e)
     log_nav("shell_pop", shell_top_id());
 }
 
-static void add_label(lv_obj_t *parent, const char *txt, int32_t x, int32_t y, int32_t w, int32_t h,
-                      uint32_t color, const lv_font_t *font)
+static void label_set(lv_obj_t *lab, const char *txt)
+{
+    const char *cur;
+
+    if (lab == NULL || txt == NULL) {
+        return;
+    }
+    cur = lv_label_get_text(lab);
+    if (cur != NULL && strcmp(cur, txt) == 0) {
+        return;
+    }
+    lv_label_set_text(lab, txt);
+}
+
+static lv_obj_t *add_label(lv_obj_t *parent, const char *txt, int32_t x, int32_t y, int32_t w,
+                           int32_t h, uint32_t color, const lv_font_t *font)
 {
     lv_obj_t *lab = lv_label_create(parent);
 
@@ -128,6 +147,7 @@ static void add_label(lv_obj_t *parent, const char *txt, int32_t x, int32_t y, i
     }
     lv_obj_set_style_text_color(lab, lv_color_hex(color), 0);
     lv_obj_set_style_text_font(lab, font, 0);
+    return lab;
 }
 
 static lv_obj_t *make_bar(const char *title)
@@ -326,7 +346,7 @@ static void put_u32(char *out, size_t n, uint32_t v)
     out[o] = '\0';
 }
 
-static void add_nav_btn(lv_obj_t *bar, int32_t x, const char *txt, lv_event_cb_t cb, int dir)
+static lv_obj_t *add_nav_btn(lv_obj_t *bar, int32_t x, const char *txt, lv_event_cb_t cb, int dir)
 {
     lv_obj_t *btn = lv_button_create(bar);
     lv_obj_t *lab;
@@ -337,6 +357,7 @@ static void add_nav_btn(lv_obj_t *bar, int32_t x, const char *txt, lv_event_cb_t
     lab = lv_label_create(btn);
     lv_label_set_text(lab, txt);
     lv_obj_center(lab);
+    return lab;
 }
 
 static void add_hit_btn(lv_obj_t *parent, int32_t x, int32_t y, const char *txt, lv_event_cb_t cb,
@@ -559,6 +580,41 @@ static void fmt_time(char *out, uint32_t ms)
     out[5] = '\0';
 }
 
+static void fmt_vol(char *out, uint8_t pct)
+{
+    unsigned n = (unsigned)pct;
+
+    out[0] = 'v';
+    out[1] = 'o';
+    out[2] = 'l';
+    out[3] = ' ';
+    out[4] = (char)('0' + ((n / 100u) % 10u));
+    out[5] = (char)('0' + ((n / 10u) % 10u));
+    out[6] = (char)('0' + (n % 10u));
+    out[7] = '\0';
+}
+
+static void refresh_player_live(void)
+{
+    char t0[6];
+    char t1[6];
+    char vol[12];
+    const char *title = player_title();
+
+    if (title == NULL) {
+        title = "Music";
+    }
+    label_set(s_pl_title, title);
+    fmt_time(t0, player_elapsed_ms());
+    fmt_time(t1, player_duration_ms());
+    label_set(s_pl_elapsed, t0);
+    label_set(s_pl_dur, t1);
+    label_set(s_pl_state, player_playing() ? "playing" : "paused");
+    fmt_vol(vol, player_volume());
+    label_set(s_pl_vol, vol);
+    label_set(s_pl_toggle, player_playing() ? "||" : ">");
+}
+
 static void build_player(void)
 {
     lv_obj_t *bar;
@@ -568,8 +624,8 @@ static void build_player(void)
 
     bar = make_bar((title != NULL) ? title : "Music");
     add_nav_btn(bar, THEME_PANEL_W - 3 * THEME_HIT_MIN_PX, "|<", player_nav_cb, -1);
-    add_nav_btn(bar, THEME_PANEL_W - 2 * THEME_HIT_MIN_PX, player_playing() ? "||" : ">",
-                player_toggle_cb, 0);
+    s_pl_toggle = add_nav_btn(bar, THEME_PANEL_W - 2 * THEME_HIT_MIN_PX,
+                              player_playing() ? "||" : ">", player_toggle_cb, 0);
     add_nav_btn(bar, THEME_PANEL_W - THEME_HIT_MIN_PX, ">|", player_nav_cb, 1);
     if (player_status() != ERR_OK && audio_active() == 0u) {
         add_label(s_content, "Can't open audio", 16, THEME_APPBAR_H + 16, 440, 24, THEME_ERR,
@@ -578,30 +634,24 @@ static void build_player(void)
                   THEME_APPBAR_H + 48, 440, 24, THEME_MUTED, &lv_font_montserrat_12);
         return;
     }
-    add_label(s_content, player_title(), 16, THEME_APPBAR_H + 24, 448, 24, THEME_TEXT,
-              LV_FONT_DEFAULT);
+    s_pl_title = add_label(s_content, player_title(), 16, THEME_APPBAR_H + 24, 448, 24, THEME_TEXT,
+                           LV_FONT_DEFAULT);
     fmt_time(t0, player_elapsed_ms());
     fmt_time(t1, player_duration_ms());
-    add_label(s_content, t0, 16, THEME_APPBAR_H + 64, 80, 24, THEME_MUTED, &lv_font_montserrat_12);
-    add_label(s_content, t1, 400, THEME_APPBAR_H + 64, 80, 24, THEME_MUTED, &lv_font_montserrat_12);
-    add_label(s_content, player_playing() ? "playing" : "paused", 16, THEME_APPBAR_H + 96, 200, 24,
-              THEME_OK, &lv_font_montserrat_12);
+    s_pl_elapsed = add_label(s_content, t0, 16, THEME_APPBAR_H + 64, 80, 24, THEME_MUTED,
+                             &lv_font_montserrat_12);
+    s_pl_dur = add_label(s_content, t1, 400, THEME_APPBAR_H + 64, 80, 24, THEME_MUTED,
+                         &lv_font_montserrat_12);
+    s_pl_state = add_label(s_content, player_playing() ? "playing" : "paused", 16,
+                           THEME_APPBAR_H + 96, 200, 24, THEME_OK, &lv_font_montserrat_12);
     add_hit_btn(s_content, 16, THEME_APPBAR_H + 128, "-", player_vol_cb, -10);
     add_hit_btn(s_content, 16 + THEME_HIT_MIN_PX, THEME_APPBAR_H + 128, "+", player_vol_cb, 10);
     {
         char vol[12];
-        unsigned n = (unsigned)player_volume();
 
-        vol[0] = 'v';
-        vol[1] = 'o';
-        vol[2] = 'l';
-        vol[3] = ' ';
-        vol[4] = (char)('0' + ((n / 100u) % 10u));
-        vol[5] = (char)('0' + ((n / 10u) % 10u));
-        vol[6] = (char)('0' + (n % 10u));
-        vol[7] = '\0';
-        add_label(s_content, vol, 16 + (2 * THEME_HIT_MIN_PX) + 8, THEME_APPBAR_H + 136, 80, 24,
-                  THEME_MUTED, &lv_font_montserrat_12);
+        fmt_vol(vol, player_volume());
+        s_pl_vol = add_label(s_content, vol, 16 + (2 * THEME_HIT_MIN_PX) + 8, THEME_APPBAR_H + 136,
+                             80, 24, THEME_MUTED, &lv_font_montserrat_12);
     }
 }
 
@@ -678,6 +728,12 @@ static void rebuild_content(void)
     const char *id;
 
     s_list = NULL;
+    s_pl_title = NULL;
+    s_pl_elapsed = NULL;
+    s_pl_dur = NULL;
+    s_pl_state = NULL;
+    s_pl_vol = NULL;
+    s_pl_toggle = NULL;
     lv_obj_clean(s_content);
     id = shell_top_id();
     if (id == NULL) {
@@ -810,7 +866,6 @@ err_t ui_backend_init(void)
     s_files_gen = files_view_gen();
     s_text_gen = text_view_gen();
     s_img_gen = image_view_gen();
-    s_player_gen = player_gen();
     s_net_gen = network_gen();
     return ERR_OK;
 }
@@ -821,37 +876,43 @@ void ui_backend_handler(void)
     uint32_t fgen = files_view_gen();
     uint32_t tgen = text_view_gen();
     uint32_t igen = image_view_gen();
-    uint32_t pgen = player_gen();
     uint32_t ngen = network_gen();
     uint8_t audio = audio_active();
     const char *id = shell_top_id();
     uint8_t show_mini = (audio != 0u && (id == NULL || strcmp(id, APP_ID_PLAYER) != 0)) ? 1u : 0u;
+    int32_t h = content_h();
 
-    lv_obj_set_size(s_content, THEME_PANEL_W, content_h());
+    if (lv_obj_get_height(s_content) != h) {
+        lv_obj_set_size(s_content, THEME_PANEL_W, h);
+    }
     if (show_mini != 0u) {
-        lv_obj_remove_flag(s_nowplay, LV_OBJ_FLAG_HIDDEN);
-        lv_label_set_text(s_np_title, audio_title());
+        if (lv_obj_has_flag(s_nowplay, LV_OBJ_FLAG_HIDDEN)) {
+            lv_obj_remove_flag(s_nowplay, LV_OBJ_FLAG_HIDDEN);
+        }
+        label_set(s_np_title, audio_title());
         {
             lv_obj_t *lab = lv_obj_get_child(s_np_btn, 0);
             if (lab != NULL) {
-                lv_label_set_text(lab, (audio_state() == AUDIO_ST_PLAY) ? "||" : ">");
+                label_set(lab, (audio_state() == AUDIO_ST_PLAY) ? "||" : ">");
             }
         }
-    } else {
+    } else if (lv_obj_has_flag(s_nowplay, LV_OBJ_FLAG_HIDDEN) == 0) {
         lv_obj_add_flag(s_nowplay, LV_OBJ_FLAG_HIDDEN);
     }
 
+    /* Do not rebuild on player_gen: elapsed time used to recreate the whole
+     * tree every second, which flickered and ate taps. */
     if (gen != s_gen || fgen != s_files_gen || tgen != s_text_gen || igen != s_img_gen ||
-        pgen != s_player_gen || ngen != s_net_gen || audio != s_last_audio) {
+        ngen != s_net_gen || audio != s_last_audio) {
         s_gen = gen;
         s_files_gen = fgen;
         s_text_gen = tgen;
         s_img_gen = igen;
-        s_player_gen = pgen;
         s_net_gen = ngen;
         s_last_audio = audio;
         rebuild_content();
     }
+    refresh_player_live();
     if (shell_status()->min != s_last_min || shell_status()->m4 != s_last_m4 ||
         shell_status()->storage_ok != s_last_stor || shell_status()->net != s_last_net) {
         refresh_status();

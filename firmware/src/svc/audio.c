@@ -232,16 +232,27 @@ err_t audio_set_volume(uint8_t pct)
 
 static void feed(void)
 {
-    uint8_t buf[256];
+    uint8_t buf[1024];
     size_t n = 0u;
     size_t put;
+    size_t budget = 1024u;
     audio_pipe_t *p = pipe();
 
     if (g_st != AUDIO_ST_PLAY || g_fd < 0 || g_eof != 0u || p == NULL) {
         return;
     }
-    while (audio_pipe_space(p) >= 64u) {
-        if (vfs_read(g_fd, buf, sizeof(buf), &n) != ERR_OK) {
+    /* One kilobyte per tick. Filling the 16 KiB pipe in one go blocked the
+     * UI on eMMC and made the screen flicker while music played. */
+    while (budget > 0u && audio_pipe_space(p) >= 64u) {
+        size_t want = sizeof(buf);
+
+        if (want > budget) {
+            want = budget;
+        }
+        if (want > audio_pipe_space(p)) {
+            want = audio_pipe_space(p);
+        }
+        if (vfs_read(g_fd, buf, want, &n) != ERR_OK) {
             g_eof = 1u;
             break;
         }
@@ -255,6 +266,7 @@ static void feed(void)
             (void)vfs_seek(g_fd, g_file_off);
             break;
         }
+        budget -= put;
     }
 }
 
