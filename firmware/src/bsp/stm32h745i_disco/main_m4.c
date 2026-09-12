@@ -127,15 +127,20 @@ static void drain(void)
 
 static void service_sai(void)
 {
-    int16_t *half = NULL;
-    size_t frames = 0u;
-    uint32_t un = 0u;
+    unsigned n;
 
-    if (audio_out_half_ready(&half, &frames) == 0u || half == NULL) {
-        return;
+    /* Both HT and TC can be pending if the loop ran late; fill each half. */
+    for (n = 0u; n < 2u; n++) {
+        int16_t *half = NULL;
+        size_t frames = 0u;
+        uint32_t un = 0u;
+
+        if (audio_out_half_ready(&half, &frames) == 0u || half == NULL) {
+            return;
+        }
+        (void)audio_engine_fill(half, frames, pipe(), &un);
+        g_underrun += un;
     }
-    (void)audio_engine_fill(half, frames, pipe(), &un);
-    g_underrun += un;
 }
 
 int main(void)

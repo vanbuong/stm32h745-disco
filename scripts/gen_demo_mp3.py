@@ -2,7 +2,7 @@
 """Synthesize the public-domain Ode to Joy demo MP3.
 
 The M7 1 MiB flash budget only has ~530 KiB left for the clip after the
-rest of the image, so this renders about two minutes at 32 kb/s stereo.
+rest of the image, so this renders about 80 s at 48 kb/s stereo.
 """
 
 from __future__ import annotations
@@ -63,11 +63,7 @@ def synth_tone(freq: float, beats: float, vol: float) -> list[float]:
     two_pi = 2.0 * math.pi
     for i in range(n):
         t = i / SR
-        wave = (
-            math.sin(two_pi * freq * t) * 0.72
-            + math.sin(two_pi * freq * 2.0 * t) * 0.16
-            + math.sin(two_pi * freq * 3.0 * t) * 0.07
-        )
+        wave = math.sin(two_pi * freq * t) * 0.88 + math.sin(two_pi * freq * 2.0 * t) * 0.08
         if i < attack:
             env = i / attack
         elif i < attack + decay:
@@ -280,6 +276,8 @@ def encode_mp3(pcm: bytes, dest: Path, bitrate: str) -> None:
             "2",
             "-write_xing",
             "0",
+            "-joint_stereo",
+            "0",
             str(dest),
         ]
         subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
@@ -295,7 +293,7 @@ def main() -> int:
         type=Path,
         default=Path("firmware/src/bsp/stm32h745i_disco/demo.mp3"),
     )
-    parser.add_argument("--bitrate", default="32k")
+    parser.add_argument("--bitrate", default="48k")
     args = parser.parse_args()
 
     lead = concat(
@@ -303,7 +301,6 @@ def main() -> int:
             render_voice(INTRO, 0.26),
             render_voice(THEME, 0.28),
             render_voice(THEME, 0.30, transpose=0),
-            render_voice(THEME, 0.26, transpose=12),
             render_voice(CODA, 0.32),
         ]
     )
@@ -312,7 +309,6 @@ def main() -> int:
             render_voice(INTRO_BASS, 0.16),
             render_voice(BASS, 0.18),
             render_voice(BASS, 0.17),
-            render_voice(BASS, 0.14, transpose=12),
             render_voice(CODA_BASS, 0.20),
         ]
     )
@@ -320,8 +316,7 @@ def main() -> int:
         [
             render_voice(INTRO, 0.10, transpose=-12),
             render_voice(THEME, 0.12, transpose=-12),
-            render_voice(THEME, 0.13, transpose=-7),
-            render_voice(THEME, 0.10),
+            render_voice(THEME, 0.11, transpose=-7),
             render_voice(CODA, 0.12, transpose=-12),
         ]
     )

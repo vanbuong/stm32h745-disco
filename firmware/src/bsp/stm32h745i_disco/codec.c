@@ -66,6 +66,13 @@ err_t board_codec_init(uint32_t sample_hz, uint8_t vol_pct)
     if (WM8994_Init(&g_codec, &init) != WM8994_OK) {
         return ERR_IO;
     }
+    {
+        uint8_t osr[2] = {0x00u, 0x01u}; /* DAC_OSR128 */
+        uint8_t mix[2] = {0x00u, 0x00u};
+
+        (void)board_i2c4_write16(BOARD_WM8994_ADDR, WM8994_OVERSAMPLING, osr, 2u);
+        (void)board_i2c4_write16(BOARD_WM8994_ADDR, WM8994_INPUT_MIXER_2, mix, 2u);
+    }
     g_ready = 1u;
     return ERR_OK;
 }

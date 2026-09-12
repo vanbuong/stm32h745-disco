@@ -1,7 +1,7 @@
 #include "bsp/board.h"
 
 /*
- * Public-domain Ode to Joy (~114 s, 44.1 kHz stereo, 32 kb/s).
+ * Public-domain Ode to Joy (~80 s, 44.1 kHz stereo, 48 kb/s).
  * Bytes live in demo.mp3; GAS .incbin pulls them into .rodata.
  * Regenerated with scripts/gen_demo_mp3.py so the clip still fits in 1 MiB flash.
  */
