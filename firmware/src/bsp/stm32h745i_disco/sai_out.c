@@ -102,25 +102,12 @@ err_t audio_out_start(uint32_t sample_hz, uint8_t channels)
     /* H745 WM8994 is clocked from SAI2 MCLK on PI4; keep it on. */
     g_sai.Init.MckOutput = SAI_MCK_OUTPUT_ENABLE;
     /*
-     * Official stm32h745i_discovery_audio.c 16-bit headphone path:
-     * FREE TDM, 4 x 16-bit slots, slots 0+2 = DAC1 (CN10), rising strobe.
-     * HAL I2S (2 x 32-bit, falling) left unused slot bits that the WM8994
-     * still converted as constant hash under the music.
+     * Codec AIF is I2S, not 4-slot TDM. SLOT_02 (headphones in Cube) only
+     * clocks the right timeslot, so CN10 left was silent. Philips I2S with
+     * 16-bit data in 32-bit slots feeds both ears.
      */
-    g_sai.Init.Protocol = SAI_FREE_PROTOCOL;
-    g_sai.Init.DataSize = SAI_DATASIZE_16;
-    g_sai.Init.FirstBit = SAI_FIRSTBIT_MSB;
-    g_sai.Init.ClockStrobing = SAI_CLOCKSTROBING_RISINGEDGE;
-    g_sai.FrameInit.FrameLength = 64;
-    g_sai.FrameInit.ActiveFrameLength = 32;
-    g_sai.FrameInit.FSDefinition = SAI_FS_CHANNEL_IDENTIFICATION;
-    g_sai.FrameInit.FSPolarity = SAI_FS_ACTIVE_LOW;
-    g_sai.FrameInit.FSOffset = SAI_FS_BEFOREFIRSTBIT;
-    g_sai.SlotInit.FirstBitOffset = 0;
-    g_sai.SlotInit.SlotSize = SAI_SLOTSIZE_DATASIZE;
-    g_sai.SlotInit.SlotNumber = 4;
-    g_sai.SlotInit.SlotActive = SAI_SLOTACTIVE_0 | SAI_SLOTACTIVE_2;
-    if (HAL_SAI_Init(&g_sai) != HAL_OK) {
+    if (HAL_SAI_InitProtocol(&g_sai, SAI_I2S_STANDARD, SAI_PROTOCOL_DATASIZE_16BITEXTENDED, 2u) !=
+        HAL_OK) {
         return ERR_IO;
     }
     if (HAL_SAI_Transmit_DMA(&g_sai, (uint8_t *)g_pcm[0],
