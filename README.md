@@ -117,6 +117,8 @@ ui ok
 shell ready
 ```
 
+Under ST-Link the MPU live probe is skipped (`mpu_faults 0`) so the debugger does not stop in `MemManage_Handler`. Without a debugger the probe still faults once at `0x2407FFE0` (`mpu_faults 1`).
+
 `m4 ready` and `ipc_rtt` may appear earlier or later depending on when M4 attaches. `ipc_rtt` is a DWT ping-pong in microseconds (budget ≤ 2000). `m4: m4 ready` is the M4 log line relayed over IPC (M4 does not use USART3). Halt M4 in the debugger: the **M4** status label turns red within 1 s; the launcher stays navigable.
 
 Tap a tile logs `shell_push <id>`. Files logs `files /user` (or the cwd) when entering a folder; opening a file logs `shell_push text|image|player`. Back in a nested folder logs `files <parent>`; Back at `/user` logs `shell_pop`. `emmc fail` / `vfs fail` is a soft error (status shows eMMC error); the shell still runs. `ui_fps ok` is ≥ 20 FPS. `touch none` is OK on boards that ship GT911 instead of FT5336. `qspi_word FFFFFFFF` means the NOR is erased; mmap worked (no bus fault). Text wraps and pages large logs; a corrupt image shows “Can't open image” and Back returns to Files. WAV/MP3 open into the player; pause/resume and volume go to M4 over IPC while the explorer can still scroll.

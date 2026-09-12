@@ -219,9 +219,9 @@ err_t board_disp_init(void)
     g_ltdc.Init.AccumulatedVBP = LCD_VSYNC + LCD_VBP - 1u;
     g_ltdc.Init.AccumulatedActiveH = LCD_VSYNC + BOARD_LCD_H + LCD_VBP - 1u;
     g_ltdc.Init.TotalHeigh = LCD_VSYNC + BOARD_LCD_H + LCD_VBP + LCD_VFP - 1u;
-    g_ltdc.Init.Backcolor.Blue = 0xFFu;
-    g_ltdc.Init.Backcolor.Green = 0xFFu;
-    g_ltdc.Init.Backcolor.Red = 0xFFu;
+    g_ltdc.Init.Backcolor.Blue = 0u;
+    g_ltdc.Init.Backcolor.Green = 0u;
+    g_ltdc.Init.Backcolor.Red = 0u;
     if (HAL_LTDC_Init(&g_ltdc) != HAL_OK) {
         return ERR_IO;
     }
@@ -246,6 +246,7 @@ err_t board_disp_init(void)
     }
 
     g_ready = 1u;
+    board_disp_show(g_fb[0]);
     return ERR_OK;
 }
 

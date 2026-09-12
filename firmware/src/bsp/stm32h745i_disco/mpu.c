@@ -103,6 +103,12 @@ err_t board_mpu_selftest(void)
     uint32_t before = g_mpu_faults;
     volatile uint32_t *p = (volatile uint32_t *)MPU_SELFTEST_BASE;
 
+    /* A live probe writes a NO_ACCESS region and expects MemManage. ST-Link
+     * breaks on that fault; skip the store when a debugger is attached. */
+    if ((CoreDebug->DHCSR & CoreDebug_DHCSR_C_DEBUGEN_Msk) != 0u) {
+        return ERR_OK;
+    }
+
     mpu_fill(&r, MPU_REGION_NUMBER7, MPU_SELFTEST_BASE, MPU_ENC_32B, MPU_ATTR_NORMAL_NC, 0,
              MPU_REGION_NO_ACCESS);
     HAL_MPU_ConfigRegion(&r);
