@@ -34,6 +34,9 @@ set(HOST_SRC
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/puff/puff.c
     ${HELIX_SRC}
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/auto.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/cfg.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/health.c
+    ${CMAKE_SOURCE_DIR}/tests/host/wdog_stub.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/memtest.c
     ${CMAKE_SOURCE_DIR}/firmware/src/bsp/mpu_map.c
     ${CMAKE_SOURCE_DIR}/firmware/src/bsp/disp_geom.c
@@ -48,6 +51,7 @@ set(HOST_SRC
     ${CMAKE_SOURCE_DIR}/firmware/src/app/calendar.c
     ${CMAKE_SOURCE_DIR}/firmware/src/app/game.c
     ${CMAKE_SOURCE_DIR}/firmware/src/app/home.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/app/settings.c
     ${CMAKE_SOURCE_DIR}/firmware/src/game/gfx.c
     ${CMAKE_SOURCE_DIR}/firmware/src/game/brick.c
     ${CMAKE_SOURCE_DIR}/firmware/src/game/chip8.c
@@ -68,6 +72,7 @@ set(HOST_SRC
     ${CMAKE_SOURCE_DIR}/tests/host/test_net.c
     ${CMAKE_SOURCE_DIR}/tests/host/test_game.c
     ${CMAKE_SOURCE_DIR}/tests/host/test_home.c
+    ${CMAKE_SOURCE_DIR}/tests/host/test_health.c
     ${CMAKE_SOURCE_DIR}/tests/host/vfs_ram.c
 )
 

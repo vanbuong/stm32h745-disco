@@ -40,6 +40,11 @@ GIVEN watchdogs enabled
 WHEN the UI thread is deliberately stalled past the timeout in a debug build  
 THEN the system resets and Backup SRAM records the reason.
 
+**TC-SYS-04 (UT) — Software watchdog pack**  
+GIVEN `health_init` and regular `health_kick`  
+WHEN `health_poll` runs under the 8 s period  
+THEN `health_expired` is false. WHEN kicks stop past `HEALTH_WDOG_MS` THEN expired is true and `health_selftest` fails. `vfs_remount` keeps existing files.
+
 ---
 
 ## 2. Memory and cache
@@ -384,10 +389,15 @@ Rule: occupancy `occupied` → light On, 3 s delay → Off. Host test with mock 
 
 | ID | Pri | Requirement | Verify |
 | --- | --- | --- | --- |
-| REQ-CFG-01 | S | Brightness, volume, and Home names/rooms/rules shall persist across reset. | HIL |
-| REQ-CFG-02 | M | About shall show M7 and M4 firmware versions. | IT |
+| REQ-CFG-01 | S | Brightness, volume, and Home names/rooms/rules shall persist across reset. | HIL, UT |
+| REQ-CFG-02 | M | About shall show M7 and M4 firmware versions. | IT, UT |
 | REQ-RST-01 | M | Hard fault handlers shall log and reset in production; they shall not paint a white screen forever. | HIL |
 | REQ-RST-02 | S | eMMC surprise unmount (if reproduced) shall put VFS in error and keep shell alive. | HIL |
+
+**TC-CFG-03 (UT) — Settings persist**  
+GIVEN a mounted jail  
+WHEN brightness, volume, channel, and join default are set  
+THEN `/user/cfg.bin` reloads the same values after `vfs_remount` + `cfg_init`. About contains `M7` and `M4` firmware versions.
 
 ---
 
@@ -414,7 +424,7 @@ Host tests must not link STM32 HAL, LVGL, or SDL. The simulator is a different t
 | REQ-SYS-04 | TC-SYS-01, TC-STG-01 |
 | REQ-SYS-05 | TC-UI-01 |
 | REQ-SYS-06 | INSP |
-| REQ-SYS-07 | TC-SYS-03 |
+| REQ-SYS-07 | TC-SYS-03, TC-SYS-04 |
 | REQ-SYS-08 | TC-SYS-02 |
 | REQ-MEM-01 | TC-MEM-01 |
 | REQ-MEM-02 | TC-MEM-02 |
@@ -464,7 +474,8 @@ Host tests must not link STM32 HAL, LVGL, or SDL. The simulator is a different t
 | REQ-HOME-12 | TC-HOME-06 |
 | REQ-HOME-13 | TC-HOME-10 |
 | REQ-HOME-14 | TC-HOME-05 |
-| REQ-CFG-01 | TC-HOME-06 |
+| REQ-CFG-01 | TC-HOME-06, TC-CFG-03 |
+| REQ-CFG-02 | TC-CFG-03 |
 | REQ-CI-01 | host ctest, TC-CI-01 |
 | REQ-CI-02 | TC-CI-02 |
 | REQ-CI-03 | TC-CI-03 |
@@ -473,7 +484,7 @@ Host tests must not link STM32 HAL, LVGL, or SDL. The simulator is a different t
 | REQ-CI-07 | TC-SYS-01, TC-CI-01 |
 | REQ-CI-09 | TC-SIM-01 |
 
-Sprint 13 is not done until every **M** row has a passing test or an explicit waiver recorded here. **S** rows for Game and Home are the Sprint 10–12 exit gates.
+Sprint 13 host pack is `health_selftest` + TC-SYS-04 + TC-CFG-03. **Waiver:** TC-SYS-03 IWDG reset and 8-hour soak stay HIL; there is no self-hosted runner, so they do not block merge (REQ-CI-08). **S** rows for Game and Home remain the Sprint 10–12 exit gates.
 
 ---
 
@@ -504,7 +515,7 @@ flowchart LR
 | REQ-CI-05 | S | CI shall fail on `clang-format` drift. | UT |
 | REQ-CI-06 | S | CI shall run CodeQL `cpp` on PRs; high/error findings fail the job. | UT |
 | REQ-CI-07 | M | CI shall fail if `src/app` or `src/shell` include forbidden headers (REQ-SYS-02). | UT |
-| REQ-CI-08 | C | A self-hosted HIL job shall flash the Discovery board and publish JUnit; it shall not block merge until Sprint 13. | HIL |
+| REQ-CI-08 | C | A self-hosted HIL job shall flash the Discovery board and publish JUnit. It shall not block merge while no runner exists; Sprint 13 uses host `health_selftest` instead. | HIL |
 | REQ-CI-09 | S | After Sprint 5b, CI shall link `host-sim` on Ubuntu and Windows (SDL2). Opening a window is not required in CI. | UT |
 
 ### Tests

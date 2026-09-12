@@ -175,6 +175,27 @@ int vfs_mounted(void)
     return g_mounted ? 1 : 0;
 }
 
+err_t vfs_unmount(void)
+{
+    size_t i;
+
+    for (i = 0u; i < VFS_FILE_MAX; i++) {
+        if (g_fil_used[i] != 0u && g_fil[i] != NULL) {
+            (void)fclose(g_fil[i]);
+            g_fil[i] = NULL;
+            g_fil_used[i] = 0u;
+        }
+    }
+    g_mounted = 0u;
+    return ERR_OK;
+}
+
+err_t vfs_remount(void)
+{
+    (void)vfs_unmount();
+    return vfs_mount();
+}
+
 err_t vfs_open(const char *path, uint32_t flags, vfs_file_t *fd)
 {
     char host[VFS_PATH_MAX * 2u];

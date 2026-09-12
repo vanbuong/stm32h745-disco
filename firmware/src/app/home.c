@@ -1,5 +1,7 @@
 #include "app/home.h"
 
+#include "svc/cfg.h"
+
 #include "svc/auto.h"
 
 #include <stddef.h>
@@ -209,7 +211,7 @@ uint8_t home_app_on_back(void)
 
 void home_app_pair(void)
 {
-    (void)home_permit_join(60u);
+    (void)home_permit_join(cfg_join_s());
     refresh_banner();
 }
 

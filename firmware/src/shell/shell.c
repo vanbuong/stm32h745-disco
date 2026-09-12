@@ -2,6 +2,8 @@
 
 #include "app/apps.h"
 #include "svc/audio.h"
+#include "svc/cfg.h"
+#include "svc/health.h"
 #include "svc/home.h"
 #include "svc/net.h"
 #include "svc/time.h"
@@ -106,6 +108,10 @@ void shell_tick(uint32_t dt_ms)
     g_status.net = net_bar_level();
     home_poll(dt_ms);
     g_status.zb = home_bar_level();
+    health_kick();
+    health_note_peer(g_status.m4);
+    health_poll(dt_ms);
+    cfg_poll();
     if (g_top_app != NULL && g_top_app->on_tick != NULL) {
         g_top_app->on_tick(dt_ms);
     }

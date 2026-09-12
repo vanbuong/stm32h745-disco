@@ -50,6 +50,8 @@ err_t vfs_path_join(const char *dir, const char *name, char *out, size_t out_sz)
 err_t vfs_path_parent(const char *path, char *out, size_t out_sz);
 
 err_t vfs_mount(void);
+err_t vfs_unmount(void);
+err_t vfs_remount(void);
 int vfs_mounted(void);
 err_t vfs_format(void);
 uint8_t vfs_formatted_on_mount(void);

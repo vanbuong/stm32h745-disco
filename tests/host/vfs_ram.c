@@ -35,6 +35,7 @@ static ram_node_t g_nodes[RAM_MAX];
 static ram_file_t g_files[4];
 static ram_dir_t g_dirs[2];
 static uint8_t g_mounted;
+static uint8_t g_inited;
 
 static int add_node(int parent, const char *name, uint8_t is_dir, const char *payload)
 {
@@ -136,6 +137,26 @@ err_t vfs_mount(void)
             (void)add_node(sub, "a.txt", 0u, "a");
         }
     }
+    g_inited = 1u;
+    g_mounted = 1u;
+    return ERR_OK;
+}
+
+err_t vfs_unmount(void)
+{
+    memset(g_files, 0, sizeof(g_files));
+    memset(g_dirs, 0, sizeof(g_dirs));
+    g_mounted = 0u;
+    return ERR_OK;
+}
+
+err_t vfs_remount(void)
+{
+    if (g_inited == 0u) {
+        return vfs_mount();
+    }
+    memset(g_files, 0, sizeof(g_files));
+    memset(g_dirs, 0, sizeof(g_dirs));
     g_mounted = 1u;
     return ERR_OK;
 }

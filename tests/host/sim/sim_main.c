@@ -1,5 +1,8 @@
 #include "app/files.h"
 #include "bsp/board.h"
+#include "svc/audio.h"
+#include "svc/cfg.h"
+#include "svc/health.h"
 #include "svc/home.h"
 #include "svc/net.h"
 #include "svc/time.h"
@@ -128,7 +131,10 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    board_console_puts("host-sim stm32h745-disco s12\n");
+    board_console_puts("host-sim stm32h745-disco s13\n");
+    (void)cfg_init();
+    (void)audio_set_volume(cfg_volume());
+    (void)health_init();
     (void)home_init();
     (void)time_init();
     (void)net_service_init();

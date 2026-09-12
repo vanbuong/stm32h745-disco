@@ -1,6 +1,7 @@
 #include "audio_engine.h"
 #include "bsp/board.h"
 #include "hal/audio_out.h"
+#include "hal/wdog.h"
 #include "ipc/ipc.h"
 #include "svc/audio.h"
 #include "svc/audio_pipe.h"
@@ -190,6 +191,7 @@ int main(void)
         uint32_t now = g_ms;
 
         (void)board_hsem_poll(BOARD_HSEM_M7_TO_M4);
+        wdog_kick();
         drain();
         service_sai();
         if (g_playing != 0u && audio_engine_done() != 0u) {

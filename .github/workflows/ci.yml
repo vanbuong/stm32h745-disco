@@ -94,6 +94,8 @@ jobs:
             firmware/src/svc/net.c \
             firmware/src/svc/time.c \
             firmware/src/svc/auto.c \
+            firmware/src/svc/cfg.c \
+            firmware/src/svc/health.c \
             firmware/src/svc/memtest.c \
             firmware/src/bsp/mpu_map.c \
             firmware/src/shell/nav.c \
@@ -104,6 +106,7 @@ jobs:
             firmware/src/app/network.c \
             firmware/src/app/game.c \
             firmware/src/app/home.c \
+            firmware/src/app/settings.c \
             firmware/src/game/gfx.c \
             firmware/src/game/brick.c \
             firmware/src/game/chip8.c \

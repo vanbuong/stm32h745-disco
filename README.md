@@ -88,7 +88,7 @@ CI: format, layering, cppcheck, clang-tidy, coverage, and both ELF images — se
 
 ## Sprint 10 boot log (USART3 115200)
 
-After memory, eMMC, and display bring-up the M7 starts the LVGL shell (32 px status + 3×2 launcher: Files, Home, Game, Music, Calendar, Settings). The status bar shows time from the RTC, **eMMC**, **M4**, and **ETH** (red = down, amber = link/no IPv4, green = IPv4). Files lists `/user`; tap a folder or a known type to open the text, image, or audio player. Settings shows link, IPv4, path, and NTP. Game is a library: built-in Brick plus CHIP-8 carts from `/user/game` (`*.ch8` / `*.c8`). LD2 (PI13) still blinks:
+After memory, eMMC, and display bring-up the M7 starts the LVGL shell (32 px status + 3×2 launcher: Files, Home, Game, Music, Calendar, Settings). The status bar shows time from the RTC, **eMMC**, **M4**, and **ETH** (red = down, amber = link/no IPv4, green = IPv4). Files lists `/user`; tap a folder or a known type to open the text, image, or audio player. Settings shows brightness, volume, link/IPv4, Zigbee channel and join default, and About (M7/M4 versions). Game is a library: built-in Brick plus CHIP-8 carts from `/user/game` (`*.ch8` / `*.c8`). LD2 (PI13) still blinks:
 
 ```
 M7 stm32h745-disco s10

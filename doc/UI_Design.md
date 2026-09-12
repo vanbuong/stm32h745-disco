@@ -226,7 +226,7 @@ Mini-player (chrome): title + play/pause only. Tap title → full player.
 
 List of rows (44 px): Brightness, Volume, Time, Network, **Zigbee**, **USB file transfer** (later), About (fw versions of M7/M4, ZNP version, LVGL, FS free space).
 
-Brightness PWM on the panel backlight. Persist in settings service.
+Brightness is persisted by `cfg_*` and applied as LTDC layer constant alpha (`disp_set_brightness`). No PWM/TIM IRQ.
 
 Zigbee row: radio present/missing, channel, PAN, “Open network” shortcut. Full controls live in the Home app.
 

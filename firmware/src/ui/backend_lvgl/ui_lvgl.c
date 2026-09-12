@@ -8,10 +8,14 @@
 #include "app/image_view.h"
 #include "app/network.h"
 #include "app/player.h"
+#include "app/settings.h"
 #include "lv_port.h"
 #include "svc/audio.h"
 #include "svc/text_view.h"
 #include "svc/time.h"
+#if defined(CORE_CM7)
+#include "hal/disp.h"
+#endif
 #include "ui/launcher.h"
 #include "ui/shell.h"
 #include "ui/theme.h"
@@ -62,6 +66,11 @@ static lv_obj_t *s_game_lives;
 static uint32_t s_game_gen = 0xFFFFFFFFu;
 static uint32_t s_home_gen = 0xFFFFFFFFu;
 static lv_obj_t *s_home_banner;
+static lv_obj_t *s_set_bright;
+static lv_obj_t *s_set_vol;
+static lv_obj_t *s_set_net;
+static lv_obj_t *s_set_zb;
+static lv_obj_t *s_set_about;
 static uint8_t s_last_zb = 0xFFu;
 static lv_image_dsc_t s_img_dsc;
 
@@ -978,17 +987,20 @@ static const char *net_link_pretty(void)
     return "Down";
 }
 
-static void add_stat_card(int32_t x, int32_t y, int32_t w, const char *kicker, const char *value,
-                          uint32_t accent)
+static void append_net_part(char *dst, size_t cap, size_t *i, const char *s)
 {
-    lv_obj_t *card = add_card(x, y, w, 48);
-    lv_obj_t *dot = lv_obj_create(card);
-
-    lv_obj_set_pos(dot, 12, 19);
-    lv_obj_set_size(dot, 10, 10);
-    style_round_btn(dot, accent);
-    add_label(card, kicker, 32, 4, w - 44, 16, THEME_MUTED, &lv_font_montserrat_12);
-    add_label(card, value, 32, 22, w - 44, 22, THEME_TEXT, LV_FONT_DEFAULT);
+    if (s == NULL || *i + 1u >= cap) {
+        return;
+    }
+    if (*i > 0u && *i + 3u < cap) {
+        dst[(*i)++] = ' ';
+        dst[(*i)++] = '-';
+        dst[(*i)++] = ' ';
+    }
+    while (*s != '\0' && *i + 1u < cap) {
+        dst[(*i)++] = *s++;
+    }
+    dst[*i] = '\0';
 }
 
 static const char *home_symbol(home_kind_t kind)
@@ -1595,30 +1607,114 @@ static void build_game(void)
     }
 }
 
+static void apply_brightness(void)
+{
+#if defined(CORE_CM7)
+    (void)disp_set_brightness(settings_brightness());
+#else
+    (void)settings_brightness();
+#endif
+}
+
+static void settings_nudge_cb(lv_event_t *e)
+{
+    int kind;
+
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
+        return;
+    }
+    kind = (int)(intptr_t)lv_event_get_user_data(e);
+    if (kind == 1) {
+        settings_nudge_brightness(-10);
+        apply_brightness();
+    } else if (kind == 2) {
+        settings_nudge_brightness(10);
+        apply_brightness();
+    } else if (kind == 3) {
+        settings_nudge_volume(-10);
+    } else if (kind == 4) {
+        settings_nudge_volume(10);
+    } else if (kind == 5) {
+        settings_nudge_zb_channel(-1);
+    } else if (kind == 6) {
+        settings_nudge_zb_channel(1);
+    } else if (kind == 7) {
+        settings_nudge_join_s(-10);
+    } else if (kind == 8) {
+        settings_nudge_join_s(10);
+    }
+}
+
+static lv_obj_t *add_settings_row(int32_t y, const char *txt, int minus_kind, int plus_kind)
+{
+    lv_obj_t *card = add_card(16, y, 448, 40);
+    lv_obj_t *lab;
+
+    add_hit_btn(card, 8, 0, LV_SYMBOL_MINUS, settings_nudge_cb, minus_kind);
+    lab = add_label(card, txt, 56, 10, 328, 20, THEME_TEXT, LV_FONT_DEFAULT);
+    lv_obj_set_style_text_align(lab, LV_TEXT_ALIGN_CENTER, 0);
+    add_hit_btn(card, 400, 0, LV_SYMBOL_PLUS, settings_nudge_cb, plus_kind);
+    return lab;
+}
+
+static void refresh_settings_live(void)
+{
+    const char *id = shell_top_id();
+    const char *banner;
+    char net[40];
+    size_t i;
+
+    if (id == NULL || (strcmp(id, APP_ID_SETTINGS) != 0 && strcmp(id, APP_ID_NETWORK) != 0)) {
+        return;
+    }
+    label_set(s_set_bright, settings_bright_line());
+    label_set(s_set_vol, settings_vol_line());
+    label_set(s_set_zb, settings_zb_line());
+    banner = settings_banner();
+    if (banner != NULL && banner[0] != '\0') {
+        label_set(s_set_about, banner);
+        if (s_set_about != NULL) {
+            lv_obj_set_style_text_color(s_set_about, lv_color_hex(THEME_ERR), 0);
+        }
+    } else {
+        label_set(s_set_about, settings_about());
+        if (s_set_about != NULL) {
+            lv_obj_set_style_text_color(s_set_about, lv_color_hex(THEME_MUTED), 0);
+        }
+    }
+    i = 0u;
+    net[0] = '\0';
+    append_net_part(net, sizeof(net), &i, net_link_pretty());
+    append_net_part(net, sizeof(net), &i, network_ip_str());
+    append_net_part(net, sizeof(net), &i, net_path_pretty());
+    label_set(s_set_net, net);
+}
+
 static void build_settings(void)
 {
-    lv_obj_t *card = add_card(16, THEME_APPBAR_H + 6, 448, 56);
-    char vol[12];
-    const char *link;
+    lv_obj_t *net;
+    int32_t y = THEME_APPBAR_H;
 
     make_bar("Settings");
     network_refresh();
-    add_icon_circle(card, 12, 8, 40, THEME_TILE_SET, LV_SYMBOL_SETTINGS);
-    add_label(card, "STM32H745 Disco", 64, 8, 200, 20, THEME_TEXT, LV_FONT_DEFAULT);
-    add_label(card, "CN10 headphone", 64, 30, 160, 16, THEME_MUTED, &lv_font_montserrat_12);
-    add_hit_btn(card, 280, 8, LV_SYMBOL_MINUS, player_vol_cb, -10);
-    fmt_vol(vol, player_volume());
-    s_pl_vol = add_label(card, vol, 328, 16, 48, 20, THEME_TEXT, LV_FONT_DEFAULT);
-    lv_obj_set_style_text_align(s_pl_vol, LV_TEXT_ALIGN_CENTER, 0);
-    add_hit_btn(card, 384, 8, LV_SYMBOL_PLUS, player_vol_cb, 10);
+    settings_open();
+    apply_brightness();
 
-    link = net_link_pretty();
-    add_stat_card(16, THEME_APPBAR_H + 68, 220, "Link", link,
-                  (strcmp(link, "Down") == 0) ? THEME_ERR : THEME_TILE_NET);
-    add_stat_card(244, THEME_APPBAR_H + 68, 220, "IPv4", network_ip_str(), THEME_ACCENT);
-    add_stat_card(16, THEME_APPBAR_H + 122, 220, "Path", net_path_pretty(), THEME_TILE_NET);
-    add_stat_card(244, THEME_APPBAR_H + 122, 220, "Time", time_ntp_str(),
-                  (time_ntp_state() == TIME_NTP_OK) ? THEME_OK : THEME_WARN);
+    s_set_bright = add_settings_row(y, settings_bright_line(), 1, 2);
+    y += 40;
+    s_set_vol = add_settings_row(y, settings_vol_line(), 3, 4);
+    y += 40;
+    net = add_card(16, y, 448, 40);
+    s_set_net = add_label(net, "", 12, 10, 424, 20, THEME_TEXT, LV_FONT_DEFAULT);
+    y += 40;
+    s_set_zb = add_settings_row(y, settings_zb_line(), 5, 6);
+    y += 40;
+    add_hit_btn(s_content, 16, y, LV_SYMBOL_MINUS, settings_nudge_cb, 7);
+    s_set_about = add_label(s_content, settings_about(), 64, y + 10, 352, 20, THEME_MUTED,
+                            &lv_font_montserrat_12);
+    lv_obj_set_style_text_align(s_set_about, LV_TEXT_ALIGN_CENTER, 0);
+    add_hit_btn(s_content, 424, y, LV_SYMBOL_PLUS, settings_nudge_cb, 8);
+    refresh_settings_live();
 }
 
 static void calendar_nav_cb(lv_event_t *e)
@@ -1781,6 +1877,11 @@ static void rebuild_content(void)
     s_cal_date = NULL;
     s_cal_ntp = NULL;
     s_home_banner = NULL;
+    s_set_bright = NULL;
+    s_set_vol = NULL;
+    s_set_net = NULL;
+    s_set_zb = NULL;
+    s_set_about = NULL;
     s_game_img = NULL;
     s_game_score = NULL;
     s_game_high = NULL;
@@ -1996,6 +2097,7 @@ void ui_backend_handler(void)
     refresh_calendar_live();
     refresh_game_live();
     refresh_home_live();
+    refresh_settings_live();
     if (shell_status()->min != s_last_min || shell_status()->m4 != s_last_m4 ||
         shell_status()->storage_ok != s_last_stor || shell_status()->net != s_last_net ||
         shell_status()->zb != s_last_zb) {

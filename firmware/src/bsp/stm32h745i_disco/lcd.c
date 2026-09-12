@@ -25,6 +25,7 @@ static DMA2D_HandleTypeDef g_dma2d;
 static uint16_t *g_fb[2];
 static uint8_t g_front;
 static uint8_t g_ready;
+static uint8_t g_bright = 100u;
 
 static void lcd_gpio_out(GPIO_TypeDef *port, uint16_t pin, GPIO_PinState level)
 {
@@ -382,4 +383,29 @@ void board_disp_show(const void *fb)
     } else if (fb == g_fb[1]) {
         g_front = 1u;
     }
+}
+
+err_t disp_set_brightness(uint8_t pct)
+{
+    uint32_t a;
+
+    if (pct > 100u) {
+        pct = 100u;
+    }
+    g_bright = pct;
+    if (g_ready == 0u) {
+        return ERR_OK;
+    }
+    a = ((uint32_t)pct * 255u) / 100u;
+    if (HAL_LTDC_SetAlpha_NoReload(&g_ltdc, a, 0u) != HAL_OK) {
+        return ERR_IO;
+    }
+    /* VBR, no LTDC IRQ. Next vblank applies constant alpha. */
+    g_ltdc.Instance->SRCR = LTDC_SRCR_VBR;
+    return ERR_OK;
+}
+
+uint8_t disp_brightness(void)
+{
+    return g_bright;
 }

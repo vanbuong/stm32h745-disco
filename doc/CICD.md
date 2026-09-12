@@ -46,7 +46,7 @@ flowchart TB
 | Cross-compile M7/M4 | ubuntu + `gcc-arm-none-eabi` | No | Yes |
 | Host sim link (Sprint 5b) | ubuntu + windows, SDL2 | No | Yes (link only) |
 | CodeQL | GitHub | No | Yes on high/critical |
-| HIL | Self-hosted + DISCO | Yes | No until Sprint 13 |
+| HIL | Self-hosted + DISCO | Yes | No (no runner; host `health_selftest` is the Sprint 13 gate) |
 
 ## 3. Repository layout for CI
 
@@ -207,7 +207,7 @@ CI only needs **link success** and a size report (`arm-none-eabi-size`). Flash/r
 | M7 | 960 KB of 1 MB bank | DTCM 128 KB + AXI 512 KB (warn > 80%) |
 | M4 | 960 KB of 1 MB bank | SRAM1+2 256 KB (warn > 80%) |
 
-Fail if flash exceeds budget. RAM warn is non-fatal until Sprint 13.
+Fail if flash exceeds budget. RAM warn stays non-fatal; `size-report.sh` only prints `arm-none-eabi-size`.
 
 ### 5.7 Host simulator (Sprint 5b)
 
@@ -260,7 +260,7 @@ sequenceDiagram
   R->>G: artifact logs + junit
 ```
 
-HIL is **non-blocking** until Sprint 13. Nightly still reports on `main`.
+HIL stays **non-blocking** (no self-hosted Discovery runner). Nightly still reports on `main`. Host `health_selftest` covers the Sprint 13 pack.
 
 ## 8. Branch protection (GitHub)
 

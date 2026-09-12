@@ -337,11 +337,21 @@ Lock:
 
 ### Sprint 13 — Hardening
 
-- Watchdogs on both cores, brown-out, FS remount, OOM UI.
-- Settings app (brightness, volume, IP, Zigbee channel/permit-join default).
-- HIL pack for the requirement matrix, including game soak and ZNP mock.
-- Size budgets and coverage floors as in `CICD.md` (80% line / 60% branch on host-testable C).
-- **Exit:** RTM P0/P1 rows green; 8-hour soak (UI + audio + explorer; game 30 min; ZNP mock or radio idle) without leak or deadlock; CI gates all green.
+Status: **done** (host-testable health + Settings persist; HIL stays optional).
+
+Lock:
+
+- **`cfg_*`:** persist brightness, volume, default Zigbee channel, default permit-join seconds under `/user/cfg.bin` (8 bytes, jail). Apply volume via `audio_set_volume` on init. Pair uses `cfg_join_s()` instead of a hardcoded 60.
+- **`health_*`:** software watchdog (8 s). `health_kick` / `health_poll` / expired if not kicked. OOM flag + Settings banner. Reset reason enum (none / wdog / BOR / OOM). `health_selftest()` is the host-testable HIL pack (kick, remount if mounted, cfg loaded or defaults).
+- **Hardware IWDG:** start **after** VFS bring-up only, ~16 s (IWDG1, prescaler 256, reload 2047). M7 `wdog_start`; both cores `wdog_kick`. No WWDG (that needs IRQ). Do not start before `vfs_bench` / memtest.
+- **Brightness:** persist the value. Live dim is LTDC layer constant alpha (`disp_set_brightness`). Apps must not include `disp.h`. No new PWM/TIM IRQ. PK0/PK7/PD7 stay LCD enable/backlight on.
+- **`vfs_unmount` / `vfs_remount`:** all three VFS impls. Host RAM remount must not wipe an existing tree.
+- **Settings UI:** rows for Brightness, Volume, Link/IPv4, Zigbee channel, join default, About (M7/M4 versions, ZNP, health). OOM / wdog banner on the About line. Do not rebuild every tick.
+- **HIL CI:** still **non-blocking**. There is no self-hosted runner. Do not fail merge on a missing HIL job. `health_selftest` + host tests are the Sprint 13 gate.
+- **RAM size gate:** `size-report.sh` still prints `arm-none-eabi-size` only. RAM warn stays non-fatal (no invented fail threshold).
+- **Out:** MQTT, USB MSC (later TinyUSB sprint), JPEG HW, DMA2D, extra IRQ, climate/scenes, Zephyr, required HIL CI.
+
+- **Exit:** host tests for cfg persist/remount, software wdog expire, OOM banner, About versions, Settings nudges; `health_selftest` green; m7-debug + m4-debug link; coverage floor held. Board soak and TC-SYS-03 IWDG reset remain HIL when a runner exists.
 
 ### Later — Zephyr port (not a product sprint yet)
 

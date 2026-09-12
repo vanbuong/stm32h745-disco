@@ -7,6 +7,7 @@
 #include "app/image_view.h"
 #include "app/network.h"
 #include "app/player.h"
+#include "app/settings.h"
 #include "svc/text_view.h"
 
 #include <stddef.h>
@@ -94,7 +95,17 @@ static void network_tick(uint32_t dt_ms)
 static void settings_start(void *args)
 {
     (void)args;
-    network_refresh();
+    settings_open();
+}
+
+static void settings_stop(void)
+{
+    settings_close();
+}
+
+static void settings_on_tick(uint32_t dt_ms)
+{
+    settings_tick(dt_ms);
 }
 
 static void calendar_start(void *args)
@@ -150,7 +161,8 @@ static const ui_app_t g_apps[] = {
     {APP_ID_GAME, "Game", "game", game_start, game_stop, game_on_tick, stub_event},
     {APP_ID_PLAYER, "Music", "player", player_start, player_stop, stub_tick, stub_event},
     {APP_ID_CALENDAR, "Calendar", "calendar", calendar_start, calendar_stop, stub_tick, stub_event},
-    {APP_ID_SETTINGS, "Settings", "settings", settings_start, stub_stop, network_tick, stub_event},
+    {APP_ID_SETTINGS, "Settings", "settings", settings_start, settings_stop, settings_on_tick,
+     stub_event},
     {APP_ID_TEXT, "Text", "text", text_start, text_stop, stub_tick, stub_event},
     {APP_ID_IMAGE, "Image", "image", image_start, image_stop, stub_tick, stub_event},
     {APP_ID_NETWORK, "Network", "network", network_start, stub_stop, network_tick, stub_event},

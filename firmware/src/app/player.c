@@ -1,6 +1,7 @@
 #include "app/player.h"
 
 #include "svc/audio.h"
+#include "svc/cfg.h"
 #include "svc/media.h"
 #include "svc/vfs.h"
 
@@ -225,6 +226,7 @@ uint8_t player_volume(void)
 void player_set_volume(uint8_t pct)
 {
     (void)audio_set_volume(pct);
+    (void)cfg_set_volume(pct);
     bump();
 }
 

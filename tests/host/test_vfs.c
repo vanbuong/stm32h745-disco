@@ -112,6 +112,13 @@ static void test_ram_ops(void)
     TEST_ASSERT_EQUAL_INT(ERR_OK, vfs_stat("/user/newd", &st));
     TEST_ASSERT_EQUAL_UINT8(1u, st.is_dir);
     TEST_ASSERT_EQUAL_INT(ERR_DENIED, vfs_mkdir("/user/../x"));
+
+    TEST_ASSERT_EQUAL_INT(ERR_OK, vfs_unmount());
+    TEST_ASSERT_EQUAL_INT(0, vfs_mounted());
+    TEST_ASSERT_EQUAL_INT(ERR_OK, vfs_remount());
+    TEST_ASSERT_EQUAL_INT(1, vfs_mounted());
+    TEST_ASSERT_EQUAL_INT(ERR_OK, vfs_stat("/user/hello.txt", &st));
+    TEST_ASSERT_EQUAL_UINT32(6u, st.size);
 }
 
 static void test_selftest(void)
