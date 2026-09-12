@@ -10,8 +10,10 @@
 #include <string.h>
 
 /*
- * eMMC on SDMMC1, 8-bit (UM2488). Polling FIFO, no SDMMC IRQ (vector table
- * is the Cortex-M 16). Bounce is 8-sector aligned for 4 KB native pages.
+ * eMMC on SDMMC1, 8-bit (UM2488). IDMA into a 32-byte-aligned AXI bounce.
+ * The Cortex-M vector table has no SDMMC IRQ, so completion is polled.
+ * CPU FIFO polling overruns at 50 MHz 8-bit; the next CMD then times out
+ * (HAL_MMC_ERROR_CMD_RSP_TIMEOUT = 4) and FatFs mount returns ERR_IO.
  */
 
 #define MMC_ALIGN_SEC 8u
@@ -40,18 +42,112 @@ static uint32_t align_up8(uint32_t s)
     return (s + 7u) & ~7u;
 }
 
+static void bounce_inv(uint32_t bytes)
+{
+    SCB_InvalidateDCache_by_Addr((uint32_t *)(uintptr_t)g_bounce, (int32_t)bytes);
+}
+
+static void bounce_clean_inv(uint32_t bytes)
+{
+    SCB_CleanInvalidateDCache_by_Addr((uint32_t *)(uintptr_t)g_bounce, (int32_t)bytes);
+}
+
+static void bounce_clean(uint32_t bytes)
+{
+    SCB_CleanDCache_by_Addr((uint32_t *)(uintptr_t)g_bounce, (int32_t)bytes);
+}
+
 static err_t mmc_wait_ready(uint32_t ms)
 {
     uint32_t t0 = HAL_GetTick();
     while (HAL_MMC_GetCardState(&g_mmc) != HAL_MMC_CARD_TRANSFER) {
         if ((HAL_GetTick() - t0) > ms) {
+            g_last_err = HAL_MMC_GetError(&g_mmc);
             return ERR_TIMEOUT;
         }
     }
     return ERR_OK;
 }
 
-/* HAL_MMC_Read/WriteBlocks polling copies via the SDMMC FIFO (CPU, not IDMA). */
+static err_t mmc_wait_idma(uint32_t ms)
+{
+    uint32_t t0 = HAL_GetTick();
+    uint32_t bad =
+        SDMMC_FLAG_DCRCFAIL | SDMMC_FLAG_DTIMEOUT | SDMMC_FLAG_RXOVERR | SDMMC_FLAG_TXUNDERR;
+
+    while (!__HAL_MMC_GET_FLAG(&g_mmc, SDMMC_FLAG_DATAEND | bad)) {
+        if ((HAL_GetTick() - t0) > ms) {
+            g_last_err = HAL_MMC_ERROR_TIMEOUT;
+            (void)HAL_MMC_Abort(&g_mmc);
+            g_mmc.State = HAL_MMC_STATE_READY;
+            return ERR_TIMEOUT;
+        }
+    }
+    HAL_MMC_IRQHandler(&g_mmc);
+    g_last_err = HAL_MMC_GetError(&g_mmc);
+    g_mmc.State = HAL_MMC_STATE_READY;
+    if (g_last_err != HAL_MMC_ERROR_NONE) {
+        return ERR_IO;
+    }
+    return ERR_OK;
+}
+
+static err_t mmc_read_idma_once(uint32_t lba, uint32_t n)
+{
+    uint32_t bytes = n * 512u;
+
+    bounce_clean_inv(bytes);
+    if (HAL_MMC_ReadBlocks_DMA(&g_mmc, g_bounce, lba, n) != HAL_OK) {
+        g_last_err = HAL_MMC_GetError(&g_mmc);
+        g_mmc.State = HAL_MMC_STATE_READY;
+        return ERR_IO;
+    }
+    if (mmc_wait_idma(MMC_TIMEOUT_MS) != ERR_OK) {
+        return ERR_IO;
+    }
+    bounce_inv(bytes);
+    return mmc_wait_ready(MMC_TIMEOUT_MS);
+}
+
+static err_t mmc_read_blocks(uint32_t lba, uint32_t n)
+{
+    err_t e = mmc_read_idma_once(lba, n);
+    if (e == ERR_OK) {
+        return ERR_OK;
+    }
+    (void)HAL_MMC_Abort(&g_mmc);
+    g_mmc.State = HAL_MMC_STATE_READY;
+    (void)mmc_wait_ready(MMC_TIMEOUT_MS);
+    return mmc_read_idma_once(lba, n);
+}
+
+static err_t mmc_write_idma_once(uint32_t lba, uint32_t n)
+{
+    uint32_t bytes = n * 512u;
+
+    bounce_clean(bytes);
+    if (HAL_MMC_WriteBlocks_DMA(&g_mmc, g_bounce, lba, n) != HAL_OK) {
+        g_last_err = HAL_MMC_GetError(&g_mmc);
+        g_mmc.State = HAL_MMC_STATE_READY;
+        return ERR_IO;
+    }
+    if (mmc_wait_idma(MMC_TIMEOUT_MS) != ERR_OK) {
+        return ERR_IO;
+    }
+    return mmc_wait_ready(MMC_TIMEOUT_MS);
+}
+
+static err_t mmc_write_blocks(uint32_t lba, uint32_t n)
+{
+    err_t e = mmc_write_idma_once(lba, n);
+    if (e == ERR_OK) {
+        return ERR_OK;
+    }
+    (void)HAL_MMC_Abort(&g_mmc);
+    g_mmc.State = HAL_MMC_STATE_READY;
+    (void)mmc_wait_ready(MMC_TIMEOUT_MS);
+    return mmc_write_idma_once(lba, n);
+}
 
 void HAL_MMC_MspInit(MMC_HandleTypeDef *hmmc)
 {
@@ -91,24 +187,19 @@ static void mmc_fill_init(uint32_t div)
 
 static err_t mmc_probe_read(void)
 {
-    HAL_StatusTypeDef s;
-
-    s = HAL_MMC_ReadBlocks(&g_mmc, g_bounce, 0u, MMC_ALIGN_SEC, MMC_TIMEOUT_MS);
-    g_last_err = HAL_MMC_GetError(&g_mmc);
-    if (s != HAL_OK) {
-        return ERR_IO;
-    }
-    (void)mmc_wait_ready(MMC_TIMEOUT_MS);
-    return ERR_OK;
+    return mmc_read_blocks(0u, MMC_ALIGN_SEC);
 }
 
 static void mmc_set_div(uint32_t div)
 {
-    SDMMC_InitTypeDef init;
+    uint32_t clkcr;
 
+    /* CLKDIV only. SDMMC_Init also clears BUSSPEED and desyncs an HS card. */
     g_mmc.Init.ClockDiv = div;
-    init = g_mmc.Init;
-    (void)SDMMC_Init(g_mmc.Instance, init);
+    clkcr = g_mmc.Instance->CLKCR;
+    clkcr &= ~SDMMC_CLKCR_CLKDIV;
+    clkcr |= (div & SDMMC_CLKCR_CLKDIV);
+    g_mmc.Instance->CLKCR = clkcr;
 }
 
 static err_t mmc_try_fast(void)
@@ -118,6 +209,7 @@ static err_t mmc_try_fast(void)
         return ERR_OK;
     }
     g_last_err = HAL_MMC_GetError(&g_mmc);
+    g_mmc.State = HAL_MMC_STATE_READY;
     mmc_set_div(MMC_CLKDIV_DEFAULT);
     if (mmc_probe_read() == ERR_OK) {
         return ERR_OK;
@@ -164,6 +256,16 @@ err_t board_emmc_init(void)
     }
     g_ready = 1u;
     return ERR_OK;
+}
+
+err_t board_emmc_fallback(void)
+{
+    if (g_ready == 0u) {
+        return ERR_IO;
+    }
+    mmc_set_div(MMC_CLKDIV_INIT);
+    (void)mmc_wait_ready(MMC_TIMEOUT_MS);
+    return mmc_probe_read();
 }
 
 int board_emmc_ready(void)
@@ -237,12 +339,7 @@ DRESULT disk_read(BYTE pdrv, BYTE *buff, LBA_t sector, UINT count)
         if (n > MMC_BOUNCE_SEC) {
             n = MMC_BOUNCE_SEC;
         }
-        if (HAL_MMC_ReadBlocks(&g_mmc, g_bounce, al, n, MMC_TIMEOUT_MS) != HAL_OK) {
-            g_last_err = HAL_MMC_GetError(&g_mmc);
-            return RES_ERROR;
-        }
-        if (mmc_wait_ready(MMC_TIMEOUT_MS) != ERR_OK) {
-            g_last_err = HAL_MMC_GetError(&g_mmc);
+        if (mmc_read_blocks(al, n) != ERR_OK) {
             return RES_ERROR;
         }
         off = (s - al) * 512u;
@@ -283,22 +380,12 @@ DRESULT disk_write(BYTE pdrv, const BYTE *buff, LBA_t sector, UINT count)
             chunk = n - (off / 512u);
         }
         if (off != 0u || chunk != n) {
-            if (HAL_MMC_ReadBlocks(&g_mmc, g_bounce, al, n, MMC_TIMEOUT_MS) != HAL_OK) {
-                g_last_err = HAL_MMC_GetError(&g_mmc);
-                return RES_ERROR;
-            }
-            if (mmc_wait_ready(MMC_TIMEOUT_MS) != ERR_OK) {
-                g_last_err = HAL_MMC_GetError(&g_mmc);
+            if (mmc_read_blocks(al, n) != ERR_OK) {
                 return RES_ERROR;
             }
         }
         memcpy(g_bounce + off, buff + (done * 512u), (size_t)chunk * 512u);
-        if (HAL_MMC_WriteBlocks(&g_mmc, g_bounce, al, n, MMC_TIMEOUT_MS) != HAL_OK) {
-            g_last_err = HAL_MMC_GetError(&g_mmc);
-            return RES_ERROR;
-        }
-        if (mmc_wait_ready(MMC_TIMEOUT_MS) != ERR_OK) {
-            g_last_err = HAL_MMC_GetError(&g_mmc);
+        if (mmc_write_blocks(al, n) != ERR_OK) {
             return RES_ERROR;
         }
         done += chunk;

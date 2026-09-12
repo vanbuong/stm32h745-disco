@@ -101,6 +101,7 @@ const char *board_touch_name(void);
 void board_touch_diag(void);
 
 err_t board_emmc_init(void);
+err_t board_emmc_fallback(void);
 int board_emmc_ready(void);
 uint32_t board_emmc_block_count(void);
 uint32_t board_emmc_last_error(void);

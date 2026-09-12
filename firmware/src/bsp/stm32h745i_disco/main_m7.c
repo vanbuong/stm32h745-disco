@@ -200,6 +200,15 @@ static uint8_t vfs_bringup(void)
         board_console_puts("vfs fmt\r\n");
         e = vfs_format();
     }
+    if (e == ERR_IO && board_emmc_fallback() == ERR_OK) {
+        log_kv("emmc_hz", board_emmc_clock_hz());
+        board_console_puts("vfs remount\r\n");
+        e = vfs_mount();
+        if (e == ERR_CORRUPT) {
+            board_console_puts("vfs fmt\r\n");
+            e = vfs_format();
+        }
+    }
     log_err("vfs", e);
     if (e != ERR_OK) {
         log_kv("emmc_err", board_emmc_last_error());
