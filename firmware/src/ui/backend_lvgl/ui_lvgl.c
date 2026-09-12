@@ -111,6 +111,17 @@ static void style_pill(lv_obj_t *btn, uint32_t color)
     lv_obj_set_style_radius(btn, 16, 0);
 }
 
+static void style_tile_btn(lv_obj_t *btn, uint32_t color)
+{
+    lv_obj_set_style_bg_color(btn, lv_color_hex(color), 0);
+    lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(btn, THEME_TILE_RADIUS_PX, 0);
+    lv_obj_set_style_shadow_width(btn, 0, 0);
+    lv_obj_set_style_border_width(btn, 0, 0);
+    lv_obj_set_style_pad_all(btn, 0, 0);
+    lv_obj_clear_flag(btn, LV_OBJ_FLAG_SCROLLABLE);
+}
+
 static lv_obj_t *add_card(int32_t x, int32_t y, int32_t w, int32_t h)
 {
     lv_obj_t *card = lv_obj_create(s_content);
@@ -363,22 +374,23 @@ static void build_launcher(void)
         lv_obj_add_event_cb(cell, tile_cb, LV_EVENT_CLICKED, (void *)app);
 
         btn = lv_button_create(cell);
-        lv_obj_set_pos(btn, 4, 0);
-        lv_obj_set_size(btn, 64, 64);
-        style_round_btn(btn, tile_color(app->id));
+        lv_obj_set_pos(btn, 0, 0);
+        lv_obj_set_size(btn, (int32_t)r.w, (int32_t)r.h);
+        style_tile_btn(btn, tile_color(app->id));
         lv_obj_add_flag(btn, LV_OBJ_FLAG_EVENT_BUBBLE);
         icon = lv_label_create(btn);
         lv_label_set_text(icon, tile_symbol(app->id));
+        lv_obj_set_style_text_font(icon, &lv_font_montserrat_20, 0);
         lv_obj_set_style_text_color(icon, lv_color_hex(0xFFFFFFu), 0);
-        lv_obj_center(icon);
+        lv_obj_align(icon, LV_ALIGN_TOP_MID, 0, 18);
 
-        lab = lv_label_create(cell);
+        lab = lv_label_create(btn);
         lv_label_set_text(lab, app->title);
-        lv_obj_set_style_text_color(lab, lv_color_hex(THEME_TEXT), 0);
+        lv_obj_set_style_text_color(lab, lv_color_hex(0xFFFFFFu), 0);
         lv_obj_set_style_text_font(lab, &lv_font_montserrat_12, 0);
         lv_obj_set_width(lab, (int32_t)r.w);
         lv_obj_set_style_text_align(lab, LV_TEXT_ALIGN_CENTER, 0);
-        lv_obj_set_pos(lab, 0, 66);
+        lv_obj_align(lab, LV_ALIGN_BOTTOM_MID, 0, -10);
     }
 }
 

@@ -10,10 +10,10 @@ extern "C" {
 #define LAUNCHER_COLS 3
 #define LAUNCHER_ROWS 2
 #define LAUNCHER_COUNT (LAUNCHER_COLS * LAUNCHER_ROWS)
-#define LAUNCHER_TILE_PX 72
-#define LAUNCHER_TILE_H 88
+#define LAUNCHER_TILE_PX 108
+#define LAUNCHER_TILE_H 86
 #define LAUNCHER_GUTTER_PX 16
-#define LAUNCHER_GREET_H 40
+#define LAUNCHER_GREET_H 32
 
 typedef struct {
     uint16_t x;
