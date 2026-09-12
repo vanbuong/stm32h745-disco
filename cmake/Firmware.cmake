@@ -212,7 +212,6 @@ function(stm32_add_firmware CORE_ID)
     )
     target_link_options(${TGT} PRIVATE
         ${CPU_FLAGS}
-        -T${LINKER}
         -nostartfiles
         -Wl,--gc-sections
         -Wl,-Map=$<TARGET_FILE_DIR:${TGT}>/${TGT}.map

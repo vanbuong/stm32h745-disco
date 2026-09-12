@@ -2,6 +2,7 @@
   "cmake.useCMakePresets": "always",
   "cmake.configurePreset": "Debug",
   "cmake.buildPreset": "Debug",
+  "cmake.buildTarget": "all",
   "cmake.configureOnOpen": true,
   "cmake.options.statusBarVisibility": "visible",
   "cmake.preferredGenerators": ["Ninja", "Unix Makefiles"],

@@ -13,8 +13,6 @@
     },
     {
       "name": "Debug",
-      "displayName": "Debug (M7 + M4)",
-      "description": "STM32CubeIDE for VS Code / CMake Tools default firmware build",
       "inherits": "default",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug"
@@ -22,7 +20,6 @@
     },
     {
       "name": "Release",
-      "displayName": "Release (M7 + M4)",
       "inherits": "default",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"

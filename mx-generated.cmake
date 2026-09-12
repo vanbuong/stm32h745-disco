@@ -18,10 +18,19 @@ if(NOT DEFINED BUILD_CONTEXT)
     endif()
 endif()
 
-#-----------------------Build CM4 Project-----------------------#
+set(_mx_build_cm4 FALSE)
+set(_mx_build_cm7 FALSE)
 if(("${BUILD_CONTEXT}" MATCHES "CM4") OR (NOT DEFINED BUILD_CONTEXT))
+    set(_mx_build_cm4 TRUE)
+endif()
+if(("${BUILD_CONTEXT}" MATCHES "CM7") OR (NOT DEFINED BUILD_CONTEXT))
+    set(_mx_build_cm7 TRUE)
+endif()
+
+#-----------------------Build CM4 Project-----------------------#
+if(_mx_build_cm4)
     message("   Build context: " CM4)
-    ExternalProject_Add(stm32h745-disco_CM4
+    ExternalProject_Add(_ext_CM4
         BINARY_DIR                  ${CMAKE_SOURCE_DIR}/CM4/build
         SOURCE_DIR                  ${PROJECT_SOURCE_DIR}/CM4
         PREFIX                      CM4
@@ -34,14 +43,12 @@ if(("${BUILD_CONTEXT}" MATCHES "CM4") OR (NOT DEFINED BUILD_CONTEXT))
     set(ST_DUAL_CORE_CM4_PROJECT_BUILD_TARGET
         ${CMAKE_SOURCE_DIR}/CM4/build/stm32h745-disco_CM4${CMAKE_EXECUTABLE_SUFFIX_CXX}
         CACHE FILEPATH "Path to cm4 project target")
-    # STM32 VS Code may invoke the child executable name at the superbuild.
-    add_custom_target(firmware-m4 DEPENDS stm32h745-disco_CM4)
 endif()
 
 #-----------------------Build CM7 Project-----------------------#
-if(("${BUILD_CONTEXT}" MATCHES "CM7") OR (NOT DEFINED BUILD_CONTEXT))
+if(_mx_build_cm7)
     message("   Build context: " CM7)
-    ExternalProject_Add(stm32h745-disco_CM7
+    ExternalProject_Add(_ext_CM7
         BINARY_DIR                  ${CMAKE_SOURCE_DIR}/CM7/build
         SOURCE_DIR                  ${PROJECT_SOURCE_DIR}/CM7
         PREFIX                      CM7
@@ -54,5 +61,15 @@ if(("${BUILD_CONTEXT}" MATCHES "CM7") OR (NOT DEFINED BUILD_CONTEXT))
     set(ST_DUAL_CORE_CM7_PROJECT_BUILD_TARGET
         ${CMAKE_SOURCE_DIR}/CM7/build/stm32h745-disco_CM7${CMAKE_EXECUTABLE_SUFFIX_CXX}
         CACHE FILEPATH "Path to cm7 project target")
-    add_custom_target(firmware-m7 DEPENDS stm32h745-disco_CM7)
+endif()
+
+# STM32 VS Code often runs `cmake --build --target <one core>` after configure
+# (blinky gets the default `all` target). Make either core name build both ELFs.
+if(_mx_build_cm4 AND _mx_build_cm7)
+    add_custom_target(stm32h745-disco_CM4 ALL DEPENDS _ext_CM4 _ext_CM7)
+    add_custom_target(stm32h745-disco_CM7 ALL DEPENDS _ext_CM4 _ext_CM7)
+elseif(_mx_build_cm4)
+    add_custom_target(stm32h745-disco_CM4 ALL DEPENDS _ext_CM4)
+elseif(_mx_build_cm7)
+    add_custom_target(stm32h745-disco_CM7 ALL DEPENDS _ext_CM7)
 endif()
