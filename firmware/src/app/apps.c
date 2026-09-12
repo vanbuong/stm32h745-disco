@@ -2,6 +2,7 @@
 
 #include "app/calendar.h"
 #include "app/files.h"
+#include "app/game.h"
 #include "app/image_view.h"
 #include "app/network.h"
 #include "app/player.h"
@@ -112,10 +113,26 @@ static void calendar_stop(void)
     calendar_close();
 }
 
+static void game_start(void *args)
+{
+    (void)args;
+    game_open(0, 0);
+}
+
+static void game_stop(void)
+{
+    game_close();
+}
+
+static void game_on_tick(uint32_t dt_ms)
+{
+    game_step(dt_ms);
+}
+
 static const ui_app_t g_apps[] = {
     {APP_ID_FILES, "Files", "files", files_start, files_stop, stub_tick, stub_event},
     {APP_ID_HOME, "Home", "home", stub_start, stub_stop, stub_tick, stub_event},
-    {APP_ID_GAME, "Game", "game", stub_start, stub_stop, stub_tick, stub_event},
+    {APP_ID_GAME, "Game", "game", game_start, game_stop, game_on_tick, stub_event},
     {APP_ID_PLAYER, "Music", "player", player_start, player_stop, stub_tick, stub_event},
     {APP_ID_CALENDAR, "Calendar", "calendar", calendar_start, calendar_stop, stub_tick, stub_event},
     {APP_ID_SETTINGS, "Settings", "settings", settings_start, stub_stop, network_tick, stub_event},

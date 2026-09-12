@@ -86,12 +86,12 @@ The STM32 configuration tool may add local `cube-cmake` / `starm-clangd` keys to
 
 CI: format, layering, cppcheck, clang-tidy, coverage, and both ELF images — see `doc/CICD.md`.
 
-## Sprint 9 boot log (USART3 115200)
+## Sprint 10 boot log (USART3 115200)
 
-After memory, eMMC, and display bring-up the M7 starts the LVGL shell (32 px status + 3×2 launcher). The status bar shows time from the RTC, **eMMC**, **M4**, and **ETH** (red = down, amber = link/no IPv4, green = IPv4). Files lists `/user`; tap a folder or a known type to open the text, image, or audio player. Network shows link, speed, IPv4, MAC, and dhcp/static. LD2 (PI13) still blinks:
+After memory, eMMC, and display bring-up the M7 starts the LVGL shell (32 px status + 3×2 launcher: Files, Home, Game, Music, Calendar, Settings). The status bar shows time from the RTC, **eMMC**, **M4**, and **ETH** (red = down, amber = link/no IPv4, green = IPv4). Files lists `/user`; tap a folder or a known type to open the text, image, or audio player. Settings shows link, IPv4, path, and NTP. Game is Brick (playfield + high score in `/user/game`). LD2 (PI13) still blinks:
 
 ```
-M7 stm32h745-disco s9
+M7 stm32h745-disco s10
 clk ok
 sysclk 1C9C3800
 mpu on

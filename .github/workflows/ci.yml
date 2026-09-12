@@ -36,6 +36,7 @@ jobs:
           gcovr --root . \
             --filter 'firmware/src/svc' \
             --filter 'firmware/src/ipc' \
+            --filter 'firmware/src/game' \
             --exclude 'firmware/src/osal' \
             --exclude 'firmware/src/svc/vendor' \
             --fail-under-line 80 \
@@ -98,7 +99,10 @@ jobs:
             firmware/src/app/files.c \
             firmware/src/app/image_view.c \
             firmware/src/app/player.c \
-            firmware/src/app/network.c
+            firmware/src/app/network.c \
+            firmware/src/app/game.c \
+            firmware/src/game/gfx.c \
+            firmware/src/game/brick.c
 
   cross:
     runs-on: ubuntu-24.04

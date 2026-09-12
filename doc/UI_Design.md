@@ -118,8 +118,9 @@ App registry (extensible):
 | `home` | Home | P1 |
 | `game` | Game | P1 |
 | `player` | Music | P1 |
+| `calendar` | Calendar | P1 |
 | `settings` | Settings | P1 |
-| `network` | Network | P1 |
+| `network` | Network (Settings page; not a home tile) | P2 |
 
 ```mermaid
 stateDiagram-v2
@@ -128,7 +129,7 @@ stateDiagram-v2
   Launcher --> Home: tile
   Launcher --> Game: tile
   Launcher --> Player: tile
-  Launcher --> Network: tile
+  Launcher --> Calendar: tile
   Launcher --> Settings: tile
   Files --> Text: open .txt
   Files --> Image: open .jpg
@@ -151,14 +152,14 @@ Home hardware button from any state: pop to Launcher (Game pauses first if playi
 
 ### 7.1 Launcher
 
-3×2 grid of 72×72 tiles, 16 px gutter, centered in 480×240.
+3×2 rounded-rect tiles (108×86, radius 16), 16 px gutter. Greeting row above the grid.
 
 ```
 ┌──────────┐  ┌──────────┐  ┌──────────┐
 │  Files   │  │   Home   │  │   Game   │
 └──────────┘  └──────────┘  └──────────┘
 ┌──────────┐  ┌──────────┐  ┌──────────┐
-│  Music   │  │ Network  │  │ Settings │
+│  Music   │  │ Calendar │  │ Settings │
 └──────────┘  └──────────┘  └──────────┘
 ```
 

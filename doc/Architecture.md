@@ -326,7 +326,7 @@ void gfx_blit(gfx_t *fx, int x, int y, const gfx_sprite_t *s);
 
 Host tests run `tick`/`input` with a fake `gfx` that records fill rects. The LVGL backend may implement `gfx_t` as an `lv_canvas` **or** a raw RGB565 buffer flushed with `disp_flush`. A later Zephyr port keeps `game_module_t`.
 
-First bundled module: **Brick** (breakout-style paddle + bricks) on the 480×200 playfield. Extra modules (Snake, puzzle) register in the same host; do not fork the app.
+First bundled module: **Brick** (breakout-style paddle + bricks) on a `reset(w,h)` playfield (typically 480 × content-minus-app-bar). Extra modules (Snake, puzzle) register with `game_module_by_id`; do not fork the app.
 
 While a game is foreground it may borrow the image-decode SDRAM window. Leaving the game releases that buffer.
 

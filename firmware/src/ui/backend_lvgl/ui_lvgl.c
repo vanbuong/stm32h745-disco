@@ -3,6 +3,7 @@
 #include "app/apps.h"
 #include "app/calendar.h"
 #include "app/files.h"
+#include "app/game.h"
 #include "app/image_view.h"
 #include "app/network.h"
 #include "app/player.h"
@@ -52,6 +53,11 @@ static lv_obj_t *s_cal_clock;
 static lv_obj_t *s_cal_date;
 static lv_obj_t *s_cal_ntp;
 static uint32_t s_cal_gen = 0xFFFFFFFFu;
+static lv_obj_t *s_game_img;
+static lv_obj_t *s_game_score;
+static lv_obj_t *s_game_high;
+static lv_obj_t *s_game_lives;
+static uint32_t s_game_gen = 0xFFFFFFFFu;
 static lv_image_dsc_t s_img_dsc;
 
 static lv_obj_t *add_label(lv_obj_t *parent, const char *txt, int32_t x, int32_t y, int32_t w,
@@ -273,6 +279,12 @@ static void back_cb(lv_event_t *e)
         }
         if (files_back() != 0) {
             log_nav("files", files_cwd());
+            return;
+        }
+    }
+    if (id != NULL && strcmp(id, APP_ID_GAME) == 0) {
+        if (game_on_back() != 0u) {
+            log_nav("game", "pause");
             return;
         }
     }
@@ -998,15 +1010,174 @@ static void build_home(void)
     add_room_chip(s_content, 280, THEME_APPBAR_H + 126, "Bedroom", THEME_TILE_NET);
 }
 
+static void game_pause_cb(lv_event_t *e)
+{
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
+        return;
+    }
+    if (game_phase() == GAME_PHASE_PLAY) {
+        game_pause();
+    } else if (game_phase() == GAME_PHASE_PAUSE) {
+        game_resume();
+    }
+}
+
+static void game_resume_cb(lv_event_t *e)
+{
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
+        return;
+    }
+    game_resume();
+}
+
+static void game_new_cb(lv_event_t *e)
+{
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
+        return;
+    }
+    game_new();
+}
+
+static void game_quit_cb(lv_event_t *e)
+{
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
+        return;
+    }
+    shell_home();
+    log_nav("shell_home", NULL);
+}
+
+static void game_ptr_cb(lv_event_t *e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t *obj = (lv_obj_t *)lv_event_get_target(e);
+    lv_indev_t *indev;
+    lv_point_t p;
+    lv_area_t a;
+    input_kind_t kind;
+    int16_t x;
+    int16_t y;
+
+    if (code == LV_EVENT_PRESSED) {
+        kind = INPUT_PTR_DOWN;
+    } else if (code == LV_EVENT_PRESSING) {
+        kind = INPUT_PTR_MOVE;
+    } else if (code == LV_EVENT_RELEASED) {
+        kind = INPUT_PTR_UP;
+    } else {
+        return;
+    }
+    indev = lv_event_get_indev(e);
+    if (indev == NULL) {
+        indev = lv_indev_active();
+    }
+    if (indev == NULL || obj == NULL) {
+        return;
+    }
+    lv_indev_get_point(indev, &p);
+    lv_obj_get_coords(obj, &a);
+    x = (int16_t)(p.x - a.x1);
+    y = (int16_t)(p.y - a.y1);
+    game_pointer(kind, x, y);
+}
+
+static void bind_game_image(void)
+{
+    memset(&s_img_dsc, 0, sizeof(s_img_dsc));
+    s_img_dsc.header.magic = LV_IMAGE_HEADER_MAGIC;
+    s_img_dsc.header.cf = LV_COLOR_FORMAT_RGB565;
+    s_img_dsc.header.w = game_field_w();
+    s_img_dsc.header.h = game_field_h();
+    s_img_dsc.header.stride = (uint32_t)game_field_stride() * 2u;
+    s_img_dsc.data_size = (uint32_t)game_field_stride() * (uint32_t)game_field_h() * 2u;
+    s_img_dsc.data = (const uint8_t *)game_pixels();
+}
+
+static void refresh_game_live(void)
+{
+    uint16_t want_h;
+
+    if (shell_top_id() == NULL || strcmp(shell_top_id(), APP_ID_GAME) != 0) {
+        return;
+    }
+    want_h = (uint16_t)(content_h() - THEME_APPBAR_H);
+    if (want_h < 80u) {
+        want_h = 80u;
+    }
+    if (game_field_w() != THEME_PANEL_W || game_field_h() != want_h) {
+        game_resize(THEME_PANEL_W, want_h);
+        bind_game_image();
+        if (s_game_img != NULL) {
+            lv_obj_set_size(s_game_img, THEME_PANEL_W, (int32_t)want_h);
+            lv_image_set_src(s_game_img, &s_img_dsc);
+        }
+    }
+    label_set(s_game_score, game_score_str());
+    label_set(s_game_high, game_high_str());
+    label_set(s_game_lives, game_lives_str());
+    if (s_game_img != NULL) {
+        lv_obj_invalidate(s_game_img);
+    }
+}
+
+static void build_game_overlay(game_phase_t phase)
+{
+    lv_obj_t *card;
+    int32_t y = THEME_APPBAR_H + 36;
+
+    if (phase == GAME_PHASE_PAUSE) {
+        card = add_card(80, y, 320, 96);
+        add_label(card, "Paused", 16, 10, 288, 22, THEME_TEXT, LV_FONT_DEFAULT);
+        add_pill_btn(card, 16, 44, 136, 40, "Resume", THEME_TILE_GAME, 0xFFFFFFu, game_resume_cb);
+        add_pill_btn(card, 168, 44, 136, 40, "Quit", THEME_SURFACE_2, THEME_TEXT, game_quit_cb);
+        return;
+    }
+    card = add_card(80, y, 320, 110);
+    add_label(card, "Game over", 16, 10, 288, 22, THEME_TEXT, LV_FONT_DEFAULT);
+    add_label(card, game_score_str(), 16, 34, 288, 18, THEME_MUTED, &lv_font_montserrat_12);
+    add_pill_btn(card, 16, 58, 136, 40, "New game", THEME_TILE_GAME, 0xFFFFFFu, game_new_cb);
+    add_pill_btn(card, 168, 58, 136, 40, "Quit", THEME_SURFACE_2, THEME_TEXT, game_quit_cb);
+}
+
 static void build_game(void)
 {
-    lv_obj_t *card = add_card(16, THEME_APPBAR_H + 12, 448, 140);
+    lv_obj_t *bar;
+    uint16_t field_h;
+    game_phase_t phase;
 
-    make_bar("Game");
-    add_icon_circle(card, 16, 24, 64, THEME_TILE_GAME, LV_SYMBOL_PLAY);
-    add_label(card, "Brick Breaker", 96, 28, 320, 24, THEME_TEXT, LV_FONT_DEFAULT);
-    add_label(card, "A playfield and high scores land in a later sprint.", 96, 58, 320, 48,
-              THEME_MUTED, &lv_font_montserrat_12);
+    field_h = (uint16_t)(content_h() - THEME_APPBAR_H);
+    if (field_h < 80u) {
+        field_h = 80u;
+    }
+    game_resize(THEME_PANEL_W, field_h);
+    phase = game_phase();
+    bar = make_bar("Brick");
+    add_label(bar, "SCORE", 96, 4, 56, 14, THEME_MUTED, &lv_font_montserrat_12);
+    s_game_score =
+        add_label(bar, game_score_str(), 96, 18, 56, 18, THEME_TEXT, &lv_font_montserrat_12);
+    add_label(bar, "LIVES", 168, 4, 48, 14, THEME_MUTED, &lv_font_montserrat_12);
+    s_game_lives =
+        add_label(bar, game_lives_str(), 168, 18, 48, 18, THEME_TEXT, &lv_font_montserrat_12);
+    add_label(bar, "HIGH", 228, 4, 56, 14, THEME_MUTED, &lv_font_montserrat_12);
+    s_game_high =
+        add_label(bar, game_high_str(), 228, 18, 80, 18, THEME_TILE_GAME, &lv_font_montserrat_12);
+    add_nav_btn(bar, THEME_PANEL_W - THEME_HIT_MIN_PX,
+                (phase == GAME_PHASE_PLAY) ? LV_SYMBOL_PAUSE : LV_SYMBOL_PLAY, game_pause_cb, 0);
+
+    bind_game_image();
+    s_game_img = lv_image_create(s_content);
+    lv_obj_set_pos(s_game_img, 0, THEME_APPBAR_H);
+    lv_obj_set_size(s_game_img, THEME_PANEL_W, (int32_t)field_h);
+    lv_image_set_src(s_game_img, &s_img_dsc);
+    lv_obj_add_flag(s_game_img, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_clear_flag(s_game_img, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_event_cb(s_game_img, game_ptr_cb, LV_EVENT_PRESSED, NULL);
+    lv_obj_add_event_cb(s_game_img, game_ptr_cb, LV_EVENT_PRESSING, NULL);
+    lv_obj_add_event_cb(s_game_img, game_ptr_cb, LV_EVENT_RELEASED, NULL);
+
+    if (phase != GAME_PHASE_PLAY) {
+        build_game_overlay(phase);
+    }
 }
 
 static void build_settings(void)
@@ -1193,6 +1364,10 @@ static void rebuild_content(void)
     s_cal_clock = NULL;
     s_cal_date = NULL;
     s_cal_ntp = NULL;
+    s_game_img = NULL;
+    s_game_score = NULL;
+    s_game_high = NULL;
+    s_game_lives = NULL;
     lv_obj_clean(s_content);
     id = shell_top_id();
     if (id == NULL) {
@@ -1329,6 +1504,7 @@ err_t ui_backend_init(void)
     s_files_gen = 0xFFFFFFFFu;
     s_text_gen = 0xFFFFFFFFu;
     s_img_gen = 0xFFFFFFFFu;
+    s_game_gen = 0xFFFFFFFFu;
     refresh_status();
     rebuild_content();
     s_gen = shell_nav_gen();
@@ -1337,6 +1513,7 @@ err_t ui_backend_init(void)
     s_img_gen = image_view_gen();
     s_net_gen = network_gen();
     s_cal_gen = calendar_gen();
+    s_game_gen = game_gen();
     return ERR_OK;
 }
 
@@ -1348,6 +1525,7 @@ void ui_backend_handler(void)
     uint32_t igen = image_view_gen();
     uint32_t ngen = network_gen();
     uint32_t cgen = calendar_gen();
+    uint32_t ggen = game_gen();
     uint8_t audio = audio_active();
     const char *id = shell_top_id();
     uint8_t show_mini = (audio != 0u && (id == NULL || strcmp(id, APP_ID_PLAYER) != 0)) ? 1u : 0u;
@@ -1374,18 +1552,20 @@ void ui_backend_handler(void)
     /* Do not rebuild on player_gen: elapsed time used to recreate the whole
      * tree every second, which flickered and ate taps. */
     if (gen != s_gen || fgen != s_files_gen || tgen != s_text_gen || igen != s_img_gen ||
-        ngen != s_net_gen || cgen != s_cal_gen || audio != s_last_audio) {
+        ngen != s_net_gen || cgen != s_cal_gen || ggen != s_game_gen || audio != s_last_audio) {
         s_gen = gen;
         s_files_gen = fgen;
         s_text_gen = tgen;
         s_img_gen = igen;
         s_net_gen = ngen;
         s_cal_gen = cgen;
+        s_game_gen = ggen;
         s_last_audio = audio;
         rebuild_content();
     }
     refresh_player_live();
     refresh_calendar_live();
+    refresh_game_live();
     if (shell_status()->min != s_last_min || shell_status()->m4 != s_last_m4 ||
         shell_status()->storage_ok != s_last_stor || shell_status()->net != s_last_net) {
         refresh_status();

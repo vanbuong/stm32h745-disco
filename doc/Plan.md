@@ -214,6 +214,14 @@ Status: **done** (host-tested net service, DHCP/static, 10 s failover, RTC clock
 - Optional ESP32 failover **only** if `NET_WIFI` is compiled; default off (host tests inject a fake Wi-Fi link).
 - **Exit:** DHCP or static IP shown; unplug RJ45 updates status < 2 s (PHY poll 200 ms); if ESP32 enabled, failover within the REQ-NET timeout.
 
+Follow-on (landed after the Sprint 9 exit, still not Sprint 10):
+
+- Launcher is **Files, Home, Game, Music, Calendar, Settings**. Network is not a home tile.
+- Network status lives in **Settings** (link, IPv4, path, NTP). Opening `APP_ID_NETWORK` shows Settings.
+- SNTP to **216.239.35.0** when Ethernet has IPv4; time is UTC; `SNTP_SET_SYSTEM_TIME` → `time_ntp_apply_unix`.
+- Calendar month grid (drawn with objs, not `lv_calendar`) + live clock. Tile shows today’s day number.
+- Light theme, rounded-rect home tiles, mini-player-aware launcher height.
+
 ### Follow-up — DMA2D + JPEG hardware (after Sprint 9, not Sprint 10)
 
 Status: **planned** (REQ-IMG-03 is still a stub: `media_jpeg_hw_decode` returns `ERR_UNSUPPORTED`).
@@ -253,9 +261,23 @@ The JPEG codec outputs YCbCr MCU blocks, not RGB565. DMA2D (Chrom-ART) is the H7
 
 ### Sprint 10 — Game
 
-- `game_module_t` host + **Brick** (paddle, bricks, one-finger drag).
-- `gfx_*` on a playfield buffer; pause on Back/Home; high score in `/user/game`.
-- **Exit:** host tests for collision/score; HIL ≥ 30 FPS; Home button returns to launcher with audio still healthy.
+Status: **done** (host-tested Brick collision/score/`gfx` spy + VFS high score; firmware links M7 playfield).
+
+`game_module_t` host + **Brick** (paddle, bricks, one-finger drag). `gfx_*` on a playfield buffer; pause on Back/Home; high score in `/user/game`.
+
+Lock:
+
+- **Sim:** `game_module_t` in `src/game`. First module id `brick`. No LVGL, HAL, or FatFs in `src/game`. Apps stay LVGL-free; `src/app/game.c` is the shell wrapper (VFS save + tick/draw).
+- **Draw:** `gfx_clear` / `gfx_fill` / `gfx_blit` into one RGB565 playfield. LVGL shows that buffer as a single `lv_image`. Not one widget per brick. Host tests use a `gfx` spy (clear + paddle fill).
+- **Buffer:** while Game is foreground, borrow the image SDRAM window at `+0x0C0000` (host: static 480×240). Leaving Game releases it for the viewer. Do not enable `LV_USE_DRAW_DMA2D` or JPEG HW in this sprint.
+- **Field:** `reset(w,h)` sized to `content_h() - APPBAR_H` (mini-player may shrink it). App bar stays (Back + live score/lives/high + pause). Drag band on the lower playfield ≥ 40 px (56 px when height allows).
+- **Control:** one-finger drag only. Back while playing pauses; Back while paused or game-over pops. Pause overlay: Resume + Quit. Game-over: New game + Quit. Home / Quit returns to launcher; `game_close` must not stop audio.
+- **Save:** high score in `/user/game/brick.sav` (decimal text). `vfs_mkdir("/user/game")` if needed. Keep the value in RAM if VFS is down.
+- **Tick:** do not rebuild the widget tree on every `game_step` (same rule as player elapsed). Bump `game_gen` only on pause / resume / new / over.
+- **Registry:** `game_module_by_id("brick")` so a second title can register later without changing the shell. No second title in this sprint.
+- **Out:** no DMA2D blit, no extra NVIC, no SDMMC/ETH/SAI vectors, no ZNP pairing, no Home automations.
+
+- **Exit:** host tests for collision/score/`gfx` spy; HIL ≥ 30 FPS; Home returns to launcher with audio still healthy.
 
 ### Sprint 11 — Zigbee host (TI ZNP)
 
@@ -334,7 +356,7 @@ Rationale: 40 px minimum hit targets, more room for lists and images, matches LV
 | Host sim only on Linux | One SDL2 backend; CI links Ubuntu and Windows |
 | Sim widgets drift from the board | Same `ui_lvgl.c` + apps/shell; only `lv_port` / `lv_conf` / VFS / tick differ |
 | `host-tests` accidentally link LVGL | Keep presets separate; layering + CICD forbid LVGL in unit tests |
-| Scope (MQTT export, climate, extra games, NTP, Wi-Fi) | C/P2; do not block Files, Brick, or Zigbee OnOff |
+| Scope (MQTT export, climate, extra games, Wi-Fi) | C/P2; do not block Files, Brick, or Zigbee OnOff |
 
 ## 7. Deliverables per milestone
 
