@@ -10,19 +10,18 @@
 #include <string.h>
 
 /*
- * eMMC on SDMMC1, 8-bit (UM2488). IDMA into a 32-byte-aligned AXI bounce.
- * The Cortex-M vector table has no SDMMC IRQ, so completion is polled.
- * CPU FIFO polling overruns at 50 MHz 8-bit; the next CMD then times out
- * (HAL_MMC_ERROR_CMD_RSP_TIMEOUT = 4) and FatFs mount returns ERR_IO.
+ * eMMC on SDMMC1, 8-bit. Init matches Cube H7 V1.13.0
+ * FatFs_Shared_Device MX_MMC_SD_Init: ClockDiv 8 (12.5 MHz @ PLL1Q
+ * 200 MHz), rising edge, no HFC, no HS switch. That example's FatFs
+ * path uses polling HAL_MMC_Read/WriteBlocks; we use SDMMC IDMA into a
+ * 32-byte-aligned AXI bounce and poll DATAEND (vector table has no
+ * SDMMC1 IRQ). 4 KB native pages need 8-sector aligned transfers.
  */
 
 #define MMC_ALIGN_SEC 8u
 #define MMC_BOUNCE_SEC 64u
 #define MMC_TIMEOUT_MS 2000u
-/* PLL1Q 200 MHz, SDMMC_CK = ker / (2 * div). Init in default speed (≤26 MHz),
- * then HS switch programs div 2 → 50 MHz. */
-#define MMC_CLKDIV_INIT 8u
-#define MMC_CLKDIV_DEFAULT 4u
+#define MMC_CLKDIV_CUBE 8u
 #define MMC_CLKDIV_SLOW 16u
 
 static MMC_HandleTypeDef g_mmc;
@@ -194,28 +193,11 @@ static void mmc_set_div(uint32_t div)
 {
     uint32_t clkcr;
 
-    /* CLKDIV only. SDMMC_Init also clears BUSSPEED and desyncs an HS card. */
     g_mmc.Init.ClockDiv = div;
     clkcr = g_mmc.Instance->CLKCR;
     clkcr &= ~SDMMC_CLKCR_CLKDIV;
     clkcr |= (div & SDMMC_CLKCR_CLKDIV);
     g_mmc.Instance->CLKCR = clkcr;
-}
-
-static err_t mmc_try_fast(void)
-{
-    if (HAL_MMC_ConfigSpeedBusOperation(&g_mmc, SDMMC_SPEED_MODE_HIGH) == HAL_OK &&
-        mmc_probe_read() == ERR_OK) {
-        return ERR_OK;
-    }
-    g_last_err = HAL_MMC_GetError(&g_mmc);
-    g_mmc.State = HAL_MMC_STATE_READY;
-    mmc_set_div(MMC_CLKDIV_DEFAULT);
-    if (mmc_probe_read() == ERR_OK) {
-        return ERR_OK;
-    }
-    mmc_set_div(MMC_CLKDIV_INIT);
-    return mmc_probe_read();
 }
 
 err_t board_emmc_init(void)
@@ -229,7 +211,8 @@ err_t board_emmc_init(void)
         return ERR_IO;
     }
 
-    mmc_fill_init(MMC_CLKDIV_INIT);
+    /* Cube MX_MMC_SD_Init: ClockDiv 8, no ConfigSpeedBusOperation. */
+    mmc_fill_init(MMC_CLKDIV_CUBE);
     if (HAL_MMC_Init(&g_mmc) != HAL_OK) {
         g_ready = 0u;
         g_last_err = HAL_MMC_GetError(&g_mmc);
@@ -251,8 +234,6 @@ err_t board_emmc_init(void)
         if (HAL_MMC_GetCardInfo(&g_mmc, &info) == HAL_OK) {
             g_blocks = info.LogBlockNbr;
         }
-    } else {
-        (void)mmc_try_fast();
     }
     g_ready = 1u;
     return ERR_OK;
@@ -263,7 +244,7 @@ err_t board_emmc_fallback(void)
     if (g_ready == 0u) {
         return ERR_IO;
     }
-    mmc_set_div(MMC_CLKDIV_INIT);
+    mmc_set_div(MMC_CLKDIV_CUBE);
     (void)mmc_wait_ready(MMC_TIMEOUT_MS);
     return mmc_probe_read();
 }
