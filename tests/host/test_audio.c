@@ -257,6 +257,37 @@ static void test_engine_and_errors(void)
     TEST_ASSERT_EQUAL_INT(AUDIO_ST_IDLE, audio_state());
 }
 
+static void test_demo_seq(void)
+{
+    audio_stream_t s;
+    int16_t pcm[64];
+    uint32_t un = 0u;
+    unsigned i;
+    int32_t energy = 0;
+
+    TEST_ASSERT_EQUAL_INT(ERR_OK, media_open_audio("/user/demo.mp3", &s));
+    TEST_ASSERT_EQUAL_UINT8(AUDIO_KIND_SEQ, s.kind);
+    TEST_ASSERT_EQUAL_UINT32(44100u, s.sample_hz);
+    TEST_ASSERT_EQUAL_UINT8(2u, s.channels);
+    TEST_ASSERT_EQUAL_UINT32(AUDIO_SEQ_DURATION_MS, s.duration_ms);
+    TEST_ASSERT_EQUAL_INT(ERR_OK, audio_engine_start(&s));
+    TEST_ASSERT_EQUAL_UINT(32u, audio_engine_fill(pcm, 32u, NULL, &un));
+    TEST_ASSERT_EQUAL_UINT32(0u, un);
+    TEST_ASSERT_EQUAL_UINT8(0u, audio_engine_done());
+    for (i = 0u; i < 64u; i++) {
+        int16_t v = pcm[i];
+        energy += (v < 0) ? -(int32_t)v : (int32_t)v;
+    }
+    TEST_ASSERT_GREATER_THAN_INT32(0, energy);
+    TEST_ASSERT_EQUAL_INT(ERR_OK, audio_play("/user/demo.mp3"));
+    TEST_ASSERT_EQUAL_INT(AUDIO_ST_PLAY, audio_state());
+    TEST_ASSERT_EQUAL_STRING("demo.mp3", audio_title());
+    audio_poll(0u);
+    TEST_ASSERT_GREATER_THAN_UINT32(0u, audio_decoded_frames());
+    TEST_ASSERT_EQUAL_INT(ERR_OK, audio_stop());
+    audio_engine_reset();
+}
+
 static void test_player_volume(void)
 {
     uint8_t wav[256];
@@ -286,5 +317,6 @@ void test_audio_run(void)
     RUN_TEST(test_play_wav);
     RUN_TEST(test_player);
     RUN_TEST(test_engine_and_errors);
+    RUN_TEST(test_demo_seq);
     RUN_TEST(test_player_volume);
 }

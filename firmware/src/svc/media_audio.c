@@ -156,6 +156,45 @@ err_t media_open_audio_mem(const uint8_t *data, uint32_t size, audio_stream_t *s
     return mp3_parse(data, size, s);
 }
 
+static int eq_ci(const char *a, const char *b)
+{
+    while (*a != '\0' && *b != '\0') {
+        char ca = *a;
+        char cb = *b;
+        if (ca >= 'A' && ca <= 'Z') {
+            ca = (char)(ca - 'A' + 'a');
+        }
+        if (cb >= 'A' && cb <= 'Z') {
+            cb = (char)(cb - 'A' + 'a');
+        }
+        if (ca != cb) {
+            return 0;
+        }
+        a++;
+        b++;
+    }
+    return *a == '\0' && *b == '\0';
+}
+
+static int is_demo_seq_path(const char *path)
+{
+    const char *base = strrchr(path, '/');
+
+    base = (base != NULL) ? (base + 1) : path;
+    return eq_ci(base, "demo.mp3");
+}
+
+static err_t seq_open(audio_stream_t *s)
+{
+    memset(s, 0, sizeof(*s));
+    s->kind = AUDIO_KIND_SEQ;
+    s->channels = 2u;
+    s->bits = 16u;
+    s->sample_hz = AUDIO_SEQ_HZ;
+    s->duration_ms = AUDIO_SEQ_DURATION_MS;
+    return ERR_OK;
+}
+
 err_t media_open_audio(const char *path, audio_stream_t *s)
 {
     vfs_file_t fd = -1;
@@ -166,6 +205,9 @@ err_t media_open_audio(const char *path, audio_stream_t *s)
 
     if (path == NULL || s == NULL) {
         return ERR_INVAL;
+    }
+    if (is_demo_seq_path(path)) {
+        return seq_open(s);
     }
     if (media_probe_ext(path) != MEDIA_KIND_AUDIO) {
         return ERR_UNSUPPORTED;

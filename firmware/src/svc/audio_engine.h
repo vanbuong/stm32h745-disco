@@ -18,6 +18,7 @@ void audio_engine_set_volume(uint8_t pct);
 void audio_engine_set_paused(uint8_t on);
 size_t audio_engine_fill(int16_t *dst, size_t frames, audio_pipe_t *pipe, uint32_t *underrun);
 uint32_t audio_engine_frames(void);
+uint8_t audio_engine_done(void);
 
 #ifdef __cplusplus
 }

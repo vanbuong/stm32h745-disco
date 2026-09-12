@@ -221,33 +221,7 @@ static uint8_t vfs_bringup(void)
         board_console_puts("vfs fmt done\r\n");
     }
     log_err("vfs_rw", vfs_selftest());
-    {
-        const uint8_t *mp3 = NULL;
-        uint32_t n = 0u;
-        vfs_stat_t st;
-        vfs_file_t fd = -1;
-        size_t put = 0u;
-        err_t we;
-
-        mp3 = board_demo_mp3(&n);
-        if (mp3 != NULL && n > 0u && (vfs_stat("/user/demo.mp3", &st) != ERR_OK || st.size != n)) {
-            we = vfs_open("/user/demo.mp3", VFS_O_WR | VFS_O_CREAT | VFS_O_TRUNC, &fd);
-            if (we == ERR_OK) {
-                we = vfs_write(fd, mp3, n, &put);
-                (void)vfs_close(fd);
-                if (we != ERR_OK || put != n) {
-                    we = (we != ERR_OK) ? we : ERR_IO;
-                }
-            }
-            log_err("demo_mp3", we);
-            if (we == ERR_OK) {
-                log_kv("demo_bytes", n);
-            }
-        } else {
-            board_console_puts("demo_mp3 present\r\n");
-            log_kv("demo_bytes", n);
-        }
-    }
+    board_console_puts("demo seq\r\n");
     vfs_list_user();
     vfs_bench();
     return 1u;

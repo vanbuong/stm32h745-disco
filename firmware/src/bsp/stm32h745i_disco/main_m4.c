@@ -192,6 +192,10 @@ int main(void)
         (void)board_hsem_poll(BOARD_HSEM_M7_TO_M4);
         drain();
         service_sai();
+        if (g_playing != 0u && audio_engine_done() != 0u) {
+            g_playing = 0u;
+            send_pos(1u);
+        }
         if ((now - last_hb) >= IPC_HB_PERIOD_MS) {
             last_hb = now;
             ipc_link_heartbeat(&g_link, now);

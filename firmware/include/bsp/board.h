@@ -106,7 +106,6 @@ int board_emmc_ready(void);
 uint32_t board_emmc_block_count(void);
 uint32_t board_emmc_last_error(void);
 uint32_t board_emmc_clock_hz(void);
-const uint8_t *board_demo_mp3(uint32_t *len);
 
 err_t board_rtc_init(void);
 err_t board_rtc_get(uint8_t *hh, uint8_t *mm, uint8_t *ss);

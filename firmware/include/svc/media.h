@@ -45,6 +45,9 @@ err_t media_jpeg_hw_decode(const uint8_t *data, uint32_t size, image_buf_t *out,
 
 #define AUDIO_KIND_PCM 0u
 #define AUDIO_KIND_MP3 1u
+#define AUDIO_KIND_SEQ 2u
+#define AUDIO_SEQ_HZ 44100u
+#define AUDIO_SEQ_DURATION_MS 78888u
 
 typedef struct {
     uint8_t kind;

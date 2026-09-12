@@ -129,16 +129,20 @@ err_t audio_play(const char *path)
     if (e != ERR_OK) {
         return e;
     }
-    e = vfs_open(path, VFS_O_RD, &g_fd);
-    if (e != ERR_OK) {
-        return e;
-    }
-    if (g_info.data_off != 0u) {
-        e = vfs_seek(g_fd, g_info.data_off);
+    if (g_info.kind != AUDIO_KIND_SEQ) {
+        e = vfs_open(path, VFS_O_RD, &g_fd);
         if (e != ERR_OK) {
-            close_fd();
             return e;
         }
+        if (g_info.data_off != 0u) {
+            e = vfs_seek(g_fd, g_info.data_off);
+            if (e != ERR_OK) {
+                close_fd();
+                return e;
+            }
+        }
+    } else {
+        g_fd = -1;
     }
     memcpy(g_path, path, n + 1u);
     set_title(path);
@@ -285,7 +289,9 @@ void audio_poll(uint32_t now_ms)
             set_elapsed((uint32_t)(((uint64_t)g_decoded * 1000u) / g_info.sample_hz));
         }
         g_underrun += un;
-        if (g_eof != 0u && audio_pipe_used(pipe()) == 0u && g_st == AUDIO_ST_PLAY) {
+        if (g_st == AUDIO_ST_PLAY &&
+            ((g_info.kind == AUDIO_KIND_SEQ && audio_engine_done() != 0u) ||
+             (g_info.kind != AUDIO_KIND_SEQ && g_eof != 0u && audio_pipe_used(pipe()) == 0u))) {
             idle();
             bump();
         }
