@@ -194,8 +194,8 @@ New files under the filter that drop the combined floor fail the job.
 
 Two CMake presets in CI:
 
-- `Debug` → Ninja, both `firmware-m7.elf` and `firmware-m4.elf` (STM32 VS Code path)
-- `m7-debug` / `m4-debug` → Unix Makefiles, one core each
+- `Debug` → Ninja superbuild, both `CM7/build/firmware-m7.elf` and `CM4/build/firmware-m4.elf` (STM32 VS Code / CubeMX ExternalProject path)
+- `m7-debug` / `m4-debug` → Ninja superbuild, one core each (same ELF paths)
 
 CI only needs **link success** and a size report (`arm-none-eabi-size`). Flash/run is HIL. The cross job checks out git submodules (`stm32h7xx-hal-driver` HAL+LL, `cmsis-device-h7`, `cmsis_core`, FatFs, LVGL).
 

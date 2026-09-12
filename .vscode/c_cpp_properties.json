@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "STM32H745I-DISCO",
-      "compileCommands": "${workspaceFolder}/build/Debug/compile_commands.json",
+      "compileCommands": "${workspaceFolder}/CM7/build/compile_commands.json",
       "cStandard": "c11",
       "intelliSenseMode": "gcc-arm",
       "compilerPath": "arm-none-eabi-gcc"

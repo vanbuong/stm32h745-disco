@@ -15,10 +15,10 @@
       "svdPath": "${workspaceFolder}/third_party/cmsis-svd/STM32H745_CM7.svd",
       "imagesAndSymbols": [
         {
-          "imageFileName": "${workspaceFolder}/build/Debug/firmware-m4.elf"
+          "imageFileName": "${workspaceFolder}/CM4/build/firmware-m4.elf"
         },
         {
-          "imageFileName": "${workspaceFolder}/build/Debug/firmware-m7.elf"
+          "imageFileName": "${workspaceFolder}/CM7/build/firmware-m7.elf"
         }
       ],
       "verbose": false
@@ -38,7 +38,7 @@
       "svdPath": "${workspaceFolder}/third_party/cmsis-svd/STM32H745_CM4.svd",
       "imagesAndSymbols": [
         {
-          "symbolFileName": "${workspaceFolder}/build/Debug/firmware-m4.elf"
+          "symbolFileName": "${workspaceFolder}/CM4/build/firmware-m4.elf"
         }
       ],
       "verbose": false

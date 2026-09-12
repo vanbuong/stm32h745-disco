@@ -7,10 +7,8 @@
       "hidden": true,
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/${presetName}",
-      "toolchainFile": "${sourceDir}/cmake/gcc-arm-none-eabi.cmake",
+      "toolchainFile": "${sourceDir}/gcc-arm-none-eabi.cmake",
       "cacheVariables": {
-        "CORE": "BOTH",
-        "ST_MULTICONTEXT": "DUAL_CORE",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       }
     },
@@ -33,26 +31,22 @@
     },
     {
       "name": "m7-debug",
-      "displayName": "M7 only (Make)",
-      "generator": "Unix Makefiles",
+      "displayName": "M7 only",
+      "inherits": "firmware-base",
       "binaryDir": "${sourceDir}/build-m7",
-      "toolchainFile": "${sourceDir}/cmake/gcc-arm-none-eabi.cmake",
       "cacheVariables": {
         "CORE": "M7",
-        "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+        "CMAKE_BUILD_TYPE": "Debug"
       }
     },
     {
       "name": "m4-debug",
-      "displayName": "M4 only (Make)",
-      "generator": "Unix Makefiles",
+      "displayName": "M4 only",
+      "inherits": "firmware-base",
       "binaryDir": "${sourceDir}/build-m4",
-      "toolchainFile": "${sourceDir}/cmake/gcc-arm-none-eabi.cmake",
       "cacheVariables": {
         "CORE": "M4",
-        "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+        "CMAKE_BUILD_TYPE": "Debug"
       }
     },
     {

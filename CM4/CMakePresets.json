@@ -1,32 +1,38 @@
 {
-  "version": 6,
-  "cmakeMinimumRequired": { "major": 3, "minor": 22, "patch": 0 },
-  "configurePresets": [
-    {
-      "name": "Debug",
-      "displayName": "CM4 Debug",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/Debug",
-      "toolchainFile": "${sourceDir}/../cmake/gcc-arm-none-eabi.cmake",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
-      }
-    },
-    {
-      "name": "Release",
-      "displayName": "CM4 Release",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/Release",
-      "toolchainFile": "${sourceDir}/../cmake/gcc-arm-none-eabi.cmake",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
-      }
-    }
-  ],
-  "buildPresets": [
-    { "name": "Debug", "configurePreset": "Debug" },
-    { "name": "Release", "configurePreset": "Release" }
-  ]
+    "version": 3,
+    "configurePresets": [
+        {
+            "name": "default",
+            "hidden": true,
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "toolchainFile": "${sourceDir}/../gcc-arm-none-eabi.cmake",
+            "cacheVariables": {
+            }
+        },
+        {
+            "name": "Debug",
+            "inherits": "default",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "Release",
+            "inherits": "default",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "Debug",
+            "configurePreset": "Debug"
+        },
+        {
+            "name": "Release",
+            "configurePreset": "Release"
+        }
+    ]
 }

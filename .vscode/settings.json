@@ -5,7 +5,7 @@
   "cmake.configureOnOpen": true,
   "cmake.options.statusBarVisibility": "visible",
   "cmake.preferredGenerators": ["Ninja", "Unix Makefiles"],
-  "cmake.copyCompileCommands": "${workspaceFolder}/build/compile_commands.json",
+  "cmake.copyCompileCommands": "${workspaceFolder}/CM7/build/compile_commands.json",
   "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
   "C_Cpp.autoAddFileAssociations": false,
   "files.associations": {
