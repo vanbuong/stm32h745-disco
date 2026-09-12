@@ -68,7 +68,7 @@ static void test_launcher_geom(void)
     for (i = 0u; i < LAUNCHER_COUNT; i++) {
         launcher_tile_rect(i, &r);
         TEST_ASSERT_EQUAL_UINT16(LAUNCHER_TILE_PX, r.w);
-        TEST_ASSERT_EQUAL_UINT16(LAUNCHER_TILE_PX, r.h);
+        TEST_ASSERT_EQUAL_UINT16(LAUNCHER_TILE_H, r.h);
         TEST_ASSERT_GREATER_OR_EQUAL_UINT16(THEME_HIT_MIN_PX, r.w);
         TEST_ASSERT_GREATER_OR_EQUAL_UINT16(THEME_HIT_MIN_PX, r.h);
         TEST_ASSERT_GREATER_OR_EQUAL_UINT16(THEME_STATUS_H, r.y);

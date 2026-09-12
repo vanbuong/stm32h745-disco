@@ -28,15 +28,16 @@ void launcher_tile_rect(unsigned index, ui_rect_t *out)
     grid_w =
         (uint16_t)(LAUNCHER_COLS * LAUNCHER_TILE_PX + (LAUNCHER_COLS - 1u) * LAUNCHER_GUTTER_PX);
     grid_h =
-        (uint16_t)(LAUNCHER_ROWS * LAUNCHER_TILE_PX + (LAUNCHER_ROWS - 1u) * LAUNCHER_GUTTER_PX);
+        (uint16_t)(LAUNCHER_ROWS * LAUNCHER_TILE_H + (LAUNCHER_ROWS - 1u) * LAUNCHER_GUTTER_PX);
     ox = (uint16_t)((THEME_PANEL_W - grid_w) / 2u);
-    oy = (uint16_t)(THEME_STATUS_H + (THEME_CONTENT_H - grid_h) / 2u);
+    oy = (uint16_t)(THEME_STATUS_H + LAUNCHER_GREET_H +
+                    (THEME_CONTENT_H - LAUNCHER_GREET_H - grid_h) / 2u);
     col = index % LAUNCHER_COLS;
     row = index / LAUNCHER_COLS;
     out->x = (uint16_t)(ox + col * step);
-    out->y = (uint16_t)(oy + row * step);
+    out->y = (uint16_t)(oy + row * (uint16_t)(LAUNCHER_TILE_H + LAUNCHER_GUTTER_PX));
     out->w = LAUNCHER_TILE_PX;
-    out->h = LAUNCHER_TILE_PX;
+    out->h = LAUNCHER_TILE_H;
 }
 
 int launcher_hit(int16_t x, int16_t y)
