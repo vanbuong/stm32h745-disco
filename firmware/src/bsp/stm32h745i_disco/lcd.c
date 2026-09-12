@@ -87,6 +87,18 @@ static err_t lcd_pixel_clock(void)
 {
     RCC_PeriphCLKInitTypeDef p = {0};
 
+    if (__HAL_RCC_GET_PLL_OSCSOURCE() == RCC_PLLSOURCE_NONE) {
+        RCC_OscInitTypeDef osc = {0};
+
+        osc.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+        osc.HSEState = RCC_HSE_ON;
+        osc.PLL.PLLState = RCC_PLL_NONE;
+        if (HAL_RCC_OscConfig(&osc) != HAL_OK) {
+            return ERR_IO;
+        }
+        __HAL_RCC_PLL_PLLSOURCE_CONFIG(RCC_PLLSOURCE_HSE);
+    }
+
     /* 25 MHz / 5 * 160 / 83 ≈ 9.63 MHz (ST disco BSP). */
     p.PeriphClockSelection = RCC_PERIPHCLK_LTDC;
     p.PLL3.PLL3M = 5;
@@ -331,7 +343,13 @@ void board_disp_show(const void *fb)
         return;
     }
     g_ltdc.Instance->SRCR = LTDC_SRCR_VBR;
-    while (__HAL_LTDC_GET_FLAG(&g_ltdc, LTDC_FLAG_RR) == 0u) {
+    {
+        uint32_t t0 = HAL_GetTick();
+        while (__HAL_LTDC_GET_FLAG(&g_ltdc, LTDC_FLAG_RR) == 0u) {
+            if ((HAL_GetTick() - t0) > 50u) {
+                break;
+            }
+        }
     }
     __HAL_LTDC_CLEAR_FLAG(&g_ltdc, LTDC_FLAG_RR);
     if (fb == g_fb[0]) {

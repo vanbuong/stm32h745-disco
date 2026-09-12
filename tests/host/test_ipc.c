@@ -94,6 +94,12 @@ static void test_ipc_hdr(void)
     TEST_ASSERT_EQUAL_INT(ERR_INVAL, ipc_hdr_init(NULL, 1, 2, 3, 0, 0));
     TEST_ASSERT_EQUAL_INT(ERR_INVAL, ipc_hdr_init(&h, 1, 2, 3, 0, IPC_PAYLOAD_MAX + 1u));
     TEST_ASSERT_EQUAL_INT(ERR_OK, ipc_hdr_init(&h, 1, 2, 3, 1, 0));
+    TEST_ASSERT_EQUAL_UINT16(IPC_LOG_LINE, IPC_SYS_HEARTBEAT);
+    TEST_ASSERT_EQUAL_INT(ERR_OK, ipc_hdr_init(&h, IPC_EP_LOG, IPC_EP_LOG, IPC_LOG_LINE, 0, 0));
+    TEST_ASSERT_EQUAL_UINT8(IPC_EP_LOG, h.dst);
+    TEST_ASSERT_EQUAL_INT(ERR_OK,
+                          ipc_hdr_init(&h, IPC_EP_SYS, IPC_EP_SYS, IPC_SYS_HEARTBEAT, 0, 0));
+    TEST_ASSERT_EQUAL_UINT8(IPC_EP_SYS, h.dst);
     TEST_ASSERT_EQUAL_INT(ERR_INVAL, ipc_hdr_validate(NULL));
     TEST_ASSERT_EQUAL_INT(ERR_OK, ipc_hdr_validate(&h));
     h.magic = 0;
@@ -214,6 +220,7 @@ static void test_ipc_link(void)
     TEST_ASSERT_EQUAL_INT(ERR_OK, ipc_link_send(&m4, IPC_EP_LOG, IPC_LOG_LINE, "hi", 2));
     TEST_ASSERT_EQUAL_UINT(1u, g_kicks);
     TEST_ASSERT_EQUAL_INT(ERR_OK, ipc_link_recv(&m7, &h, got, sizeof(got)));
+    TEST_ASSERT_EQUAL_UINT8(IPC_EP_LOG, h.dst);
     TEST_ASSERT_EQUAL_UINT16(IPC_LOG_LINE, h.type);
     TEST_ASSERT_EQUAL_UINT16(0u, h.seq);
     TEST_ASSERT_EQUAL_UINT16(2u, h.len);
@@ -234,6 +241,7 @@ static void test_ipc_link(void)
     ipc_link_observe(&m7, 1000u);
     TEST_ASSERT_EQUAL_UINT8(1u, ipc_link_peer_alive(&m7, 1000u));
     TEST_ASSERT_EQUAL_INT(ERR_OK, ipc_link_recv(&m7, &h, got, sizeof(got)));
+    TEST_ASSERT_EQUAL_UINT8(IPC_EP_SYS, h.dst);
     TEST_ASSERT_EQUAL_UINT16(IPC_SYS_HEARTBEAT, h.type);
     TEST_ASSERT_EQUAL_UINT8(1u, ipc_link_peer_alive(&m7, 1000u + IPC_HB_TIMEOUT_MS));
     TEST_ASSERT_EQUAL_UINT8(0u, ipc_link_peer_alive(&m7, 1000u + IPC_HB_TIMEOUT_MS + 1u));

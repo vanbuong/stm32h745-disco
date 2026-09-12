@@ -39,6 +39,25 @@ static void put_u32(uint32_t v)
     board_console_puts(&buf[i]);
 }
 
+static int log_text_ok(const uint8_t *pl, uint16_t n)
+{
+    uint16_t i;
+
+    if (pl == NULL || n == 0u) {
+        return 0;
+    }
+    for (i = 0u; i < n; i++) {
+        uint8_t c = pl[i];
+        if (c == '\0') {
+            return 1;
+        }
+        if ((c < 32u && c != '\t' && c != '\n' && c != '\r') || (c > 126u)) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
 static void print_log(const uint8_t *pl, uint16_t len)
 {
     char line[IPC_PAYLOAD_MAX + 1u];
@@ -47,9 +66,10 @@ static void print_log(const uint8_t *pl, uint16_t len)
     if (n > IPC_PAYLOAD_MAX) {
         n = IPC_PAYLOAD_MAX;
     }
-    if (n > 0u && pl != NULL) {
-        memcpy(line, pl, n);
+    if (!log_text_ok(pl, n)) {
+        return;
     }
+    memcpy(line, pl, n);
     line[n] = '\0';
     board_console_puts("m4: ");
     board_console_puts(line);
@@ -75,8 +95,11 @@ static void log_pong(const uint8_t *pl, uint16_t len)
 
 static void handle_msg(const ipc_msg_hdr_t *h, const uint8_t *pl, uint32_t now_ms)
 {
-    if (h->type == IPC_LOG_LINE) {
-        print_log(pl, h->len);
+    /* IPC_LOG_LINE and IPC_SYS_HEARTBEAT are both 1 — dispatch by endpoint. */
+    if (h->dst == IPC_EP_LOG) {
+        if (h->type == IPC_LOG_LINE) {
+            print_log(pl, h->len);
+        }
         return;
     }
     if (h->type == IPC_SYS_HEARTBEAT) {
