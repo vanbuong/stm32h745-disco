@@ -214,6 +214,43 @@ Status: **done** (host-tested net service, DHCP/static, 10 s failover, RTC clock
 - Optional ESP32 failover **only** if `NET_WIFI` is compiled; default off (host tests inject a fake Wi-Fi link).
 - **Exit:** DHCP or static IP shown; unplug RJ45 updates status < 2 s (PHY poll 200 ms); if ESP32 enabled, failover within the REQ-NET timeout.
 
+### Follow-up — DMA2D + JPEG hardware (after Sprint 9, not Sprint 10)
+
+Status: **planned** (REQ-IMG-03 is still a stub: `media_jpeg_hw_decode` returns `ERR_UNSUPPORTED`).
+
+Both blocks are on the H745 and are applicable. They are **not** a general GPU for LVGL. Use them together for the image viewer; keep LVGL software draw.
+
+**Why they go together**
+
+The JPEG codec outputs YCbCr MCU blocks, not RGB565. DMA2D (Chrom-ART) is the H7 path that converts YCbCr → RGB565. DMA2D does **not** scale. The JPEG codec does **not** downscale. TJpgDec already does 1/2–1/8 while decoding, which is the right path for 2 MP photos (REQ-IMG-02, TC-IMG-01 1920×1080).
+
+**Do now (one slice)**
+
+1. Add `stm32h7xx_hal_jpeg.c` to the M7 Cube list. Clock JPEG in BSP. Poll only (vector table stays the 16 Cortex-M exceptions; no JPEG/DMA2D/MDMA IRQ).
+2. New BSP API `board_jpeg_decode(...)` in `firmware/src/bsp/stm32h745i_disco/`. `media_jpeg_hw_decode` calls it on `STM32H745xx` and stays `ERR_UNSUPPORTED` on host (TC-IMG-03 unchanged).
+3. HW path only when the frame is **baseline** and YCbCr fits the unused SDRAM slot at `+0x080000` (261 KB). Practical gate: **width ≤ 480 and height ≤ 272** (panel-sized album shots, TC-IMG-01 480×272). 4:4:4 / 4:2:2 / 4:2:0 only.
+4. Flow: JPEG poll-decode → YCbCr staging → DMA2D convert into the existing 480×200 RGB565 dest at `+0x0C0000` with contain-fit offsets. Cache-clean before DMA2D; poll `HAL_DMA2D_PollForTransfer`.
+5. Any header parse fail, progressive, odd chroma, oversize, timeout, or HAL error → existing TJpgDec path. Never fail the viewer because HW is busy.
+6. Do **not** set `LV_USE_DRAW_DMA2D`. LVGL stays `LV_USE_DRAW_SW` + DIRECT into FB0/FB1. Flush stays cache-clean + LTDC address flip. DMA2D in `disp_fill` / `disp_flush` stays a HAL helper; the shell does not call it.
+
+**Do not in this slice**
+
+- LVGL Chrom-ART draw unit (cache vs DIRECT, second DMA2D owner next to JPEG, IRQ policy).
+- Full-resolution HW decode of 2 MP then CPU scale (burns SDRAM; TJpgDec is smaller and already works).
+- LibJPEG, Cube JPEG examples copied in, or extra IRQ vectors.
+- Sprint 10 game / `gfx_*` DMA2D blit (that sprint owns playfield FPS).
+
+**Later (only if measured)**
+
+- If `ui_fps` stays under ~20, consider `LV_USE_DRAW_DMA2D` for opaque fills only, still polled, still firmware-only (`lv_conf` host-sim stays 0).
+- If album shots are all near-panel size, raise the HW size gate; keep TJpgDec for everything else.
+
+**Exit**
+
+- Host: `media_jpeg_hw_decode` still `ERR_UNSUPPORTED`; golden SW JPEG checksum unchanged.
+- HIL: 480×272 JPEG paints via HW (UART can log `jpeg hw`); 1920×1080 still TJpgDec; truncated JPEG still errors; `disp ok` / `shell ready` unchanged.
+- Layering: apps/shell still have no HAL/LVGL; `svc` still has no `stm32h7xx_hal*.h`.
+
 ### Sprint 10 — Game
 
 - `game_module_t` host + **Brick** (paddle, bricks, one-finger drag).

@@ -240,8 +240,8 @@ RGB565 is the default pixel format (480×272×2 = 261 120 bytes per full buffer)
 | --- | --- | --- |
 | `+0x000000` | 261 KB | LTDC framebuffer 0 |
 | `+0x040000` | 261 KB | LTDC framebuffer 1 (double buffer) |
-| `+0x080000` | 261 KB | LVGL draw buffer (or DMA2D staging) |
-| `+0x0C0000` | ~2 MB | Image decode / scaler **or** game playfield + sprites (exclusive: viewers vs game) |
+| `+0x080000` | 261 KB | JPEG HW YCbCr staging (DMA2D input). LVGL DIRECT uses FB0/FB1, not this slot. |
+| `+0x0C0000` | ~2 MB | Image RGB565 dest (480×200) + file scratch **or** game playfield (exclusive: viewers vs game) |
 | `+0x2C0000` | remainder | File cache, text window, home state cache, heap fallback |
 
 ARGB8888 is allowed later if color quality requires it; each full buffer then costs ~522 KB. Do not put M4 code/data in SDRAM.
@@ -302,7 +302,7 @@ err_t media_decode_image_mem(const uint8_t *data, uint32_t size, image_buf_t *ou
 int media_open_audio(const char *path, audio_stream_t *s);
 ```
 
-JPEG uses the STM32 JPEG codec when present (`media_jpeg_hw_decode`); otherwise ChaN TJpgDec (software, also the host-test path). PNG/BMP are software. Destination is contain-fit RGB565 in the 480×200 content area. Failures return codes, never abort the UI.
+JPEG uses the STM32 JPEG codec when present (`media_jpeg_hw_decode` → BSP `board_jpeg_decode`); otherwise ChaN TJpgDec (software, also the host-test path). The codec emits YCbCr; DMA2D converts to RGB565. HW is gated to baseline frames that fit the 261 KB staging slot (panel-sized). Larger or progressive files stay on TJpgDec. PNG/BMP are software. Destination is contain-fit RGB565 in the 480×200 content area. Failures return codes, never abort the UI. LVGL drawing stays software (`LV_USE_DRAW_DMA2D` off); DMA2D is not the UI GPU.
 
 Text paging: `text_view_*` keeps one `TEXT_WIN_MAX` (32 KB) window. Files larger than 256 KB are still shown; peak RAM for that buffer is the constant (plus a same-sized raw read scratch). On the MCU both live in SDRAM at `+0x2C0000`.
 
