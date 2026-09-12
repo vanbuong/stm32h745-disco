@@ -3,6 +3,9 @@
 include(ExternalProject)
 
 set(ST_MULTICONTEXT DUAL_CORE CACHE STRING "Type of multi-context")
+if(NOT CMAKE_EXECUTABLE_SUFFIX_CXX)
+    set(CMAKE_EXECUTABLE_SUFFIX_CXX ".elf")
+endif()
 
 # Map our CORE cache (m7-debug / m4-debug) onto Cube's BUILD_CONTEXT.
 # Do not CACHE an empty BUILD_CONTEXT — that makes DEFINED true and neither
@@ -29,8 +32,10 @@ if(("${BUILD_CONTEXT}" MATCHES "CM4") OR (NOT DEFINED BUILD_CONTEXT))
     )
     set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_CLEAN_FILES "${CMAKE_SOURCE_DIR}/CM4/build")
     set(ST_DUAL_CORE_CM4_PROJECT_BUILD_TARGET
-        ${CMAKE_SOURCE_DIR}/CM4/build/firmware-m4.elf
-        CACHE FILEPATH "Path to CM4 project target")
+        ${CMAKE_SOURCE_DIR}/CM4/build/stm32h745-disco_CM4${CMAKE_EXECUTABLE_SUFFIX_CXX}
+        CACHE FILEPATH "Path to cm4 project target")
+    # STM32 VS Code may invoke the child executable name at the superbuild.
+    add_custom_target(firmware-m4 DEPENDS stm32h745-disco_CM4)
 endif()
 
 #-----------------------Build CM7 Project-----------------------#
@@ -47,6 +52,7 @@ if(("${BUILD_CONTEXT}" MATCHES "CM7") OR (NOT DEFINED BUILD_CONTEXT))
     )
     set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_CLEAN_FILES "${CMAKE_SOURCE_DIR}/CM7/build")
     set(ST_DUAL_CORE_CM7_PROJECT_BUILD_TARGET
-        ${CMAKE_SOURCE_DIR}/CM7/build/firmware-m7.elf
-        CACHE FILEPATH "Path to CM7 project target")
+        ${CMAKE_SOURCE_DIR}/CM7/build/stm32h745-disco_CM7${CMAKE_EXECUTABLE_SUFFIX_CXX}
+        CACHE FILEPATH "Path to cm7 project target")
+    add_custom_target(firmware-m7 DEPENDS stm32h745-disco_CM7)
 endif()

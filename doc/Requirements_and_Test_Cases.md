@@ -511,7 +511,7 @@ A PR that adds `#include "lvgl.h"` under `src/app` fails the layering job.
 cppcheck `--error-exitcode=1` on host `compile_commands.json` exits 0.
 
 **TC-CI-04 (UT)**  
-`firmware-m7.elf` and `firmware-m4.elf` exist after the cross job (Sprint 0 may be blink stubs).
+`stm32h745-disco_CM7.elf` and `stm32h745-disco_CM4.elf` exist after the cross job (Sprint 0 may be blink stubs).
 
 **TC-CI-05 (UT)**  
 A mis-formatted C file fails format dry-run.

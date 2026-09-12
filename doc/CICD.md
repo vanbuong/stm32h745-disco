@@ -91,7 +91,7 @@ Host tests **must not** link STM32 HAL, LVGL, SDL, or FatFs. They compile `src/s
 | CMake | ≥ 3.22 |
 | Host compiler | GCC 13 (ubuntu) **and** optionally Clang 18 |
 | Coverage | `gcov` from host GCC + `gcovr` |
-| Cross | `gcc-arm-none-eabi` 13.x (apt or ARM tarball, hashed) + `ninja-build` for the VS Code `Debug` preset |
+| Cross | Local: STM32 VS Code CubeCLT (not on shell PATH). CI: apt `gcc-arm-none-eabi` + `ninja-build` for the `Debug` preset |
 | clang-format | 18 |
 | clang-tidy | 18 |
 | cppcheck | ≥ 2.13 |
@@ -195,7 +195,7 @@ New files under the filter that drop the combined floor fail the job.
 
 Two CMake presets in CI:
 
-- `Debug` → Ninja superbuild, both `CM7/build/firmware-m7.elf` and `CM4/build/firmware-m4.elf` (STM32 VS Code / CubeMX ExternalProject path)
+- `Debug` → Ninja superbuild, both `CM7/build/stm32h745-disco_CM7.elf` and `CM4/build/stm32h745-disco_CM4.elf` (STM32 VS Code / CubeMX ExternalProject path)
 - `m7-debug` / `m4-debug` → Ninja superbuild, one core each (same ELF paths)
 
 CI only needs **link success** and a size report (`arm-none-eabi-size`). Flash/run is HIL. The cross job checks out git submodules (`stm32h7xx-hal-driver` HAL+LL, `cmsis-device-h7`, `cmsis_core`, FatFs, LVGL).

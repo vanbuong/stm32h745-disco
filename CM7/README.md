@@ -5,4 +5,4 @@ CubeMX layout (`CM7/`, `CM4/`, root `mx-generated.cmake` ExternalProject).
 These folders are thin wrappers: all sources stay in `firmware/`.
 
 Configure the **repo root** with preset **Debug (M7 + M4)** to build both
-ELFs at `CM7/build/firmware-m7.elf` and `CM4/build/firmware-m4.elf`.
+ELFs at `CM7/build/stm32h745-disco_CM7.elf` and `CM4/build/stm32h745-disco_CM4.elf`.

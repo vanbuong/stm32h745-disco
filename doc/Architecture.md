@@ -505,7 +505,7 @@ Network ownership: **M7** runs ETH + LwIP (no RTOS; M4 owns SAI). Never initiali
 
 ## 11. Build, log, test, CI
 
-- CMake presets: `Debug` / `Release` (Ninja superbuild, both cores; STM32 VS Code default), `m7-debug`, `m4-debug`, `host-tests`, and (Sprint 5b) `host-sim`. ELFs land in `CM7/build/` and `CM4/build/`.
+- CMake presets: `Debug` / `Release` (Ninja superbuild, both cores; STM32 VS Code default), `m7-debug`, `m4-debug`, `host-tests`, and (Sprint 5b) `host-sim`. ELFs are `CM7/build/stm32h745-disco_CM7.elf` and `CM4/build/stm32h745-disco_CM4.elf`.
 - Local firmware builds use the STM32 VS Code CubeCLT `arm-none-eabi-gcc` (same CubeMX `gcc-arm-none-eabi.cmake` as blinky). That compiler is not on a normal shell PATH.
 - STM32Cube: `third_party/stm32h7xx-hal-driver` (HAL + LL), only included from `src/port/cube` and `src/bsp`. STM32CubeIDE for VS Code uses the CubeMX dual-core layout: root `mx-generated.cmake` (`ST_MULTICONTEXT=DUAL_CORE` + `ExternalProject` per core), per-core `CM7/` + `CM4/` CMake projects/presets, `.settings/ide.store.json`, and `.vscode/launch.json`. Register view SVD files live in `third_party/cmsis-svd/` (not CubeCLT).
 - Logs: UART3 115200 8N1, tagged `core,lvl,mod,msg`. No `printf` to ITM as the only log.

@@ -21,10 +21,11 @@ set(STM32_MCU_FLAGS "-mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard")
 set(STM32_LINKER_SCRIPT "../firmware/src/bsp/stm32h745i_disco/stm32h745_m4.ld")
 set(STM32_LINKER_OPTION)
 
-set(CMAKE_PROJECT_NAME firmware-m4)
+set(CMAKE_PROJECT_NAME stm32h745-disco_CM4)
 project(${CMAKE_PROJECT_NAME})
 
 set(CMAKE_CXX_COMPILER_FORCED "true")
 enable_language(C ASM)
 
+add_executable(${CMAKE_PROJECT_NAME})
 include("mx-generated.cmake")

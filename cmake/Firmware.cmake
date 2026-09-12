@@ -14,7 +14,7 @@ function(stm32_add_firmware CORE_ID)
         set(CPU_FLAGS -mcpu=cortex-m7 -mthumb -mfpu=fpv5-d16 -mfloat-abi=hard)
         set(LINKER ${BSP}/stm32h745_m7.ld)
         set(CORE_DEFINE CORE_CM7)
-        set(TGT firmware-m7)
+        set(TGT ${CMAKE_PROJECT_NAME})
         if(NOT EXISTS ${ST_ROOT}/stm32-rk043fn48h/rk043fn48h.h)
             message(FATAL_ERROR
                 "Missing stm32-rk043fn48h at ${ST_ROOT}/stm32-rk043fn48h.\n"
@@ -138,7 +138,7 @@ function(stm32_add_firmware CORE_ID)
         set(CPU_FLAGS -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard)
         set(LINKER ${BSP}/stm32h745_m4.ld)
         set(CORE_DEFINE CORE_CM4)
-        set(TGT firmware-m4)
+        set(TGT ${CMAKE_PROJECT_NAME})
         set(APP_SRC
             ${BSP}/startup.c
             ${BSP}/main_m4.c
@@ -156,7 +156,11 @@ function(stm32_add_firmware CORE_ID)
         message(FATAL_ERROR "stm32_add_firmware expects M7 or M4, got ${CORE_ID}")
     endif()
 
-    add_executable(${TGT} ${APP_SRC} ${CUBE_SRC})
+    if(NOT TARGET ${TGT})
+        add_executable(${TGT} ${APP_SRC} ${CUBE_SRC})
+    else()
+        target_sources(${TGT} PRIVATE ${APP_SRC} ${CUBE_SRC})
+    endif()
     target_include_directories(${TGT} PRIVATE
         ${CUBE}
         ${H745_ROOT}/firmware/include
