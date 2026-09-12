@@ -160,6 +160,16 @@ err_t vfs_mount(void)
     return ERR_OK;
 }
 
+err_t vfs_format(void)
+{
+    return g_mounted ? ERR_OK : ERR_IO;
+}
+
+uint8_t vfs_formatted_on_mount(void)
+{
+    return 0u;
+}
+
 int vfs_mounted(void)
 {
     return g_mounted ? 1 : 0;

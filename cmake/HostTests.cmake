@@ -12,6 +12,7 @@ set(HOST_SRC
     ${CMAKE_SOURCE_DIR}/firmware/src/ipc/ipc_ring.c
     ${CMAKE_SOURCE_DIR}/firmware/src/ipc/ipc_link.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/vfs_path.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/vfs_probe.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/znp_mt.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/media_probe.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/text_view.c

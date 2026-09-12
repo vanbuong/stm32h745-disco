@@ -114,9 +114,23 @@ static void test_ram_ops(void)
     TEST_ASSERT_EQUAL_INT(ERR_DENIED, vfs_mkdir("/user/../x"));
 }
 
+static void test_selftest(void)
+{
+    vfs_stat_t st;
+
+    TEST_ASSERT_EQUAL_INT(ERR_OK, vfs_mount());
+    TEST_ASSERT_EQUAL_INT(0, vfs_formatted_on_mount());
+    TEST_ASSERT_EQUAL_INT(ERR_OK, vfs_format());
+    TEST_ASSERT_EQUAL_INT(ERR_OK, vfs_selftest());
+    TEST_ASSERT_EQUAL_INT(ERR_OK, vfs_stat("/user/vfs_probe.txt", &st));
+    TEST_ASSERT_EQUAL_UINT8(0u, st.is_dir);
+    TEST_ASSERT_EQUAL_UINT32(9u, st.size);
+}
+
 void test_vfs_run(void)
 {
     UnitySetTestFile(__FILE__);
     RUN_TEST(test_jail);
     RUN_TEST(test_ram_ops);
+    RUN_TEST(test_selftest);
 }

@@ -194,6 +194,10 @@ static uint8_t vfs_bringup(void)
     if (e != ERR_OK) {
         return 0u;
     }
+    if (vfs_formatted_on_mount() != 0u) {
+        board_console_puts("vfs fmt\r\n");
+    }
+    log_err("vfs_rw", vfs_selftest());
     vfs_list_user();
     vfs_bench();
     return 1u;

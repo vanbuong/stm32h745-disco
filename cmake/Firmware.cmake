@@ -100,6 +100,7 @@ function(stm32_add_firmware CORE_ID)
             ${H745_ROOT}/firmware/src/bsp/disp_geom.c
             ${H745_ROOT}/firmware/src/svc/memtest.c
             ${H745_ROOT}/firmware/src/svc/vfs.c
+            ${H745_ROOT}/firmware/src/svc/vfs_probe.c
             ${H745_ROOT}/firmware/src/svc/vfs_path.c
             ${H745_ROOT}/firmware/src/svc/media_probe.c
             ${H745_ROOT}/firmware/src/svc/text_view.c

@@ -94,6 +94,7 @@ set(SIM_SRC
     ${CMAKE_SOURCE_DIR}/firmware/src/ui/backend_lvgl/lv_port_sim.c
     ${CMAKE_SOURCE_DIR}/tests/host/sim/sim_main.c
     ${CMAKE_SOURCE_DIR}/tests/host/sim/sim_board.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/vfs_probe.c
     ${CMAKE_SOURCE_DIR}/tests/host/sim/vfs_host.c
     ${LVGL_SRC}
 )

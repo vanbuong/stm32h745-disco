@@ -6,9 +6,12 @@
 
 #define VFS_FILE_MAX 4
 #define VFS_DIR_MAX 2
+#define VFS_MKFS_WORK 16384u
 
 static FATFS g_fs;
 static uint8_t g_mounted;
+static uint8_t g_did_format;
+static uint8_t g_mkfs_work[VFS_MKFS_WORK] __attribute__((section(".dma_buf"), aligned(32)));
 
 static FIL g_fil[VFS_FILE_MAX];
 static uint8_t g_fil_used[VFS_FILE_MAX];
@@ -41,6 +44,8 @@ static err_t map_fr(FRESULT r)
         return ERR_TIMEOUT;
     case FR_NO_FILESYSTEM:
         return ERR_CORRUPT;
+    case FR_MKFS_ABORTED:
+        return ERR_IO;
     default:
         return ERR_IO;
     }
@@ -95,14 +100,54 @@ static int alloc_dir(void)
     return -1;
 }
 
+err_t vfs_format(void)
+{
+    MKFS_PARM opt;
+    FRESULT r;
+
+    (void)f_mount(0, "0:", 0);
+    g_mounted = 0u;
+    memset(&opt, 0, sizeof(opt));
+    opt.fmt = (BYTE)(FM_FAT | FM_FAT32);
+    opt.n_fat = 1;
+    opt.align = 8;
+    opt.n_root = 0;
+    opt.au_size = 0;
+    r = f_mkfs("0:", &opt, g_mkfs_work, sizeof(g_mkfs_work));
+    if (r != FR_OK) {
+        return map_fr(r);
+    }
+    r = f_mount(&g_fs, "0:", 1);
+    if (r != FR_OK) {
+        return map_fr(r);
+    }
+    g_mounted = 1u;
+    return ERR_OK;
+}
+
+uint8_t vfs_formatted_on_mount(void)
+{
+    return g_did_format;
+}
+
 err_t vfs_mount(void)
 {
     FRESULT r;
+    err_t e;
 
     if (g_mounted) {
         return ERR_OK;
     }
+    g_did_format = 0u;
     r = f_mount(&g_fs, "0:", 1);
+    if (r == FR_NO_FILESYSTEM) {
+        e = vfs_format();
+        if (e != ERR_OK) {
+            return e;
+        }
+        g_did_format = 1u;
+        return ERR_OK;
+    }
     if (r != FR_OK) {
         return map_fr(r);
     }

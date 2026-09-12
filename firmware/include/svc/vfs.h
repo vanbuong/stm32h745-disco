@@ -51,6 +51,11 @@ err_t vfs_path_parent(const char *path, char *out, size_t out_sz);
 
 err_t vfs_mount(void);
 int vfs_mounted(void);
+err_t vfs_format(void);
+uint8_t vfs_formatted_on_mount(void);
+
+/* Create /user/vfs_probe.txt, write a known string, reopen, and compare. */
+err_t vfs_selftest(void);
 
 err_t vfs_open(const char *path, uint32_t flags, vfs_file_t *fd);
 err_t vfs_read(vfs_file_t fd, void *buf, size_t n, size_t *got);

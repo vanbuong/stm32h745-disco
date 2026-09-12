@@ -140,9 +140,74 @@ err_t vfs_mount(void)
     return ERR_OK;
 }
 
+err_t vfs_format(void)
+{
+    return g_mounted ? ERR_OK : ERR_IO;
+}
+
+uint8_t vfs_formatted_on_mount(void)
+{
+    return 0u;
+}
+
 int vfs_mounted(void)
 {
     return g_mounted ? 1 : 0;
+}
+
+static err_t create_file(const char *path, int *out)
+{
+    char norm[VFS_PATH_MAX];
+    char rel[VFS_PATH_MAX];
+    char parent_abs[VFS_PATH_MAX];
+    const char *slash;
+    char leaf[VFS_NAME_MAX];
+    int parent;
+    int i;
+    err_t e;
+    size_t leaf_n;
+
+    e = vfs_normalize(path, norm, sizeof(norm));
+    if (e != ERR_OK) {
+        return e;
+    }
+    e = vfs_jail_rel(norm, rel, sizeof(rel));
+    if (e != ERR_OK) {
+        return e;
+    }
+    slash = strrchr(rel, '/');
+    if (slash == NULL || slash[1] == '\0') {
+        return ERR_INVAL;
+    }
+    leaf_n = strlen(slash + 1);
+    if (leaf_n >= VFS_NAME_MAX) {
+        return ERR_NOSPC;
+    }
+    memcpy(leaf, slash + 1, leaf_n + 1u);
+    if (slash == rel) {
+        parent = 0;
+    } else {
+        size_t pl = (size_t)(slash - rel);
+        if (pl + 5u + 1u > VFS_PATH_MAX) {
+            return ERR_NOSPC;
+        }
+        memcpy(parent_abs, "/user", 5u);
+        memcpy(parent_abs + 5u, rel, pl);
+        parent_abs[5u + pl] = '\0';
+        e = walk(parent_abs, &parent);
+        if (e != ERR_OK) {
+            return e;
+        }
+        if (g_nodes[parent].is_dir == 0u) {
+            return ERR_INVAL;
+        }
+    }
+    i = add_node(parent, leaf, 0u, NULL);
+    if (i < 0) {
+        return ERR_NOSPC;
+    }
+    *out = i;
+    return ERR_OK;
 }
 
 err_t vfs_open(const char *path, uint32_t flags, vfs_file_t *fd)
@@ -159,6 +224,9 @@ err_t vfs_open(const char *path, uint32_t flags, vfs_file_t *fd)
         return ERR_IO;
     }
     e = walk(path, &node);
+    if (e == ERR_NOENT && (flags & VFS_O_CREAT) != 0u) {
+        e = create_file(path, &node);
+    }
     if (e != ERR_OK) {
         return e;
     }
