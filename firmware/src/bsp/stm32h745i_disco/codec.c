@@ -15,6 +15,12 @@ static int32_t codec_tick(void)
     return (int32_t)HAL_GetTick();
 }
 
+static int32_t codec_bus_init(void)
+{
+    /* Cube WM8994_RegisterBusIO fails if IO.Init is NULL. */
+    return (board_i2c4_init() == ERR_OK) ? 0 : -1;
+}
+
 static int32_t codec_write(uint16_t addr, uint16_t reg, uint8_t *data, uint16_t len)
 {
     return board_i2c4_write16(addr, reg, data, len);
@@ -32,11 +38,14 @@ err_t board_codec_init(uint32_t sample_hz, uint8_t vol_pct)
     uint32_t id = 0u;
     uint32_t hz = sample_hz;
 
+    if (g_ready != 0u) {
+        return board_codec_volume(vol_pct);
+    }
     if (hz == 0u) {
         hz = 44100u;
     }
-    (void)board_i2c4_init();
     memset(&io, 0, sizeof(io));
+    io.Init = codec_bus_init;
     io.Address = BOARD_WM8994_ADDR;
     io.WriteReg = codec_write;
     io.ReadReg = codec_read;
@@ -49,8 +58,8 @@ err_t board_codec_init(uint32_t sample_hz, uint8_t vol_pct)
     }
     memset(&init, 0, sizeof(init));
     init.InputDevice = WM8994_IN_NONE;
-    /* Headphone / line-out jack (CN10). Speaker DAC is also enabled. */
-    init.OutputDevice = WM8994_OUT_BOTH;
+    /* CN10 headphone / line-out. This board has no speaker. */
+    init.OutputDevice = WM8994_OUT_HEADPHONE;
     init.Frequency = hz;
     init.Resolution = WM8994_RESOLUTION_16b;
     init.Volume = audio_volume_to_codec(vol_pct);

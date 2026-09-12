@@ -151,8 +151,13 @@ err_t audio_play(const char *path)
     audio_pipe_reset(p);
 #if defined(CORE_CM7)
     send_fmt(IPC_AUDIO_PLAY);
-    (void)board_codec_init(g_info.sample_hz, g_vol);
-    (void)board_codec_play();
+    e = board_codec_init(g_info.sample_hz, g_vol);
+    if (e == ERR_OK) {
+        e = board_codec_play();
+    }
+    if (e != ERR_OK) {
+        board_console_puts("codec play fail\r\n");
+    }
 #else
     (void)audio_engine_start(&g_info);
     audio_engine_set_volume(g_vol);

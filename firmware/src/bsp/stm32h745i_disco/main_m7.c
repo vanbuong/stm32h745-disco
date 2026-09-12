@@ -1,6 +1,7 @@
 #include "bsp/board.h"
 #include "hal/disp.h"
 #include "hal/input.h"
+#include "svc/audio.h"
 #include "svc/memtest.h"
 #include "svc/net.h"
 #include "svc/time.h"
@@ -370,6 +371,10 @@ int main(void)
     } else {
         board_console_puts("touch none\r\n");
     }
+
+    /* M4 already runs SAI2 MCLK; bring the WM8994 analog path up before the UI. */
+    e = board_codec_init(44100u, AUDIO_VOL_DEFAULT);
+    log_err("codec", e);
 
     shell_init();
     shell_status_set_storage(0u);
