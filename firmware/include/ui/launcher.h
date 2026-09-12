@@ -23,7 +23,9 @@ typedef struct {
 } ui_rect_t;
 
 void launcher_tile_rect(unsigned index, ui_rect_t *out);
+void launcher_tile_rect_in(unsigned index, uint16_t content_h, ui_rect_t *out);
 int launcher_hit(int16_t x, int16_t y);
+int launcher_hit_in(int16_t x, int16_t y, uint16_t content_h);
 
 #ifdef __cplusplus
 }

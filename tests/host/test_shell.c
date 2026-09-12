@@ -83,6 +83,26 @@ static void test_launcher_geom(void)
     TEST_ASSERT_EQUAL_INT(-1, launcher_hit(-1, 100));
 }
 
+static void test_launcher_geom_nowplaying(void)
+{
+    ui_rect_t r;
+    unsigned i;
+    int hit;
+    uint16_t content_h = (uint16_t)(THEME_CONTENT_H - THEME_NOWPLAYING_H);
+    uint16_t bottom = (uint16_t)(THEME_STATUS_H + content_h);
+
+    for (i = 0u; i < LAUNCHER_COUNT; i++) {
+        launcher_tile_rect_in(i, content_h, &r);
+        TEST_ASSERT_EQUAL_UINT16(LAUNCHER_TILE_PX, r.w);
+        TEST_ASSERT_GREATER_OR_EQUAL_UINT16(THEME_HIT_MIN_PX, r.h);
+        TEST_ASSERT_GREATER_OR_EQUAL_UINT16(THEME_STATUS_H, r.y);
+        TEST_ASSERT_LESS_OR_EQUAL_UINT32(THEME_PANEL_W, (uint32_t)r.x + r.w);
+        TEST_ASSERT_LESS_OR_EQUAL_UINT32(bottom, (uint32_t)r.y + r.h);
+        hit = launcher_hit_in((int16_t)(r.x + r.w / 2u), (int16_t)(r.y + r.h / 2u), content_h);
+        TEST_ASSERT_EQUAL_INT((int)i, hit);
+    }
+}
+
 static void test_shell_nav(void)
 {
     unsigned i;
@@ -155,6 +175,7 @@ void test_shell_run(void)
     RUN_TEST(test_nav_stack);
     RUN_TEST(test_nav_overflow);
     RUN_TEST(test_launcher_geom);
+    RUN_TEST(test_launcher_geom_nowplaying);
     RUN_TEST(test_shell_nav);
     RUN_TEST(test_shell_status);
 }

@@ -359,7 +359,7 @@ static void build_launcher(void)
         if (app == NULL) {
             continue;
         }
-        launcher_tile_rect(i, &r);
+        launcher_tile_rect_in(i, (uint16_t)content_h(), &r);
         x = (int32_t)r.x;
         y = (int32_t)(r.y - THEME_STATUS_H);
         cell = lv_obj_create(s_content);
@@ -1214,6 +1214,7 @@ err_t ui_backend_init(void)
     lv_obj_set_style_pad_all(s_content, 0, 0);
     lv_obj_set_style_radius(s_content, 0, 0);
     lv_obj_clear_flag(s_content, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_remove_flag(s_content, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
 
     s_gen = 0xFFFFFFFFu;
     s_files_gen = 0xFFFFFFFFu;
