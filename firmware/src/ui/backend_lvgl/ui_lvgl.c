@@ -4,6 +4,7 @@
 #include "app/calendar.h"
 #include "app/files.h"
 #include "app/game.h"
+#include "app/home.h"
 #include "app/image_view.h"
 #include "app/network.h"
 #include "app/player.h"
@@ -27,6 +28,7 @@ static lv_obj_t *s_time;
 static lv_obj_t *s_stor;
 static lv_obj_t *s_m4;
 static lv_obj_t *s_eth;
+static lv_obj_t *s_zb;
 static lv_obj_t *s_nowplay;
 static lv_obj_t *s_np_title;
 static lv_obj_t *s_np_btn;
@@ -58,6 +60,9 @@ static lv_obj_t *s_game_score;
 static lv_obj_t *s_game_high;
 static lv_obj_t *s_game_lives;
 static uint32_t s_game_gen = 0xFFFFFFFFu;
+static uint32_t s_home_gen = 0xFFFFFFFFu;
+static lv_obj_t *s_home_banner;
+static uint8_t s_last_zb = 0xFFu;
 static lv_image_dsc_t s_img_dsc;
 
 static lv_obj_t *add_label(lv_obj_t *parent, const char *txt, int32_t x, int32_t y, int32_t w,
@@ -285,6 +290,12 @@ static void back_cb(lv_event_t *e)
     if (id != NULL && strcmp(id, APP_ID_GAME) == 0) {
         if (game_on_back() != 0u) {
             log_nav("game", game_in_library() ? "library" : "pause");
+            return;
+        }
+    }
+    if (id != NULL && strcmp(id, APP_ID_HOME) == 0) {
+        if (home_app_on_back() != 0u) {
+            log_nav("home", home_app_title());
             return;
         }
     }
@@ -980,34 +991,253 @@ static void add_stat_card(int32_t x, int32_t y, int32_t w, const char *kicker, c
     add_label(card, value, 32, 22, w - 44, 22, THEME_TEXT, LV_FONT_DEFAULT);
 }
 
-static void add_room_chip(lv_obj_t *parent, int32_t x, int32_t y, const char *name, uint32_t color)
+static const char *home_symbol(home_kind_t kind)
 {
-    lv_obj_t *chip = lv_obj_create(parent);
-    lv_obj_t *dot;
+    if (kind == HOME_LIGHT) {
+        return LV_SYMBOL_CHARGE;
+    }
+    if (kind == HOME_SWITCH) {
+        return LV_SYMBOL_POWER;
+    }
+    if (kind == HOME_BINARY_SENSOR) {
+        return LV_SYMBOL_EYE_OPEN;
+    }
+    return LV_SYMBOL_REFRESH;
+}
 
-    lv_obj_set_pos(chip, x, y);
-    lv_obj_set_size(chip, 120, 36);
-    style_card(chip);
-    lv_obj_set_style_radius(chip, 18, 0);
-    dot = lv_obj_create(chip);
-    lv_obj_set_pos(dot, 10, 13);
-    lv_obj_set_size(dot, 10, 10);
-    style_round_btn(dot, color);
-    add_label(chip, name, 28, 8, 84, 20, THEME_TEXT, &lv_font_montserrat_12);
+static void home_pair_cb(lv_event_t *e)
+{
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
+        return;
+    }
+    home_app_pair();
+    log_nav("home", "pair");
+}
+
+static void home_net_cb(lv_event_t *e)
+{
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
+        return;
+    }
+    home_app_open_network();
+    log_nav("home", "network");
+}
+
+static void home_row_cb(lv_event_t *e)
+{
+    unsigned idx;
+
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
+        return;
+    }
+    idx = (unsigned)(uintptr_t)lv_event_get_user_data(e);
+    home_app_open_device(idx);
+    log_nav("home", "device");
+}
+
+static void home_toggle_cb(lv_event_t *e)
+{
+    unsigned idx;
+
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
+        return;
+    }
+    idx = (unsigned)(uintptr_t)lv_event_get_user_data(e);
+    home_app_toggle(idx);
+}
+
+static void home_ieee_text(char *out, size_t n, const home_device_t *d)
+{
+    size_t i;
+    size_t o = 0u;
+
+    if (out == NULL || n == 0u || d == NULL) {
+        return;
+    }
+    out[0] = '\0';
+    for (i = 0u; i < 8u && o + 3u < n; i++) {
+        static const char hex[] = "0123456789abcdef";
+        if (i > 0u) {
+            out[o++] = ':';
+        }
+        out[o++] = hex[(d->ieee[i] >> 4) & 0x0Fu];
+        out[o++] = hex[d->ieee[i] & 0x0Fu];
+    }
+    out[o] = '\0';
+}
+
+static void home_u16_text(char *out, size_t n, const char *prefix, uint16_t v)
+{
+    char tmp[6];
+    int i = 6;
+    size_t o = 0u;
+
+    if (out == NULL || n == 0u) {
+        return;
+    }
+    if (prefix != NULL) {
+        while (*prefix != '\0' && o + 1u < n) {
+            out[o++] = *prefix++;
+        }
+    }
+    tmp[5] = '\0';
+    if (v == 0u) {
+        tmp[--i] = '0';
+    }
+    while (v > 0u && i > 0) {
+        tmp[--i] = (char)('0' + (v % 10u));
+        v = (uint16_t)(v / 10u);
+    }
+    while (tmp[i] != '\0' && o + 1u < n) {
+        out[o++] = tmp[i++];
+    }
+    out[o] = '\0';
+}
+
+static void build_home_list(lv_obj_t *bar)
+{
+    home_device_t d[HOME_DEV_MAX];
+    size_t n;
+    size_t i;
+    int32_t y;
+    home_net_t net;
+    uint32_t banner_bg = THEME_SURFACE;
+
+    add_pill_btn(bar, THEME_PANEL_W - 84, 4, 72, 32, "Pair", THEME_TILE_HOME, 0xFFFFFFu,
+                 home_pair_cb);
+    lv_obj_add_flag(s_content, LV_OBJ_FLAG_SCROLLABLE);
+    home_net(&net);
+    if (net.radio_ok == 0u) {
+        banner_bg = 0xFFF3D6u;
+    } else if (net.permit_left > 0u) {
+        banner_bg = 0xE8F8ECu;
+    }
+    {
+        lv_obj_t *banner = add_card(12, THEME_APPBAR_H + 6, 456, 36);
+        lv_obj_set_style_bg_color(banner, lv_color_hex(banner_bg), 0);
+        lv_obj_add_flag(banner, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_event_cb(banner, home_net_cb, LV_EVENT_CLICKED, NULL);
+        s_home_banner = add_label(banner, home_app_banner(), 12, 8, 432, 20, THEME_TEXT,
+                                  &lv_font_montserrat_12);
+    }
+    n = home_devices(NULL, d, HOME_DEV_MAX);
+    if (n == 0u) {
+        add_message_card(THEME_APPBAR_H + 50, "No devices", THEME_TEXT,
+                         "Tap Pair to open the network.");
+        return;
+    }
+    y = THEME_APPBAR_H + 48;
+    for (i = 0u; i < n; i++) {
+        lv_obj_t *row = add_card(12, y, 456, THEME_ROW_H);
+        uint8_t can_tog = (d[i].kind == HOME_LIGHT || d[i].kind == HOME_SWITCH) ? 1u : 0u;
+        uint32_t ic = (d[i].on != 0u) ? THEME_TILE_HOME : THEME_MUTED;
+
+        lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_event_cb(row, home_row_cb, LV_EVENT_CLICKED, (void *)(uintptr_t)i);
+        add_icon_circle(row, 8, 6, 32, ic, home_symbol(d[i].kind));
+        add_label(row, d[i].name, 48, 4, 220, 20, THEME_TEXT, &lv_font_montserrat_12);
+        add_label(row, d[i].room_id, 48, 22, 160, 16, THEME_MUTED, &lv_font_montserrat_12);
+        add_label(row, home_app_state_text(&d[i]), 270, 12, 80, 20, THEME_TEXT,
+                  &lv_font_montserrat_12);
+        if (can_tog != 0u) {
+            lv_obj_t *tog = add_pill_btn(row, 360, 2, 88, 40, (d[i].on != 0u) ? "On" : "Off",
+                                         (d[i].on != 0u) ? THEME_OK : THEME_SURFACE_2,
+                                         (d[i].on != 0u) ? 0xFFFFFFu : THEME_TEXT, NULL);
+            lv_obj_add_event_cb(tog, home_toggle_cb, LV_EVENT_CLICKED, (void *)(uintptr_t)i);
+        }
+        y += THEME_ROW_H + 6;
+    }
+}
+
+static void build_home_device(lv_obj_t *bar)
+{
+    home_device_t d;
+    char ieee[28];
+    char nwk[16];
+    char lqi[16];
+    lv_obj_t *card;
+    unsigned idx = home_app_sel();
+
+    add_pill_btn(bar, THEME_PANEL_W - 84, 4, 72, 32, "Pair", THEME_TILE_HOME, 0xFFFFFFu,
+                 home_pair_cb);
+    if (home_device_at((size_t)idx, &d) != ERR_OK) {
+        add_message_card(THEME_APPBAR_H + 12, "Missing device", THEME_ERR, "Go back to the list.");
+        return;
+    }
+    home_ieee_text(ieee, sizeof(ieee), &d);
+    home_u16_text(nwk, sizeof(nwk), "NWK ", d.nwk);
+    home_u16_text(lqi, sizeof(lqi), "LQI ", d.lqi);
+    card = add_card(12, THEME_APPBAR_H + 8, 456, 168);
+    add_icon_circle(card, 16, 16, 40, THEME_TILE_HOME, home_symbol(d.kind));
+    add_label(card, d.name, 68, 12, 360, 22, THEME_TEXT, LV_FONT_DEFAULT);
+    add_label(card, d.room_id, 68, 36, 200, 18, THEME_MUTED, &lv_font_montserrat_12);
+    add_label(card, home_app_kind_text(d.kind), 280, 36, 160, 18, THEME_MUTED,
+              &lv_font_montserrat_12);
+    add_label(card, ieee, 16, 68, 420, 18, THEME_TEXT, &lv_font_montserrat_12);
+    add_label(card, nwk, 16, 90, 200, 18, THEME_MUTED, &lv_font_montserrat_12);
+    add_label(card, lqi, 220, 90, 200, 18, THEME_MUTED, &lv_font_montserrat_12);
+    if (d.kind == HOME_LIGHT || d.kind == HOME_SWITCH) {
+        lv_obj_t *tog = add_pill_btn(card, 16, 118, 120, 40, (d.on != 0u) ? "On" : "Off",
+                                     (d.on != 0u) ? THEME_OK : THEME_SURFACE_2,
+                                     (d.on != 0u) ? 0xFFFFFFu : THEME_TEXT, NULL);
+        lv_obj_add_event_cb(tog, home_toggle_cb, LV_EVENT_CLICKED, (void *)(uintptr_t)idx);
+    } else {
+        add_label(card, home_app_state_text(&d), 16, 124, 200, 20, THEME_TEXT, LV_FONT_DEFAULT);
+    }
+}
+
+static void build_home_network(lv_obj_t *bar)
+{
+    home_net_t n;
+    char ch[16];
+    char pan[16];
+    char cnt[16];
+    lv_obj_t *card;
+
+    add_pill_btn(bar, THEME_PANEL_W - 84, 4, 72, 32, "Pair", THEME_TILE_HOME, 0xFFFFFFu,
+                 home_pair_cb);
+    home_net(&n);
+    home_u16_text(ch, sizeof(ch), "ch ", n.channel);
+    home_u16_text(pan, sizeof(pan), "PAN ", n.pan);
+    home_u16_text(cnt, sizeof(cnt), "", (uint16_t)home_device_count());
+    card = add_card(12, THEME_APPBAR_H + 8, 456, 168);
+    add_label(card, (n.radio_ok != 0u) ? "Radio up" : "Radio not ready", 16, 12, 420, 22,
+              (n.radio_ok != 0u) ? THEME_OK : THEME_WARN, LV_FONT_DEFAULT);
+    add_label(card, n.znp_ver, 16, 38, 200, 18, THEME_MUTED, &lv_font_montserrat_12);
+    add_label(card, ch, 16, 60, 140, 18, THEME_TEXT, &lv_font_montserrat_12);
+    add_label(card, pan, 160, 60, 160, 18, THEME_TEXT, &lv_font_montserrat_12);
+    add_label(card, (n.formed != 0u) ? "Formed" : "Not formed", 16, 82, 200, 18, THEME_TEXT,
+              &lv_font_montserrat_12);
+    add_label(card, cnt, 220, 82, 80, 18, THEME_TEXT, &lv_font_montserrat_12);
+    add_label(card, "devices", 300, 82, 120, 18, THEME_MUTED, &lv_font_montserrat_12);
+    s_home_banner =
+        add_label(card, home_app_banner(), 16, 110, 420, 20, THEME_TEXT, &lv_font_montserrat_12);
+    add_label(card, (n.persist_ok != 0u) ? "Saved on eMMC" : "Not saved", 16, 134, 200, 18,
+              THEME_MUTED, &lv_font_montserrat_12);
 }
 
 static void build_home(void)
 {
-    lv_obj_t *card = add_card(16, THEME_APPBAR_H + 10, 448, 108);
+    lv_obj_t *bar = make_bar(home_app_title());
 
-    make_bar("Home");
-    add_icon_circle(card, 16, 20, 56, THEME_TILE_HOME, LV_SYMBOL_HOME);
-    add_label(card, "Rooms", 88, 22, 330, 24, THEME_TEXT, LV_FONT_DEFAULT);
-    add_label(card, "Zigbee lights and sensors pair here later.", 88, 50, 330, 36, THEME_MUTED,
-              &lv_font_montserrat_12);
-    add_room_chip(s_content, 16, THEME_APPBAR_H + 126, "Living", THEME_TILE_HOME);
-    add_room_chip(s_content, 148, THEME_APPBAR_H + 126, "Kitchen", THEME_WARN);
-    add_room_chip(s_content, 280, THEME_APPBAR_H + 126, "Bedroom", THEME_TILE_NET);
+    s_home_banner = NULL;
+    if (home_app_page() == HOME_PAGE_DEVICE) {
+        build_home_device(bar);
+        return;
+    }
+    if (home_app_page() == HOME_PAGE_NETWORK) {
+        build_home_network(bar);
+        return;
+    }
+    build_home_list(bar);
+}
+
+static void refresh_home_live(void)
+{
+    if (shell_top_id() == NULL || strcmp(shell_top_id(), APP_ID_HOME) != 0) {
+        return;
+    }
+    label_set(s_home_banner, home_app_banner());
 }
 
 static void game_pause_cb(lv_event_t *e)
@@ -1404,6 +1634,7 @@ static void rebuild_content(void)
     const char *id;
 
     s_list = NULL;
+    lv_obj_clear_flag(s_content, LV_OBJ_FLAG_SCROLLABLE);
     s_pl_title = NULL;
     s_pl_elapsed = NULL;
     s_pl_dur = NULL;
@@ -1414,6 +1645,7 @@ static void rebuild_content(void)
     s_cal_clock = NULL;
     s_cal_date = NULL;
     s_cal_ntp = NULL;
+    s_home_banner = NULL;
     s_game_img = NULL;
     s_game_score = NULL;
     s_game_high = NULL;
@@ -1461,10 +1693,12 @@ static void refresh_status(void)
         lv_obj_remove_flag(s_eth, LV_OBJ_FLAG_HIDDEN);
         lv_obj_set_style_text_color(s_eth, lv_color_hex(net_color(st->net)), 0);
     }
+    lv_obj_set_style_text_color(s_zb, lv_color_hex(net_color((st->zb != 0u) ? st->zb : 1u)), 0);
     s_last_min = st->min;
     s_last_m4 = st->m4;
     s_last_stor = st->storage_ok;
     s_last_net = st->net;
+    s_last_zb = st->zb;
 }
 
 err_t ui_backend_init(void)
@@ -1509,6 +1743,11 @@ err_t ui_backend_init(void)
     lv_label_set_text(s_eth, "ETH");
     lv_obj_set_pos(s_eth, 180, 8);
     lv_obj_set_style_text_font(s_eth, &lv_font_montserrat_12, 0);
+
+    s_zb = lv_label_create(s_status);
+    lv_label_set_text(s_zb, "ZB");
+    lv_obj_set_pos(s_zb, 220, 8);
+    lv_obj_set_style_text_font(s_zb, &lv_font_montserrat_12, 0);
 
     s_nowplay = lv_obj_create(scr);
     lv_obj_set_pos(s_nowplay, 0, (int32_t)(THEME_PANEL_H - THEME_NOWPLAYING_H));
@@ -1555,6 +1794,7 @@ err_t ui_backend_init(void)
     s_text_gen = 0xFFFFFFFFu;
     s_img_gen = 0xFFFFFFFFu;
     s_game_gen = 0xFFFFFFFFu;
+    s_home_gen = 0xFFFFFFFFu;
     refresh_status();
     rebuild_content();
     s_gen = shell_nav_gen();
@@ -1564,6 +1804,7 @@ err_t ui_backend_init(void)
     s_net_gen = network_gen();
     s_cal_gen = calendar_gen();
     s_game_gen = game_gen();
+    s_home_gen = home_app_gen();
     return ERR_OK;
 }
 
@@ -1576,6 +1817,7 @@ void ui_backend_handler(void)
     uint32_t ngen = network_gen();
     uint32_t cgen = calendar_gen();
     uint32_t ggen = game_gen();
+    uint32_t hgen = home_app_gen();
     uint8_t audio = audio_active();
     const char *id = shell_top_id();
     uint8_t show_mini = (audio != 0u && (id == NULL || strcmp(id, APP_ID_PLAYER) != 0)) ? 1u : 0u;
@@ -1602,7 +1844,8 @@ void ui_backend_handler(void)
     /* Do not rebuild on player_gen: elapsed time used to recreate the whole
      * tree every second, which flickered and ate taps. */
     if (gen != s_gen || fgen != s_files_gen || tgen != s_text_gen || igen != s_img_gen ||
-        ngen != s_net_gen || cgen != s_cal_gen || ggen != s_game_gen || audio != s_last_audio) {
+        ngen != s_net_gen || cgen != s_cal_gen || ggen != s_game_gen || hgen != s_home_gen ||
+        audio != s_last_audio) {
         s_gen = gen;
         s_files_gen = fgen;
         s_text_gen = tgen;
@@ -1610,14 +1853,17 @@ void ui_backend_handler(void)
         s_net_gen = ngen;
         s_cal_gen = cgen;
         s_game_gen = ggen;
+        s_home_gen = hgen;
         s_last_audio = audio;
         rebuild_content();
     }
     refresh_player_live();
     refresh_calendar_live();
     refresh_game_live();
+    refresh_home_live();
     if (shell_status()->min != s_last_min || shell_status()->m4 != s_last_m4 ||
-        shell_status()->storage_ok != s_last_stor || shell_status()->net != s_last_net) {
+        shell_status()->storage_ok != s_last_stor || shell_status()->net != s_last_net ||
+        shell_status()->zb != s_last_zb) {
         refresh_status();
     }
     lv_timer_handler();

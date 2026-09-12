@@ -21,6 +21,7 @@ void test_image_run(void);
 void test_audio_run(void);
 void test_net_run(void);
 void test_game_run(void);
+void test_home_run(void);
 
 int main(void)
 {
@@ -38,5 +39,6 @@ int main(void)
     test_audio_run();
     test_net_run();
     test_game_run();
+    test_home_run();
     return UNITY_END();
 }

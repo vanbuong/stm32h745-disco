@@ -2,6 +2,7 @@
 #include "hal/disp.h"
 #include "hal/input.h"
 #include "svc/audio.h"
+#include "svc/home.h"
 #include "svc/memtest.h"
 #include "svc/net.h"
 #include "svc/time.h"
@@ -280,7 +281,7 @@ int main(void)
 
     e = board_clock_init();
     board_console_init(0);
-    board_console_puts("M7 stm32h745-disco s10\r\n");
+    board_console_puts("M7 stm32h745-disco s11\r\n");
     if (board_cm4_saw_stop() == 0u) {
         board_console_puts("d2 stop to\r\n");
     }
@@ -371,6 +372,7 @@ int main(void)
 
     vfs_ok = vfs_bringup();
     shell_status_set_storage(vfs_ok);
+    (void)home_init();
 
     e = time_init();
     log_err("rtc", e);

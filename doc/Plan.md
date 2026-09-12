@@ -302,12 +302,21 @@ Lock:
 
 ### Sprint 11 — Zigbee host (TI ZNP)
 
-- `uart_*` on USART1 (Arduino); never USART3. Optional ZNP RESET GPIO.
-- `znp_mt` framing + SYS version ping; `zb_host` form coordinator, persist `/user/home`.
-- Permit join with timeout; ZDO announce → interview → `home_device_t` on screen.
-- OnOff / Level commands; attribute reports update the dashboard.
-- `mock` backend so UI works without a dongle.
-- **Exit:** host tests for MT checksum and device-table jail; HIL: SYS ping, form, join a test OnOff end device, toggle from the panel, reboot keeps the named list.
+Status: **done** (mock-first Home; no extra NVIC).
+
+`znp_mt` framing is already in tree. This sprint makes Home a real app: device table, persist, pair countdown, and a mock backend so the panel is usable without a dongle.
+
+Lock:
+
+- **Mock first:** seed ≥ 2 rooms and ≥ 4 devices (Living lamp, Hall switch, Front door, Motion stair) so Home works on the board and host-sim with no CC2652 (`REQ-HOME-02`). Firmware `uart_*` for `UART_ID_ZNP` returns `ERR_IO` (no USART1 IRQ this sprint). Host `uart_*` is a software stub that can auto-reply SYS_PING (`0x21 0x01` → `0x61 0x01`).
+- **USART3 stays console.** Never steal it for ZNP. No new NVIC vector.
+- **Apps use only `home_*`.** `src/app/home.c` must not include `znp_mt.h`, `uart.h`, HAL, MQTT, or LwIP (`REQ-HOME-01`).
+- **`zb_host`** owns the device table (32), form / permit-join countdown, interview apply, and persist under `/user/home` (jail). Cluster map: OnOff+Level → LIGHT, OnOff → SWITCH, Occupancy/IAS Zone → BINARY_SENSOR, Temperature → CLIMATE.
+- **`home_*`** wraps the table: list, optimistic `home_cmd` (mock / seeded list succeeds; radio-down + not-mock reverts + `ERR_IO`), `home_set_meta`, callback, `auto_eval`. Persist is dirty + `home_poll` (not on the LVGL tap path).
+- **UI:** replace the Home stub with Devices (default), Device, Network. Pair opens join for 60 s. Radio-down banner when SYS ping failed. Do not rebuild the list every tick (permit countdown is a live label). Automations editor stays Sprint 12.
+- **Out:** MQTT, climate/scenes, extra IRQ, JPEG HW, DMA2D, real pairing as the only path.
+
+- **Exit:** host tests for MT checksum, SYS ping stub, interview map, 32-device cap, cmd revert, persist jail; HIL: Home opens with mock list and “Radio not ready”, Pair countdown, toggle a light, reboot keeps names.
 
 ### Sprint 12 — Local automation + Home polish
 

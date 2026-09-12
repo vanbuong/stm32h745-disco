@@ -14,6 +14,9 @@ set(HOST_SRC
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/vfs_path.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/vfs_probe.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/znp_mt.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/zb_host.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/home.c
+    ${CMAKE_SOURCE_DIR}/tests/host/uart_stub.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/media_probe.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/text_view.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/media_image.c
@@ -44,6 +47,7 @@ set(HOST_SRC
     ${CMAKE_SOURCE_DIR}/firmware/src/app/network.c
     ${CMAKE_SOURCE_DIR}/firmware/src/app/calendar.c
     ${CMAKE_SOURCE_DIR}/firmware/src/app/game.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/app/home.c
     ${CMAKE_SOURCE_DIR}/firmware/src/game/gfx.c
     ${CMAKE_SOURCE_DIR}/firmware/src/game/brick.c
     ${CMAKE_SOURCE_DIR}/firmware/src/game/chip8.c
@@ -63,6 +67,7 @@ set(HOST_SRC
     ${CMAKE_SOURCE_DIR}/tests/host/test_audio.c
     ${CMAKE_SOURCE_DIR}/tests/host/test_net.c
     ${CMAKE_SOURCE_DIR}/tests/host/test_game.c
+    ${CMAKE_SOURCE_DIR}/tests/host/test_home.c
     ${CMAKE_SOURCE_DIR}/tests/host/vfs_ram.c
 )
 

@@ -1,5 +1,6 @@
 #include "app/files.h"
 #include "bsp/board.h"
+#include "svc/home.h"
 #include "svc/net.h"
 #include "svc/time.h"
 #include "svc/vfs.h"
@@ -127,7 +128,8 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    board_console_puts("host-sim stm32h745-disco s9\n");
+    board_console_puts("host-sim stm32h745-disco s11\n");
+    (void)home_init();
     (void)time_init();
     (void)net_service_init();
     net_test_set_eth_link(NET_LINK_UP, 100u, 1u);

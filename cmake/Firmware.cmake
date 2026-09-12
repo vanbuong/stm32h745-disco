@@ -114,6 +114,11 @@ function(stm32_add_firmware CORE_ID)
             ${H745_ROOT}/firmware/src/svc/audio.c
             ${H745_ROOT}/firmware/src/svc/net.c
             ${H745_ROOT}/firmware/src/svc/time.c
+            ${H745_ROOT}/firmware/src/svc/znp_mt.c
+            ${H745_ROOT}/firmware/src/svc/zb_host.c
+            ${H745_ROOT}/firmware/src/svc/home.c
+            ${H745_ROOT}/firmware/src/svc/auto.c
+            ${H745_ROOT}/firmware/src/hal/uart.c
             ${H745_ROOT}/firmware/src/svc/vendor/tjpgd/tjpgd.c
             ${H745_ROOT}/firmware/src/svc/vendor/puff/puff.c
             ${H745_ROOT}/firmware/src/shell/nav.c
@@ -126,6 +131,7 @@ function(stm32_add_firmware CORE_ID)
             ${H745_ROOT}/firmware/src/app/network.c
             ${H745_ROOT}/firmware/src/app/calendar.c
             ${H745_ROOT}/firmware/src/app/game.c
+            ${H745_ROOT}/firmware/src/app/home.c
             ${H745_ROOT}/firmware/src/game/gfx.c
             ${H745_ROOT}/firmware/src/game/brick.c
             ${H745_ROOT}/firmware/src/game/chip8.c

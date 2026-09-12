@@ -79,6 +79,11 @@ set(SIM_SRC
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/audio.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/net.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/time.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/znp_mt.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/zb_host.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/home.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/auto.c
+    ${CMAKE_SOURCE_DIR}/tests/host/uart_stub.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/tjpgd/tjpgd.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/puff/puff.c
     ${HELIX_SRC}
@@ -92,6 +97,7 @@ set(SIM_SRC
     ${CMAKE_SOURCE_DIR}/firmware/src/app/network.c
     ${CMAKE_SOURCE_DIR}/firmware/src/app/calendar.c
     ${CMAKE_SOURCE_DIR}/firmware/src/app/game.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/app/home.c
     ${CMAKE_SOURCE_DIR}/firmware/src/game/gfx.c
     ${CMAKE_SOURCE_DIR}/firmware/src/game/brick.c
     ${CMAKE_SOURCE_DIR}/firmware/src/game/chip8.c

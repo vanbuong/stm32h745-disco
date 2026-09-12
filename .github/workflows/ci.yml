@@ -78,6 +78,8 @@ jobs:
             firmware/src/ipc/ipc_link.c \
             firmware/src/svc/vfs_path.c \
             firmware/src/svc/znp_mt.c \
+            firmware/src/svc/zb_host.c \
+            firmware/src/svc/home.c \
             firmware/src/svc/media_probe.c \
             firmware/src/svc/text_view.c \
             firmware/src/svc/media_image.c \
@@ -101,6 +103,7 @@ jobs:
             firmware/src/app/player.c \
             firmware/src/app/network.c \
             firmware/src/app/game.c \
+            firmware/src/app/home.c \
             firmware/src/game/gfx.c \
             firmware/src/game/brick.c \
             firmware/src/game/chip8.c \

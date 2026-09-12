@@ -2,6 +2,7 @@
 
 #include "app/apps.h"
 #include "svc/audio.h"
+#include "svc/home.h"
 #include "svc/net.h"
 #include "svc/time.h"
 #include "ui/nav.h"
@@ -103,6 +104,8 @@ void shell_tick(uint32_t dt_ms)
     }
     net_service_poll(g_now_ms);
     g_status.net = net_bar_level();
+    home_poll(dt_ms);
+    g_status.zb = home_bar_level();
     if (g_top_app != NULL && g_top_app->on_tick != NULL) {
         g_top_app->on_tick(dt_ms);
     }

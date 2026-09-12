@@ -3,6 +3,7 @@
 #include "app/calendar.h"
 #include "app/files.h"
 #include "app/game.h"
+#include "app/home.h"
 #include "app/image_view.h"
 #include "app/network.h"
 #include "app/player.h"
@@ -12,12 +13,6 @@
 #include <string.h>
 
 static const char *g_view_path;
-
-static void stub_start(void *args)
-{
-    (void)args;
-    g_view_path = NULL;
-}
 
 static void stub_stop(void)
 {
@@ -133,9 +128,25 @@ static void game_on_tick(uint32_t dt_ms)
     game_step(dt_ms);
 }
 
+static void home_start(void *args)
+{
+    (void)args;
+    home_app_open();
+}
+
+static void home_stop(void)
+{
+    home_app_close();
+}
+
+static void home_on_tick(uint32_t dt_ms)
+{
+    home_app_tick(dt_ms);
+}
+
 static const ui_app_t g_apps[] = {
     {APP_ID_FILES, "Files", "files", files_start, files_stop, stub_tick, stub_event},
-    {APP_ID_HOME, "Home", "home", stub_start, stub_stop, stub_tick, stub_event},
+    {APP_ID_HOME, "Home", "home", home_start, home_stop, home_on_tick, stub_event},
     {APP_ID_GAME, "Game", "game", game_start, game_stop, game_on_tick, stub_event},
     {APP_ID_PLAYER, "Music", "player", player_start, player_stop, stub_tick, stub_event},
     {APP_ID_CALENDAR, "Calendar", "calendar", calendar_start, calendar_stop, stub_tick, stub_event},
