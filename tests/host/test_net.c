@@ -1,5 +1,6 @@
 #include "unity.h"
 
+#include "app/calendar.h"
 #include "app/network.h"
 #include "svc/net.h"
 #include "svc/time.h"
@@ -186,6 +187,72 @@ static void test_time_clock(void)
     TEST_ASSERT_EQUAL_UINT8(2u, hh);
 }
 
+static void test_time_civil_ntp(void)
+{
+    time_civil_t c;
+
+    TEST_ASSERT_EQUAL_INT(ERR_OK, time_init());
+    TEST_ASSERT_EQUAL_UINT8(31u, time_month_days(2026u, 1u));
+    TEST_ASSERT_EQUAL_UINT8(28u, time_month_days(2026u, 2u));
+    TEST_ASSERT_EQUAL_UINT8(29u, time_month_days(2024u, 2u));
+    TEST_ASSERT_EQUAL_UINT8(0u, time_month_days(2026u, 13u));
+    TEST_ASSERT_EQUAL_UINT8(4u, time_weekday(2026u, 1u, 1u));
+    TEST_ASSERT_EQUAL_UINT8(1u, time_weekday(2024u, 1u, 1u));
+    TEST_ASSERT_EQUAL_INT(ERR_INVAL, time_now(NULL));
+    TEST_ASSERT_EQUAL_INT(ERR_OK, time_now(&c));
+    TEST_ASSERT_EQUAL_UINT16(2026u, c.year);
+    TEST_ASSERT_EQUAL_UINT8(1u, c.month);
+    TEST_ASSERT_EQUAL_UINT8(1u, c.day);
+    TEST_ASSERT_EQUAL_STRING("NTP idle", time_ntp_str());
+    time_unix_to_civil(1704067200u, &c);
+    TEST_ASSERT_EQUAL_UINT16(2024u, c.year);
+    TEST_ASSERT_EQUAL_UINT8(1u, c.month);
+    TEST_ASSERT_EQUAL_UINT8(1u, c.day);
+    TEST_ASSERT_EQUAL_UINT8(0u, c.hour);
+    TEST_ASSERT_EQUAL_UINT8(1u, c.wday);
+    time_ntp_apply_unix(1704067200u);
+    TEST_ASSERT_EQUAL_INT(TIME_NTP_OK, (int)time_ntp_state());
+    TEST_ASSERT_EQUAL_STRING("NTP synced (UTC)", time_ntp_str());
+    TEST_ASSERT_EQUAL_INT(ERR_OK, time_now(&c));
+    TEST_ASSERT_EQUAL_UINT16(2024u, c.year);
+    TEST_ASSERT_EQUAL_UINT8(1u, c.month);
+    TEST_ASSERT_EQUAL_INT(ERR_INVAL, time_set(NULL));
+    c.month = 13u;
+    TEST_ASSERT_EQUAL_INT(ERR_INVAL, time_set(&c));
+    time_poll(86400000u);
+    TEST_ASSERT_EQUAL_INT(ERR_OK, time_now(&c));
+    TEST_ASSERT_EQUAL_UINT8(2u, c.day);
+}
+
+static void test_calendar_grid(void)
+{
+    unsigned i;
+    unsigned found = 0u;
+
+    TEST_ASSERT_EQUAL_INT(ERR_OK, time_init());
+    calendar_open();
+    TEST_ASSERT_NOT_NULL(calendar_title());
+    TEST_ASSERT_NOT_NULL(calendar_clock());
+    TEST_ASSERT_NOT_NULL(calendar_date_line());
+    TEST_ASSERT_NOT_NULL(calendar_ntp_line());
+    TEST_ASSERT_EQUAL_UINT8(0u, calendar_cell_day(99u));
+    for (i = 0u; i < CALENDAR_CELLS; i++) {
+        uint8_t d = calendar_cell_day(i);
+        if (d == 1u) {
+            found = 1u;
+        }
+        if (d != 0u) {
+            TEST_ASSERT_GREATER_OR_EQUAL_UINT8(1u, d);
+            TEST_ASSERT_LESS_OR_EQUAL_UINT8(31u, d);
+        }
+    }
+    TEST_ASSERT_EQUAL_UINT(1u, found);
+    calendar_next_month();
+    calendar_prev_month();
+    calendar_go_today();
+    calendar_close();
+}
+
 void test_net_run(void)
 {
     UnitySetTestFile(__FILE__);
@@ -198,4 +265,6 @@ void test_net_run(void)
     RUN_TEST(test_net_fmt);
     RUN_TEST(test_net_screen);
     RUN_TEST(test_time_clock);
+    RUN_TEST(test_time_civil_ntp);
+    RUN_TEST(test_calendar_grid);
 }

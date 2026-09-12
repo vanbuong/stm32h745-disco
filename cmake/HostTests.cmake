@@ -42,6 +42,7 @@ set(HOST_SRC
     ${CMAKE_SOURCE_DIR}/firmware/src/app/image_view.c
     ${CMAKE_SOURCE_DIR}/firmware/src/app/player.c
     ${CMAKE_SOURCE_DIR}/firmware/src/app/network.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/app/calendar.c
     ${CMAKE_SOURCE_DIR}/firmware/src/osal/posix/osal.c
     ${CMAKE_SOURCE_DIR}/tests/host/test_main.c
     ${CMAKE_SOURCE_DIR}/tests/host/test_ipc.c

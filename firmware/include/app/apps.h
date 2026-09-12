@@ -17,6 +17,7 @@ extern "C" {
 #define APP_ID_PLAYER "player"
 #define APP_ID_SETTINGS "settings"
 #define APP_ID_NETWORK "network"
+#define APP_ID_CALENDAR "calendar"
 
 typedef struct {
     const char *id;

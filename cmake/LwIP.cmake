@@ -28,5 +28,6 @@ set(LWIP_SRC
     ${LWIP_DIR}/src/core/ipv4/ip4_addr.c
     ${LWIP_DIR}/src/core/ipv4/ip4_frag.c
     ${LWIP_DIR}/src/netif/ethernet.c
+    ${LWIP_DIR}/src/apps/sntp/sntp.c
 )
 set_source_files_properties(${LWIP_SRC} PROPERTIES COMPILE_FLAGS "-w")

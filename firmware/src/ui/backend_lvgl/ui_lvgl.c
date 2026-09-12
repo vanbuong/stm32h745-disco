@@ -1,6 +1,7 @@
 #include "ui/backend.h"
 
 #include "app/apps.h"
+#include "app/calendar.h"
 #include "app/files.h"
 #include "app/image_view.h"
 #include "app/network.h"
@@ -8,6 +9,7 @@
 #include "lv_port.h"
 #include "svc/audio.h"
 #include "svc/text_view.h"
+#include "svc/time.h"
 #include "ui/launcher.h"
 #include "ui/shell.h"
 #include "ui/theme.h"
@@ -46,6 +48,10 @@ static lv_obj_t *s_pl_state;
 static lv_obj_t *s_pl_vol;
 static lv_obj_t *s_pl_toggle;
 static lv_obj_t *s_pl_fill;
+static lv_obj_t *s_cal_clock;
+static lv_obj_t *s_cal_date;
+static lv_obj_t *s_cal_ntp;
+static uint32_t s_cal_gen = 0xFFFFFFFFu;
 static lv_image_dsc_t s_img_dsc;
 
 static lv_obj_t *add_label(lv_obj_t *parent, const char *txt, int32_t x, int32_t y, int32_t w,
@@ -195,6 +201,9 @@ static uint32_t tile_color(const char *id)
     if (strcmp(id, APP_ID_NETWORK) == 0) {
         return THEME_TILE_NET;
     }
+    if (strcmp(id, APP_ID_CALENDAR) == 0) {
+        return THEME_TILE_CAL;
+    }
     if (strcmp(id, APP_ID_SETTINGS) == 0) {
         return THEME_TILE_SET;
     }
@@ -220,6 +229,9 @@ static const char *tile_symbol(const char *id)
     }
     if (strcmp(id, APP_ID_NETWORK) == 0) {
         return LV_SYMBOL_WIFI;
+    }
+    if (strcmp(id, APP_ID_CALENDAR) == 0) {
+        return LV_SYMBOL_BARS;
     }
     if (strcmp(id, APP_ID_SETTINGS) == 0) {
         return LV_SYMBOL_SETTINGS;
@@ -379,7 +391,26 @@ static void build_launcher(void)
         style_tile_btn(btn, tile_color(app->id));
         lv_obj_add_flag(btn, LV_OBJ_FLAG_EVENT_BUBBLE);
         icon = lv_label_create(btn);
-        lv_label_set_text(icon, tile_symbol(app->id));
+        if (strcmp(app->id, APP_ID_CALENDAR) == 0) {
+            time_civil_t now;
+            char day[4];
+
+            if (time_now(&now) == ERR_OK && now.day >= 1u) {
+                if (now.day >= 10u) {
+                    day[0] = (char)('0' + ((now.day / 10u) % 10u));
+                    day[1] = (char)('0' + (now.day % 10u));
+                    day[2] = '\0';
+                } else {
+                    day[0] = (char)('0' + now.day);
+                    day[1] = '\0';
+                }
+                lv_label_set_text(icon, day);
+            } else {
+                lv_label_set_text(icon, tile_symbol(app->id));
+            }
+        } else {
+            lv_label_set_text(icon, tile_symbol(app->id));
+        }
         lv_obj_set_style_text_font(icon, &lv_font_montserrat_20, 0);
         lv_obj_set_style_text_color(icon, lv_color_hex(0xFFFFFFu), 0);
         lv_obj_align(icon, LV_ALIGN_TOP_MID, 0, 18);
@@ -937,42 +968,6 @@ static void add_stat_card(int32_t x, int32_t y, int32_t w, const char *kicker, c
     add_label(card, value, 32, 22, w - 44, 22, THEME_TEXT, LV_FONT_DEFAULT);
 }
 
-static void build_network(void)
-{
-    char speed[16];
-    unsigned n;
-    size_t o = 0u;
-    const char *link = net_link_pretty();
-    uint32_t accent = THEME_TILE_NET;
-
-    make_bar("Network");
-    network_refresh();
-    if (strcmp(link, "Down") == 0) {
-        accent = THEME_ERR;
-    }
-    add_stat_card(16, THEME_APPBAR_H + 6, 220, "Link", link, accent);
-    add_stat_card(244, THEME_APPBAR_H + 6, 220, "Path", net_path_pretty(), THEME_TILE_NET);
-    add_stat_card(16, THEME_APPBAR_H + 58, 220, "IPv4", network_ip_str(), THEME_ACCENT);
-    add_stat_card(244, THEME_APPBAR_H + 58, 220, "MAC", network_mac_str(), THEME_MUTED);
-
-    n = (unsigned)network_speed_mbps();
-    if (n >= 100u) {
-        speed[o++] = (char)('0' + ((n / 100u) % 10u));
-    }
-    if (n >= 10u) {
-        speed[o++] = (char)('0' + ((n / 10u) % 10u));
-    }
-    speed[o++] = (char)('0' + (n % 10u));
-    speed[o++] = ' ';
-    speed[o++] = 'M';
-    speed[o++] = 'b';
-    speed[o++] = '/';
-    speed[o++] = 's';
-    speed[o] = '\0';
-    add_stat_card(16, THEME_APPBAR_H + 110, 220, "Mode", network_mode_str(), THEME_WARN);
-    add_stat_card(244, THEME_APPBAR_H + 110, 220, "Speed", speed, THEME_OK);
-}
-
 static void add_room_chip(lv_obj_t *parent, int32_t x, int32_t y, const char *name, uint32_t color)
 {
     lv_obj_t *chip = lv_obj_create(parent);
@@ -1016,20 +1011,127 @@ static void build_game(void)
 
 static void build_settings(void)
 {
-    lv_obj_t *card = add_card(16, THEME_APPBAR_H + 8, 448, 148);
+    lv_obj_t *card = add_card(16, THEME_APPBAR_H + 6, 448, 56);
     char vol[12];
+    const char *link;
 
     make_bar("Settings");
-    add_icon_circle(card, 16, 12, 48, THEME_TILE_SET, LV_SYMBOL_SETTINGS);
-    add_label(card, "STM32H745 Disco", 80, 12, 340, 24, THEME_TEXT, LV_FONT_DEFAULT);
-    add_label(card, "Analog out on CN10 headphone jack.", 80, 38, 340, 20, THEME_MUTED,
-              &lv_font_montserrat_12);
-    add_label(card, "Volume", 16, 72, 120, 18, THEME_MUTED, &lv_font_montserrat_12);
-    add_hit_btn(card, 16, 96, LV_SYMBOL_MINUS, player_vol_cb, -10);
+    network_refresh();
+    add_icon_circle(card, 12, 8, 40, THEME_TILE_SET, LV_SYMBOL_SETTINGS);
+    add_label(card, "STM32H745 Disco", 64, 8, 200, 20, THEME_TEXT, LV_FONT_DEFAULT);
+    add_label(card, "CN10 headphone", 64, 30, 160, 16, THEME_MUTED, &lv_font_montserrat_12);
+    add_hit_btn(card, 280, 8, LV_SYMBOL_MINUS, player_vol_cb, -10);
     fmt_vol(vol, player_volume());
-    s_pl_vol = add_label(card, vol, 72, 106, 64, 20, THEME_TEXT, LV_FONT_DEFAULT);
+    s_pl_vol = add_label(card, vol, 328, 16, 48, 20, THEME_TEXT, LV_FONT_DEFAULT);
     lv_obj_set_style_text_align(s_pl_vol, LV_TEXT_ALIGN_CENTER, 0);
-    add_hit_btn(card, 148, 96, LV_SYMBOL_PLUS, player_vol_cb, 10);
+    add_hit_btn(card, 384, 8, LV_SYMBOL_PLUS, player_vol_cb, 10);
+
+    link = net_link_pretty();
+    add_stat_card(16, THEME_APPBAR_H + 68, 220, "Link", link,
+                  (strcmp(link, "Down") == 0) ? THEME_ERR : THEME_TILE_NET);
+    add_stat_card(244, THEME_APPBAR_H + 68, 220, "IPv4", network_ip_str(), THEME_ACCENT);
+    add_stat_card(16, THEME_APPBAR_H + 122, 220, "Path", net_path_pretty(), THEME_TILE_NET);
+    add_stat_card(244, THEME_APPBAR_H + 122, 220, "Time", time_ntp_str(),
+                  (time_ntp_state() == TIME_NTP_OK) ? THEME_OK : THEME_WARN);
+}
+
+static void calendar_nav_cb(lv_event_t *e)
+{
+    int dir;
+
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
+        return;
+    }
+    dir = (int)(intptr_t)lv_event_get_user_data(e);
+    if (dir < 0) {
+        calendar_prev_month();
+    } else if (dir > 0) {
+        calendar_next_month();
+    } else {
+        calendar_go_today();
+    }
+}
+
+static void refresh_calendar_live(void)
+{
+    label_set(s_cal_clock, calendar_clock());
+    label_set(s_cal_date, calendar_date_line());
+    label_set(s_cal_ntp, calendar_ntp_line());
+}
+
+static void build_calendar(void)
+{
+    lv_obj_t *bar;
+    unsigned i;
+    int32_t grid_y;
+    int32_t cell_w;
+    int32_t cell_h;
+    int32_t grid_h;
+    static const char *const wd[7] = {"S", "M", "T", "W", "T", "F", "S"};
+
+    bar = make_bar(calendar_title());
+    add_nav_btn(bar, THEME_PANEL_W - 2 * THEME_HIT_MIN_PX, LV_SYMBOL_LEFT, calendar_nav_cb, -1);
+    add_nav_btn(bar, THEME_PANEL_W - THEME_HIT_MIN_PX, LV_SYMBOL_RIGHT, calendar_nav_cb, 1);
+
+    s_cal_clock = add_label(s_content, calendar_clock(), 16, THEME_APPBAR_H + 4, 160, 22,
+                            THEME_TEXT, LV_FONT_DEFAULT);
+    s_cal_date = add_label(s_content, calendar_date_line(), 180, THEME_APPBAR_H + 6, 180, 18,
+                           THEME_MUTED, &lv_font_montserrat_12);
+    s_cal_ntp = add_label(s_content, calendar_ntp_line(), 360, THEME_APPBAR_H + 6, 110, 18,
+                          THEME_TILE_CAL, &lv_font_montserrat_12);
+
+    grid_y = THEME_APPBAR_H + 28;
+    for (i = 0u; i < 7u; i++) {
+        add_label(s_content, wd[i], (int32_t)(8 + i * 67), grid_y, 64, 14, THEME_MUTED,
+                  &lv_font_montserrat_12);
+    }
+    grid_y += 16;
+    grid_h = content_h() - grid_y - 4;
+    if (grid_h < 96) {
+        grid_h = 96;
+    }
+    cell_w = 66;
+    cell_h = grid_h / 6;
+    if (cell_h < 16) {
+        cell_h = 16;
+    }
+    for (i = 0u; i < CALENDAR_CELLS; i++) {
+        uint8_t day = calendar_cell_day(i);
+        uint8_t today = calendar_cell_today(i);
+        int32_t x = (int32_t)(8 + (i % 7u) * 67);
+        int32_t y = grid_y + (int32_t)((i / 7u) * (unsigned)cell_h);
+        char num[3];
+        lv_obj_t *cell;
+        uint32_t bg = THEME_SURFACE;
+        uint32_t fg = THEME_TEXT;
+
+        if (day == 0u) {
+            continue;
+        }
+        if (today != 0u) {
+            bg = THEME_TILE_CAL;
+            fg = 0xFFFFFFu;
+        }
+        cell = lv_obj_create(s_content);
+        lv_obj_set_pos(cell, x, y);
+        lv_obj_set_size(cell, cell_w, cell_h - 2);
+        lv_obj_set_style_bg_color(cell, lv_color_hex(bg), 0);
+        lv_obj_set_style_bg_opa(cell, LV_OPA_COVER, 0);
+        lv_obj_set_style_radius(cell, 8, 0);
+        lv_obj_set_style_border_width(cell, 0, 0);
+        lv_obj_set_style_pad_all(cell, 0, 0);
+        lv_obj_clear_flag(cell, LV_OBJ_FLAG_SCROLLABLE);
+        if (day >= 10u) {
+            num[0] = (char)('0' + ((day / 10u) % 10u));
+            num[1] = (char)('0' + (day % 10u));
+            num[2] = '\0';
+        } else {
+            num[0] = (char)('0' + day);
+            num[1] = '\0';
+        }
+        add_label(cell, num, 0, (cell_h - 18) / 2, cell_w, 16, fg, &lv_font_montserrat_12);
+        lv_obj_set_style_text_align(lv_obj_get_child(cell, 0), LV_TEXT_ALIGN_CENTER, 0);
+    }
 }
 
 static void build_app(const char *id, const char *title)
@@ -1048,7 +1150,11 @@ static void build_app(const char *id, const char *title)
         return;
     }
     if (id != NULL && strcmp(id, APP_ID_NETWORK) == 0) {
-        build_network();
+        build_settings();
+        return;
+    }
+    if (id != NULL && strcmp(id, APP_ID_CALENDAR) == 0) {
+        build_calendar();
         return;
     }
     if (id != NULL && strcmp(id, APP_ID_FILES) == 0) {
@@ -1084,6 +1190,9 @@ static void rebuild_content(void)
     s_pl_vol = NULL;
     s_pl_toggle = NULL;
     s_pl_fill = NULL;
+    s_cal_clock = NULL;
+    s_cal_date = NULL;
+    s_cal_ntp = NULL;
     lv_obj_clean(s_content);
     id = shell_top_id();
     if (id == NULL) {
@@ -1227,6 +1336,7 @@ err_t ui_backend_init(void)
     s_text_gen = text_view_gen();
     s_img_gen = image_view_gen();
     s_net_gen = network_gen();
+    s_cal_gen = calendar_gen();
     return ERR_OK;
 }
 
@@ -1237,6 +1347,7 @@ void ui_backend_handler(void)
     uint32_t tgen = text_view_gen();
     uint32_t igen = image_view_gen();
     uint32_t ngen = network_gen();
+    uint32_t cgen = calendar_gen();
     uint8_t audio = audio_active();
     const char *id = shell_top_id();
     uint8_t show_mini = (audio != 0u && (id == NULL || strcmp(id, APP_ID_PLAYER) != 0)) ? 1u : 0u;
@@ -1263,16 +1374,18 @@ void ui_backend_handler(void)
     /* Do not rebuild on player_gen: elapsed time used to recreate the whole
      * tree every second, which flickered and ate taps. */
     if (gen != s_gen || fgen != s_files_gen || tgen != s_text_gen || igen != s_img_gen ||
-        ngen != s_net_gen || audio != s_last_audio) {
+        ngen != s_net_gen || cgen != s_cal_gen || audio != s_last_audio) {
         s_gen = gen;
         s_files_gen = fgen;
         s_text_gen = tgen;
         s_img_gen = igen;
         s_net_gen = ngen;
+        s_cal_gen = cgen;
         s_last_audio = audio;
         rebuild_content();
     }
     refresh_player_live();
+    refresh_calendar_live();
     if (shell_status()->min != s_last_min || shell_status()->m4 != s_last_m4 ||
         shell_status()->storage_ok != s_last_stor || shell_status()->net != s_last_net) {
         refresh_status();

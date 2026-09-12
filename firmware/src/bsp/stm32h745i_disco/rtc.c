@@ -130,3 +130,69 @@ err_t board_rtc_set(uint8_t hh, uint8_t mm, uint8_t ss)
     }
     return ERR_OK;
 }
+
+err_t board_rtc_get_date(uint16_t *year, uint8_t *month, uint8_t *day, uint8_t *hh, uint8_t *mm,
+                         uint8_t *ss)
+{
+    RTC_TimeTypeDef t = {0};
+    RTC_DateTypeDef d = {0};
+
+    if (year == NULL || month == NULL || day == NULL || hh == NULL || mm == NULL || ss == NULL) {
+        return ERR_INVAL;
+    }
+    if (g_ready == 0u) {
+        *year = 2026u;
+        *month = 1u;
+        *day = 1u;
+        *hh = 0u;
+        *mm = 0u;
+        *ss = 0u;
+        return ERR_IO;
+    }
+    if (HAL_RTC_GetTime(&g_rtc, &t, RTC_FORMAT_BIN) != HAL_OK) {
+        return ERR_IO;
+    }
+    if (HAL_RTC_GetDate(&g_rtc, &d, RTC_FORMAT_BIN) != HAL_OK) {
+        return ERR_IO;
+    }
+    *hh = (uint8_t)t.Hours;
+    *mm = (uint8_t)t.Minutes;
+    *ss = (uint8_t)t.Seconds;
+    *month = (uint8_t)d.Month;
+    *day = (uint8_t)d.Date;
+    *year = (uint16_t)(2000u + d.Year);
+    return ERR_OK;
+}
+
+err_t board_rtc_set_date(uint16_t year, uint8_t month, uint8_t day, uint8_t hh, uint8_t mm,
+                         uint8_t ss)
+{
+    RTC_TimeTypeDef t = {0};
+    RTC_DateTypeDef d = {0};
+    uint16_t y;
+
+    if (g_ready == 0u || month < 1u || month > 12u || day < 1u || hh > 23u || mm > 59u ||
+        ss > 59u) {
+        return ERR_INVAL;
+    }
+    y = (year >= 2000u) ? (uint16_t)(year - 2000u) : year;
+    if (y > 99u) {
+        y = 99u;
+    }
+    t.Hours = hh;
+    t.Minutes = mm;
+    t.Seconds = ss;
+    t.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
+    t.StoreOperation = RTC_STOREOPERATION_RESET;
+    d.Month = month;
+    d.Date = day;
+    d.Year = (uint8_t)y;
+    d.WeekDay = RTC_WEEKDAY_MONDAY;
+    if (HAL_RTC_SetTime(&g_rtc, &t, RTC_FORMAT_BIN) != HAL_OK) {
+        return ERR_IO;
+    }
+    if (HAL_RTC_SetDate(&g_rtc, &d, RTC_FORMAT_BIN) != HAL_OK) {
+        return ERR_IO;
+    }
+    return ERR_OK;
+}

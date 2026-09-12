@@ -90,6 +90,7 @@ set(SIM_SRC
     ${CMAKE_SOURCE_DIR}/firmware/src/app/image_view.c
     ${CMAKE_SOURCE_DIR}/firmware/src/app/player.c
     ${CMAKE_SOURCE_DIR}/firmware/src/app/network.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/app/calendar.c
     ${CMAKE_SOURCE_DIR}/firmware/src/ui/backend_lvgl/ui_lvgl.c
     ${CMAKE_SOURCE_DIR}/firmware/src/ui/backend_lvgl/lv_port_sim.c
     ${CMAKE_SOURCE_DIR}/tests/host/sim/sim_main.c

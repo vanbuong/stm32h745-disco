@@ -47,6 +47,12 @@
 
 #define LWIP_PROVIDE_ERRNO 1
 #define LWIP_NO_UNISTD_H 1
+#define MEMP_NUM_SYS_TIMEOUT 8
+#define SNTP_STARTUP_DELAY 0
+#define SNTP_SERVER_DNS 0
+#define SNTP_MAX_SERVERS 1
+void time_ntp_apply_unix(uint32_t unix_sec);
+#define SNTP_SET_SYSTEM_TIME(sec) time_ntp_apply_unix((uint32_t)(sec))
 
 extern uint8_t g_lwip_ram_heap[];
 #define LWIP_RAM_HEAP_POINTER g_lwip_ram_heap

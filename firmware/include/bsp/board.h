@@ -110,6 +110,10 @@ uint32_t board_emmc_clock_hz(void);
 err_t board_rtc_init(void);
 err_t board_rtc_get(uint8_t *hh, uint8_t *mm, uint8_t *ss);
 err_t board_rtc_set(uint8_t hh, uint8_t mm, uint8_t ss);
+err_t board_rtc_get_date(uint16_t *year, uint8_t *month, uint8_t *day, uint8_t *hh, uint8_t *mm,
+                         uint8_t *ss);
+err_t board_rtc_set_date(uint16_t year, uint8_t month, uint8_t day, uint8_t hh, uint8_t mm,
+                         uint8_t ss);
 
 #ifdef __cplusplus
 }

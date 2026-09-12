@@ -116,6 +116,8 @@ static void test_shell_nav(void)
     TEST_ASSERT_NOT_NULL(apps_find(APP_ID_FILES));
     TEST_ASSERT_NOT_NULL(apps_find(APP_ID_TEXT));
     TEST_ASSERT_NOT_NULL(apps_find(APP_ID_IMAGE));
+    TEST_ASSERT_NOT_NULL(apps_find(APP_ID_CALENDAR));
+    TEST_ASSERT_NOT_NULL(apps_find(APP_ID_SETTINGS));
     TEST_ASSERT_NULL(apps_find(NULL));
     TEST_ASSERT_NULL(apps_at(99u));
 
