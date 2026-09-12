@@ -1046,6 +1046,62 @@ static void home_toggle_cb(lv_event_t *e)
     home_app_toggle(idx);
 }
 
+static void home_autos_cb(lv_event_t *e)
+{
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
+        return;
+    }
+    home_app_open_autos();
+    log_nav("home", "rules");
+}
+
+static void home_rule_cb(lv_event_t *e)
+{
+    unsigned idx;
+
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
+        return;
+    }
+    idx = (unsigned)(uintptr_t)lv_event_get_user_data(e);
+    home_app_open_rule(idx);
+    log_nav("home", "rule");
+}
+
+static void home_rule_tog_cb(lv_event_t *e)
+{
+    unsigned idx;
+
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
+        return;
+    }
+    idx = (unsigned)(uintptr_t)lv_event_get_user_data(e);
+    home_app_toggle_rule(idx);
+}
+
+static void home_add_rule_cb(lv_event_t *e)
+{
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
+        return;
+    }
+    home_app_add_rule();
+}
+
+static void home_del_rule_cb(lv_event_t *e)
+{
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
+        return;
+    }
+    home_app_delete_rule();
+}
+
+static void home_rm_dev_cb(lv_event_t *e)
+{
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
+        return;
+    }
+    home_app_remove_device();
+}
+
 static void home_ieee_text(char *out, size_t n, const home_device_t *d)
 {
     size_t i;
@@ -1103,6 +1159,8 @@ static void build_home_list(lv_obj_t *bar)
     home_net_t net;
     uint32_t banner_bg = THEME_SURFACE;
 
+    add_pill_btn(bar, THEME_PANEL_W - 164, 4, 72, 32, "Rules", THEME_SURFACE_2, THEME_TEXT,
+                 home_autos_cb);
     add_pill_btn(bar, THEME_PANEL_W - 84, 4, 72, 32, "Pair", THEME_TILE_HOME, 0xFFFFFFu,
                  home_pair_cb);
     lv_obj_add_flag(s_content, LV_OBJ_FLAG_SCROLLABLE);
@@ -1167,23 +1225,27 @@ static void build_home_device(lv_obj_t *bar)
     home_ieee_text(ieee, sizeof(ieee), &d);
     home_u16_text(nwk, sizeof(nwk), "NWK ", d.nwk);
     home_u16_text(lqi, sizeof(lqi), "LQI ", d.lqi);
-    card = add_card(12, THEME_APPBAR_H + 8, 456, 168);
+    card = add_card(12, THEME_APPBAR_H + 8, 456, 184);
     add_icon_circle(card, 16, 16, 40, THEME_TILE_HOME, home_symbol(d.kind));
     add_label(card, d.name, 68, 12, 360, 22, THEME_TEXT, LV_FONT_DEFAULT);
     add_label(card, d.room_id, 68, 36, 200, 18, THEME_MUTED, &lv_font_montserrat_12);
     add_label(card, home_app_kind_text(d.kind), 280, 36, 160, 18, THEME_MUTED,
               &lv_font_montserrat_12);
     add_label(card, ieee, 16, 68, 420, 18, THEME_TEXT, &lv_font_montserrat_12);
-    add_label(card, nwk, 16, 90, 200, 18, THEME_MUTED, &lv_font_montserrat_12);
-    add_label(card, lqi, 220, 90, 200, 18, THEME_MUTED, &lv_font_montserrat_12);
+    add_label(card, nwk, 16, 90, 140, 18, THEME_MUTED, &lv_font_montserrat_12);
+    add_label(card, lqi, 160, 90, 120, 18, THEME_MUTED, &lv_font_montserrat_12);
+    add_label(card, home_app_last_seen(&d), 280, 90, 160, 18, THEME_MUTED, &lv_font_montserrat_12);
+    add_label(card, home_app_clusters(d.kind), 16, 110, 280, 18, THEME_TEXT,
+              &lv_font_montserrat_12);
     if (d.kind == HOME_LIGHT || d.kind == HOME_SWITCH) {
-        lv_obj_t *tog = add_pill_btn(card, 16, 118, 120, 40, (d.on != 0u) ? "On" : "Off",
+        lv_obj_t *tog = add_pill_btn(card, 16, 132, 120, 40, (d.on != 0u) ? "On" : "Off",
                                      (d.on != 0u) ? THEME_OK : THEME_SURFACE_2,
                                      (d.on != 0u) ? 0xFFFFFFu : THEME_TEXT, NULL);
         lv_obj_add_event_cb(tog, home_toggle_cb, LV_EVENT_CLICKED, (void *)(uintptr_t)idx);
     } else {
-        add_label(card, home_app_state_text(&d), 16, 124, 200, 20, THEME_TEXT, LV_FONT_DEFAULT);
+        add_label(card, home_app_state_text(&d), 16, 138, 200, 20, THEME_TEXT, LV_FONT_DEFAULT);
     }
+    add_pill_btn(card, 320, 132, 120, 40, "Remove", THEME_ERR, 0xFFFFFFu, home_rm_dev_cb);
 }
 
 static void build_home_network(lv_obj_t *bar)
@@ -1194,6 +1256,8 @@ static void build_home_network(lv_obj_t *bar)
     char cnt[16];
     lv_obj_t *card;
 
+    add_pill_btn(bar, THEME_PANEL_W - 164, 4, 72, 32, "Rules", THEME_SURFACE_2, THEME_TEXT,
+                 home_autos_cb);
     add_pill_btn(bar, THEME_PANEL_W - 84, 4, 72, 32, "Pair", THEME_TILE_HOME, 0xFFFFFFu,
                  home_pair_cb);
     home_net(&n);
@@ -1216,6 +1280,69 @@ static void build_home_network(lv_obj_t *bar)
               THEME_MUTED, &lv_font_montserrat_12);
 }
 
+static void build_home_autos(lv_obj_t *bar)
+{
+    unsigned n;
+    unsigned i;
+    int32_t y;
+
+    add_pill_btn(bar, THEME_PANEL_W - 84, 4, 72, 32, "Add", THEME_TILE_HOME, 0xFFFFFFu,
+                 home_add_rule_cb);
+    lv_obj_add_flag(s_content, LV_OBJ_FLAG_SCROLLABLE);
+    n = home_app_rule_count();
+    if (n == 0u) {
+        add_message_card(THEME_APPBAR_H + 12, "No automations", THEME_TEXT,
+                         "Rules run on this board, no cloud.");
+        add_pill_btn(s_content, 16, THEME_APPBAR_H + 100, 160, 40, "Add rule", THEME_TILE_HOME,
+                     0xFFFFFFu, home_add_rule_cb);
+        return;
+    }
+    y = THEME_APPBAR_H + 8;
+    for (i = 0u; i < n; i++) {
+        lv_obj_t *row = add_card(12, y, 456, THEME_ROW_H);
+        uint8_t on = home_app_rule_enabled(i);
+        lv_obj_t *tog;
+
+        lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_event_cb(row, home_rule_cb, LV_EVENT_CLICKED, (void *)(uintptr_t)i);
+        add_label(row, home_app_rule_name(i), 12, 4, 280, 18, THEME_TEXT, &lv_font_montserrat_12);
+        add_label(row, home_app_rule_summary(i), 12, 22, 330, 16, THEME_MUTED,
+                  &lv_font_montserrat_12);
+        tog = add_pill_btn(row, 360, 2, 88, 40, (on != 0u) ? "On" : "Off",
+                           (on != 0u) ? THEME_OK : THEME_SURFACE_2,
+                           (on != 0u) ? 0xFFFFFFu : THEME_TEXT, NULL);
+        lv_obj_add_event_cb(tog, home_rule_tog_cb, LV_EVENT_CLICKED, (void *)(uintptr_t)i);
+        y += THEME_ROW_H + 6;
+    }
+}
+
+static void build_home_rule(lv_obj_t *bar)
+{
+    unsigned idx = home_app_sel();
+    lv_obj_t *card;
+    lv_obj_t *tog;
+    uint8_t on = home_app_rule_enabled(idx);
+
+    (void)bar;
+    if (home_app_rule_name(idx)[0] == '\0') {
+        add_message_card(THEME_APPBAR_H + 12, "Missing rule", THEME_ERR, "Go back to the list.");
+        return;
+    }
+    card = add_card(12, THEME_APPBAR_H + 8, 456, 176);
+    add_label(card, home_app_rule_name(idx), 16, 12, 420, 22, THEME_TEXT, LV_FONT_DEFAULT);
+    add_label(card, home_app_rule_summary(idx), 16, 40, 420, 20, THEME_MUTED,
+              &lv_font_montserrat_12);
+    add_label(card, home_app_rule_delay(idx), 16, 64, 200, 18, THEME_TEXT, &lv_font_montserrat_12);
+    add_label(card, (on != 0u) ? "Enabled" : "Disabled", 220, 64, 200, 18, THEME_MUTED,
+              &lv_font_montserrat_12);
+    add_label(card, "Runs on this board. No cloud.", 16, 88, 420, 18, THEME_MUTED,
+              &lv_font_montserrat_12);
+    tog = add_pill_btn(card, 16, 120, 160, 40, (on != 0u) ? "Disable" : "Enable", THEME_TILE_HOME,
+                       0xFFFFFFu, NULL);
+    lv_obj_add_event_cb(tog, home_rule_tog_cb, LV_EVENT_CLICKED, (void *)(uintptr_t)idx);
+    add_pill_btn(card, 196, 120, 120, 40, "Delete", THEME_ERR, 0xFFFFFFu, home_del_rule_cb);
+}
+
 static void build_home(void)
 {
     lv_obj_t *bar = make_bar(home_app_title());
@@ -1227,6 +1354,14 @@ static void build_home(void)
     }
     if (home_app_page() == HOME_PAGE_NETWORK) {
         build_home_network(bar);
+        return;
+    }
+    if (home_app_page() == HOME_PAGE_AUTOS) {
+        build_home_autos(bar);
+        return;
+    }
+    if (home_app_page() == HOME_PAGE_RULE) {
+        build_home_rule(bar);
         return;
     }
     build_home_list(bar);

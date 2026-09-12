@@ -207,7 +207,102 @@ static void test_app_pages(void)
     TEST_ASSERT_TRUE(strstr(home_app_banner(), "Pairing") != NULL);
     TEST_ASSERT_EQUAL_STRING("Light", home_app_kind_text(HOME_LIGHT));
     TEST_ASSERT_EQUAL_STRING("Sensor", home_app_kind_text(HOME_BINARY_SENSOR));
+    home_app_open_autos();
+    TEST_ASSERT_EQUAL_INT(HOME_PAGE_AUTOS, home_app_page());
+    TEST_ASSERT_TRUE(home_app_rule_count() >= 1u);
+    TEST_ASSERT_NOT_NULL(home_app_rule_name(0u));
+    TEST_ASSERT_NOT_NULL(home_app_rule_summary(0u));
+    TEST_ASSERT_NOT_NULL(home_app_rule_delay(0u));
+    home_app_open_rule(0u);
+    TEST_ASSERT_EQUAL_INT(HOME_PAGE_RULE, home_app_page());
+    TEST_ASSERT_EQUAL_UINT8(1u, home_app_on_back());
+    TEST_ASSERT_EQUAL_INT(HOME_PAGE_AUTOS, home_app_page());
+    home_app_toggle_rule(0u);
+    TEST_ASSERT_EQUAL_UINT8(0u, home_app_rule_enabled(0u));
+    home_app_toggle_rule(0u);
     home_app_close();
+}
+
+static void test_occupancy_rule(void)
+{
+    home_device_t lamp;
+    home_cmd_t cmd;
+    const uint8_t motion[8] = {0x01u, 0, 0, 0, 0, 0, 0, 0x04u};
+    vfs_stat_t st;
+
+    boot_home();
+    TEST_ASSERT_TRUE(vfs_in_user_jail(AUTO_RULES_PATH) != 0);
+    TEST_ASSERT_TRUE(auto_count() >= 1u);
+    TEST_ASSERT_EQUAL_INT(ERR_OK, home_device("Living lamp", &lamp));
+    cmd.on = 0u;
+    cmd.has_level = 0u;
+    cmd.level = 0u;
+    TEST_ASSERT_EQUAL_INT(ERR_OK, home_cmd("Living lamp", &cmd));
+    TEST_ASSERT_EQUAL_INT(ERR_OK, home_device("Living lamp", &lamp));
+    TEST_ASSERT_EQUAL_UINT8(0u, lamp.on);
+
+    TEST_ASSERT_EQUAL_INT(ERR_OK, home_test_report(motion, ZB_CLUSTER_OCC, 1u, 0u));
+    home_poll(0u);
+    TEST_ASSERT_EQUAL_INT(ERR_OK, home_device("Living lamp", &lamp));
+    TEST_ASSERT_EQUAL_UINT8(1u, lamp.on);
+    TEST_ASSERT_EQUAL_STRING("just now", home_app_last_seen(&lamp));
+
+    home_poll(3000u);
+    TEST_ASSERT_EQUAL_INT(ERR_OK, home_device("Living lamp", &lamp));
+    TEST_ASSERT_EQUAL_UINT8(0u, lamp.on);
+
+    TEST_ASSERT_EQUAL_INT(ERR_OK, auto_set_enabled(home_app_rule_id(0u), 0u));
+    home_poll(0u);
+    TEST_ASSERT_EQUAL_INT(ERR_OK, vfs_stat(AUTO_RULES_PATH, &st));
+    TEST_ASSERT_TRUE(st.size > 0u);
+    home_reset();
+    TEST_ASSERT_EQUAL_INT(ERR_OK, home_init());
+    TEST_ASSERT_EQUAL_UINT8(0u, home_app_rule_enabled(0u));
+}
+
+static void test_rule_cap_and_kinds(void)
+{
+    auto_rule_t r;
+    home_device_t d;
+    const uint8_t clim[8] = {0x33u, 0, 0, 0, 0, 0, 0, 0x01u};
+    unsigned i;
+
+    boot_home();
+    memset(&r, 0, sizeof(r));
+    r.enabled = 1u;
+    r.trig = AUTO_TRIG_TEMP_GT;
+    r.thresh = 20;
+    memcpy(r.trig_ieee, clim, 8u);
+    memcpy(r.action_ieee, clim, 8u);
+    r.action = AUTO_ACT_ON;
+    TEST_ASSERT_EQUAL_INT(ERR_OK, zb_host_add(clim, 0x0044u, HOME_CLIMATE, "Hall temp", "Hall"));
+    TEST_ASSERT_EQUAL_INT(ERR_OK, auto_add(&r));
+    TEST_ASSERT_EQUAL_INT(ERR_OK, home_test_report(clim, ZB_CLUSTER_LEVEL, 0u, 26u));
+    home_poll(0u);
+    TEST_ASSERT_EQUAL_UINT16(r.id == 0u ? auto_last_id() : auto_last_id(), auto_last_id());
+
+    memset(&r, 0, sizeof(r));
+    r.enabled = 1u;
+    r.trig = AUTO_TRIG_TIME;
+    r.thresh = 8 * 60;
+    r.action = AUTO_ACT_TOGGLE;
+    r.action_ieee[0] = 0x01u;
+    r.action_ieee[7] = 0x02u;
+    TEST_ASSERT_EQUAL_INT(ERR_OK, auto_add(&r));
+    auto_test_set_minutes(8 * 60);
+    home_poll(0u);
+    TEST_ASSERT_EQUAL_INT(ERR_OK, home_device("Hall switch", &d));
+
+    for (i = 0u; i < 29u; i++) {
+        memset(&r, 0, sizeof(r));
+        r.enabled = 0u;
+        r.trig = AUTO_TRIG_ON;
+        TEST_ASSERT_EQUAL_INT(ERR_OK, auto_add(&r));
+    }
+    TEST_ASSERT_EQUAL_INT(ERR_NOSPC, auto_add(&r));
+    TEST_ASSERT_EQUAL_STRING("OnOff, Level", home_cluster_text(HOME_LIGHT));
+    TEST_ASSERT_EQUAL_INT(ERR_OK, home_remove("Hall switch"));
+    TEST_ASSERT_EQUAL_INT(ERR_NOENT, home_device("Hall switch", &d));
 }
 
 static void test_form_leave_rooms(void)
@@ -250,5 +345,7 @@ void test_home_run(void)
     RUN_TEST(test_interview_map);
     RUN_TEST(test_persist_and_permit);
     RUN_TEST(test_app_pages);
+    RUN_TEST(test_occupancy_rule);
+    RUN_TEST(test_rule_cap_and_kinds);
     RUN_TEST(test_form_leave_rooms);
 }

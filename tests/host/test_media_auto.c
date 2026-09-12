@@ -42,6 +42,8 @@ static void test_auto(void)
     TEST_ASSERT_EQUAL_UINT16(7, auto_last_id());
     d.on = 0;
     TEST_ASSERT_EQUAL_INT(ERR_NOENT, auto_eval(&d));
+    TEST_ASSERT_EQUAL_INT(ERR_INVAL, auto_add(NULL));
+    TEST_ASSERT_EQUAL_INT(ERR_INVAL, auto_eval(NULL));
 }
 
 void test_media_auto_run(void)

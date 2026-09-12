@@ -128,7 +128,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    board_console_puts("host-sim stm32h745-disco s11\n");
+    board_console_puts("host-sim stm32h745-disco s12\n");
     (void)home_init();
     (void)time_init();
     (void)net_service_init();

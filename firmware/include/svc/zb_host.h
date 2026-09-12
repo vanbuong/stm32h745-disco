@@ -81,6 +81,7 @@ err_t zb_host_apply_cmd(const uint8_t ieee[8], const home_cmd_t *cmd);
 
 void zb_host_test_set_flags(uint8_t radio_ok, uint8_t mock);
 home_kind_t zb_host_kind_from_clusters(const uint16_t *in, uint8_t n);
+uint32_t zb_host_now_ms(void);
 
 #ifdef __cplusplus
 }

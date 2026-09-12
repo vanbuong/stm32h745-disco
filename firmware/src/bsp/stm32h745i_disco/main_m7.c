@@ -281,7 +281,7 @@ int main(void)
 
     e = board_clock_init();
     board_console_init(0);
-    board_console_puts("M7 stm32h745-disco s11\r\n");
+    board_console_puts("M7 stm32h745-disco s12\r\n");
     if (board_cm4_saw_stop() == 0u) {
         board_console_puts("d2 stop to\r\n");
     }

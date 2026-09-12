@@ -320,10 +320,20 @@ Lock:
 
 ### Sprint 12 — Local automation + Home polish
 
-- `auto_*` rules: trigger (attr/time), optional condition, action (`home_cmd` or delay).
-- Automations list UI; enable/disable; persist `/user/home/rules.bin`.
-- Device page: name, room, IEEE, LQI, last-seen, clusters.
-- **Exit:** host tests for occupancy→light rule; HIL: join sensor + bulb, rule fires without Ethernet.
+Status: **done** (local rules on M7; no cloud / no MQTT).
+
+`auto_*` already matches occupancy/on in RAM. This sprint makes rules do work: `home_cmd`, delay, persist, and an Automations screen. Ethernet is not required.
+
+Lock:
+
+- **Engine:** `auto_eval` is rising-edge and only queues work. `home_poll` / `auto_poll` apply due actions (not on the LVGL tap path). `AUTO_ACT_ON` + `delay_ms` means On now and Off after the delay (occupancy timeout, `TC-HOME-10`). TOGGLE/OFF honour delay as a single deferred cmd.
+- **Table:** 32 rules in RAM. Persist `/user/home/rules.bin` (jail). Host RAM VFS is 512 B — persist a few rules, test the 32-cap in RAM only.
+- **Seed:** one enabled rule, “Motion light”: Motion stair occupied → Living lamp On, Off after 3 s. So the board and host-sim show a real automation with no dongle.
+- **Apps use `home_*` + thin `home_app_*`.** `src/app/home.c` still must not include `znp_mt.h`, `uart.h`, HAL, MQTT, or LwIP. UI never shows MT names.
+- **UI:** Automations list (name, summary, ≥40 px enable). Tap opens a rule page (trigger, action, delay, delete). Add creates the occupancy template if missing. Device page shows IEEE, NWK, LQI, last-seen, and cluster labels. Do not rebuild the device list every tick.
+- **Out:** MQTT, climate/scenes editor, extra IRQ, JPEG HW, DMA2D, cloud conditions.
+
+- **Exit:** host tests for occupancy→light + 3 s Off, enable/persist, 32-rule cap; HIL: open Home → Automations, trip the mock motion (or a real sensor), lamp turns on then off, no Ethernet.
 
 ### Sprint 13 — Hardening
 

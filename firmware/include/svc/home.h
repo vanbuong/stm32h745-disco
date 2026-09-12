@@ -68,9 +68,12 @@ void home_on_change(void (*cb)(const home_device_t *));
 
 err_t home_form(uint8_t channel, uint16_t pan);
 err_t home_permit_join(uint8_t seconds);
+err_t home_remove(const char *device_id);
 void home_net(home_net_t *out);
 uint32_t home_gen(void);
 uint8_t home_bar_level(void);
+const char *home_cluster_text(home_kind_t kind);
+uint32_t home_now_ms(void);
 
 err_t home_test_announce(uint16_t nwk, const uint8_t ieee[8]);
 err_t home_test_clusters(const uint8_t ieee[8], const uint16_t *in, uint8_t n);

@@ -19,6 +19,7 @@ static zb_net_info_t g_net;
 static uint8_t g_ready;
 static uint8_t g_dirty;
 static uint32_t g_permit_acc;
+static uint32_t g_now_ms;
 
 static void copy_str(char *dst, size_t n, const char *s)
 {
@@ -410,6 +411,7 @@ void zb_host_reset(void)
     g_ready = 0u;
     g_dirty = 0u;
     g_permit_acc = 0u;
+    g_now_ms = 0u;
 }
 
 err_t zb_host_init(void)
@@ -422,6 +424,7 @@ err_t zb_host_init(void)
     g_n = 0u;
     g_dirty = 0u;
     g_permit_acc = 0u;
+    g_now_ms = 1u;
     try_sys_ping();
     if (persist_load() == 0u) {
         seed_mock();
@@ -438,6 +441,7 @@ void zb_host_poll(uint32_t dt_ms)
     if (g_ready == 0u) {
         return;
     }
+    g_now_ms += dt_ms;
     if (g_net.permit_left > 0u) {
         g_permit_acc += dt_ms;
         while (g_permit_acc >= 1000u && g_net.permit_left > 0u) {
@@ -637,6 +641,7 @@ err_t zb_host_apply_report(const uint8_t ieee[8], uint16_t cluster, uint8_t on, 
         g_dev[idx].level = level;
         g_dev[idx].on = (level > 0u) ? 1u : 0u;
     }
+    g_dev[idx].last_seen_ms = g_now_ms;
     mark_dirty();
     return ERR_OK;
 }
@@ -660,6 +665,7 @@ err_t zb_host_apply_cmd(const uint8_t ieee[8], const home_cmd_t *cmd)
     if (cmd->has_level != 0u) {
         d->level = cmd->level;
     }
+    d->last_seen_ms = g_now_ms;
     mark_dirty();
     return ERR_OK;
 }
@@ -668,4 +674,9 @@ void zb_host_test_set_flags(uint8_t radio_ok, uint8_t mock)
 {
     g_net.radio_ok = (radio_ok != 0u) ? 1u : 0u;
     g_net.mock = (mock != 0u) ? 1u : 0u;
+}
+
+uint32_t zb_host_now_ms(void)
+{
+    return g_now_ms;
 }

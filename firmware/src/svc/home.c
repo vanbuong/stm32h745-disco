@@ -7,6 +7,7 @@
 
 static void (*g_cb)(const home_device_t *);
 static uint32_t g_gen;
+static uint8_t g_auto_apply;
 
 static void bump(void)
 {
@@ -112,12 +113,52 @@ static void notify_at(size_t i)
     if (g_cb != NULL) {
         g_cb(&snap);
     }
-    (void)auto_eval(&snap);
+    if (g_auto_apply == 0u) {
+        (void)auto_eval(&snap);
+    }
+}
+
+static err_t apply_ieee_cmd(const uint8_t ieee[8], const home_cmd_t *cmd)
+{
+    char hex[HOME_NAME_MAX];
+
+    ieee_hex(ieee, hex, sizeof(hex));
+    return home_cmd(hex, cmd);
+}
+
+static void apply_due(void)
+{
+    auto_act_req_t act;
+    home_cmd_t cmd;
+
+    while (auto_take_due(&act) == ERR_OK) {
+        cmd = act.cmd;
+        if (act.toggle != 0u) {
+            size_t idx;
+            const zb_dev_t *d;
+            if (zb_host_find(act.ieee, &idx) != ERR_OK) {
+                continue;
+            }
+            d = zb_host_device_at(idx);
+            if (d == NULL) {
+                continue;
+            }
+            cmd.on = (d->on != 0u) ? 0u : 1u;
+            cmd.has_level = 0u;
+        }
+        g_auto_apply = 1u;
+        (void)apply_ieee_cmd(act.ieee, &cmd);
+        g_auto_apply = 0u;
+    }
 }
 
 err_t home_init(void)
 {
     err_t e = zb_host_init();
+    if (e != ERR_OK) {
+        return e;
+    }
+    e = auto_init();
     if (e == ERR_OK) {
         bump();
     }
@@ -127,13 +168,17 @@ err_t home_init(void)
 void home_reset(void)
 {
     zb_host_reset();
+    auto_reset();
     g_cb = NULL;
     g_gen = 0u;
+    g_auto_apply = 0u;
 }
 
 void home_poll(uint32_t dt_ms)
 {
     zb_host_poll(dt_ms);
+    auto_poll(dt_ms);
+    apply_due();
 }
 
 size_t home_devices(const char *room_id, home_device_t *out, size_t max)
@@ -312,6 +357,26 @@ err_t home_permit_join(uint8_t seconds)
     return zb_permit_join(seconds);
 }
 
+err_t home_remove(const char *device_id)
+{
+    size_t idx;
+    const zb_dev_t *d;
+    err_t e;
+
+    if (lookup(device_id, &idx) != ERR_OK) {
+        return ERR_NOENT;
+    }
+    d = zb_host_device_at(idx);
+    if (d == NULL) {
+        return ERR_NOENT;
+    }
+    e = zb_leave(d->ieee);
+    if (e == ERR_OK) {
+        bump();
+    }
+    return e;
+}
+
 void home_net(home_net_t *out)
 {
     zb_net_info_t n;
@@ -334,6 +399,25 @@ void home_net(home_net_t *out)
 uint32_t home_gen(void)
 {
     return g_gen;
+}
+
+const char *home_cluster_text(home_kind_t kind)
+{
+    if (kind == HOME_LIGHT) {
+        return "OnOff, Level";
+    }
+    if (kind == HOME_SWITCH) {
+        return "OnOff";
+    }
+    if (kind == HOME_BINARY_SENSOR) {
+        return "Occupancy";
+    }
+    return "Temperature";
+}
+
+uint32_t home_now_ms(void)
+{
+    return zb_host_now_ms();
 }
 
 uint8_t home_bar_level(void)
