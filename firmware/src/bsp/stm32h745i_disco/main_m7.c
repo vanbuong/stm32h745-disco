@@ -372,7 +372,15 @@ int main(void)
         board_console_puts("touch none\r\n");
     }
 
-    /* M4 already runs SAI2 MCLK; bring the WM8994 analog path up before the UI. */
+    /* Write sequencer needs SAI2 MCLK from M4. Drain READY before analog init. */
+    {
+        uint32_t t0 = HAL_GetTick();
+
+        while (board_ipc_peer_alive(HAL_GetTick()) == 0u && (HAL_GetTick() - t0) < 300u) {
+            board_ipc_poll(HAL_GetTick());
+        }
+        HAL_Delay(20u);
+    }
     e = board_codec_init(44100u, AUDIO_VOL_DEFAULT);
     log_err("codec", e);
 

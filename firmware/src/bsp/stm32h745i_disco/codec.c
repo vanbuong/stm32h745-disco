@@ -31,6 +31,11 @@ static int32_t codec_read(uint16_t addr, uint16_t reg, uint8_t *data, uint16_t l
     return board_i2c4_read16(addr, reg, data, len);
 }
 
+static int32_t codec_reg(uint16_t reg, uint16_t val)
+{
+    return wm8994_write_reg(&g_codec.Ctx, reg, &val, 2);
+}
+
 err_t board_codec_init(uint32_t sample_hz, uint8_t vol_pct)
 {
     WM8994_IO_t io;
@@ -53,6 +58,10 @@ err_t board_codec_init(uint32_t sample_hz, uint8_t vol_pct)
     if (WM8994_RegisterBusIO(&g_codec, &io) != WM8994_OK) {
         return ERR_IO;
     }
+    if (WM8994_Reset(&g_codec) != WM8994_OK) {
+        return ERR_IO;
+    }
+    HAL_Delay(2u);
     if (WM8994_ReadID(&g_codec, &id) != WM8994_OK || id != WM8994_ID) {
         return ERR_NOENT;
     }
@@ -66,6 +75,9 @@ err_t board_codec_init(uint32_t sample_hz, uint8_t vol_pct)
     if (WM8994_Init(&g_codec, &init) != WM8994_OK) {
         return ERR_IO;
     }
+    /* Write-sequencer HP start enables Class W; the charge pump whines. */
+    (void)codec_reg(WM8994_CLASS_W, 0x0000u);
+    (void)codec_reg(WM8994_OVERSAMPLING, 0x0001u);
     g_ready = 1u;
     return ERR_OK;
 }
