@@ -33,9 +33,15 @@ if(NOT EXISTS ${ST_CMSIS_CORE}/Core/Include/core_cm7.h)
 endif()
 
 function(cube_collect_sources CORE_ID out_var)
-    set(ST_CMSIS_SRC
-        ${ST_CMSIS_DEV}/Source/Templates/system_stm32h7xx.c
-    )
+    if(CORE_ID STREQUAL "M7")
+        set(ST_CMSIS_SRC
+            ${ST_CMSIS_DEV}/Source/Templates/system_stm32h7xx.c
+        )
+    else()
+        set(ST_CMSIS_SRC
+            ${H745_ROOT}/firmware/src/bsp/stm32h745i_disco/system_cm4.c
+        )
+    endif()
 
     set(ST_HAL_SRC
         ${ST_HAL_DIR}/Src/stm32h7xx_hal.c

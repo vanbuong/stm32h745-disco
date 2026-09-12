@@ -34,7 +34,9 @@ void Reset_Handler(void)
     while (dst < &_ebss) {
         *dst++ = 0;
     }
+#if defined(CORE_CM7)
     ExitRun0Mode();
+#endif
     SystemInit();
     (void)main();
     for (;;) {

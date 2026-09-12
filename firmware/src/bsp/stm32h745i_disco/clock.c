@@ -15,62 +15,41 @@ uint32_t board_pclk1_hz(void)
     return g_pclk1_hz;
 }
 
-static err_t enable_hse(void)
+static void wait_vos(uint32_t ms)
 {
-    RCC_OscInitTypeDef osc = {0};
+    uint32_t t0 = HAL_GetTick();
 
-    osc.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-    osc.HSEState = RCC_HSE_ON;
-    osc.PLL.PLLState = RCC_PLL_NONE;
-    if (HAL_RCC_OscConfig(&osc) != HAL_OK) {
-        return ERR_IO;
+    while (__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY) == 0U) {
+        if ((HAL_GetTick() - t0) > ms) {
+            break;
+        }
     }
-    /* PLL3 (LTDC) refuses to start unless PLLCKSELR already names a source. */
-    __HAL_RCC_PLL_PLLSOURCE_CONFIG(RCC_PLLSOURCE_HSE);
-    return ERR_OK;
 }
 
-err_t board_clock_init(void)
+static err_t apply_pll(uint32_t src, uint32_t m, uint32_t n, uint32_t latency)
 {
     RCC_OscInitTypeDef osc = {0};
     RCC_ClkInitTypeDef clk = {0};
-    uint32_t plln = 192u;
-    uint8_t vos0 = 0u;
 
-    __HAL_RCC_SYSCFG_CLK_ENABLE();
-
-    /*
-     * CR3 locks after the first supply write (ExitRun0Mode, or a previous
-     * DIRECT_SMPS debug session). A hard fail here used to skip HSE/PLL, so
-     * sysclk stayed 64 MHz and LTDC PLL3 had no source (white panel).
-     */
-    (void)HAL_PWREx_ConfigSupply(PWR_SMPS_1V8_SUPPLIES_LDO);
-    if (((PWR->CR3 & PWR_CR3_LDOEN) != 0U) &&
-        (HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE0) == HAL_OK)) {
-        vos0 = 1u;
-    } else if (HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1) != HAL_OK) {
-        (void)enable_hse();
-        return ERR_IO;
-    }
-    if (vos0 == 0u) {
-        /* VOS1 max is 400 MHz: 25 MHz / 5 * 160 / 2. */
-        plln = 160u;
-    }
-
-    osc.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-    osc.HSEState = RCC_HSE_ON;
     osc.PLL.PLLState = RCC_PLL_ON;
-    osc.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-    osc.PLL.PLLM = 5;
-    osc.PLL.PLLN = plln;
+    osc.PLL.PLLSource = src;
+    osc.PLL.PLLM = m;
+    osc.PLL.PLLN = n;
     osc.PLL.PLLP = 2;
     osc.PLL.PLLQ = 4;
     osc.PLL.PLLR = 2;
-    osc.PLL.PLLRGE = RCC_PLL1VCIRANGE_2;
+    osc.PLL.PLLRGE = (src == RCC_PLLSOURCE_HSE) ? RCC_PLL1VCIRANGE_2 : RCC_PLL1VCIRANGE_3;
     osc.PLL.PLLVCOSEL = RCC_PLL1VCOWIDE;
     osc.PLL.PLLFRACN = 0;
+    if (src == RCC_PLLSOURCE_HSE) {
+        osc.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+        osc.HSEState = RCC_HSE_ON;
+    } else {
+        osc.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+        osc.HSIState = RCC_HSI_DIV1;
+        osc.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+    }
     if (HAL_RCC_OscConfig(&osc) != HAL_OK) {
-        (void)enable_hse();
         return ERR_TIMEOUT;
     }
 
@@ -83,9 +62,36 @@ err_t board_clock_init(void)
     clk.APB1CLKDivider = RCC_APB1_DIV2;
     clk.APB2CLKDivider = RCC_APB2_DIV2;
     clk.APB4CLKDivider = RCC_APB4_DIV2;
-    if (HAL_RCC_ClockConfig(&clk, FLASH_LATENCY_4) != HAL_OK) {
-        (void)enable_hse();
+    if (HAL_RCC_ClockConfig(&clk, latency) != HAL_OK) {
         return ERR_TIMEOUT;
+    }
+    return ERR_OK;
+}
+
+err_t board_clock_init(void)
+{
+    err_t e;
+
+    __HAL_RCC_SYSCFG_CLK_ENABLE();
+
+    /*
+     * Same sequence as the CubeMX H745-DISCO blinky. HAL_PWREx_ConfigSupply
+     * and ControlVoltageScaling return HAL_ERROR when CR3 is already locked
+     * (ExitRun0Mode or a previous DIRECT_SMPS session) — do not abort; PLL
+     * still has to start or LTDC PLL3 has no source.
+     */
+    (void)HAL_PWREx_ConfigSupply(PWR_DIRECT_SMPS_SUPPLY);
+    __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+    wait_vos(50u);
+
+    /* 25 MHz / 5 * 160 / 2 = 400 MHz (VOS1). */
+    e = apply_pll(RCC_PLLSOURCE_HSE, 5u, 160u, FLASH_LATENCY_4);
+    if (e != ERR_OK) {
+        /* HSI / 4 * 50 / 2 = 400 MHz, same as blinky. */
+        e = apply_pll(RCC_PLLSOURCE_HSI, 4u, 50u, FLASH_LATENCY_2);
+    }
+    if (e != ERR_OK) {
+        return e;
     }
 
     g_sysclk_hz = HAL_RCC_GetSysClockFreq();

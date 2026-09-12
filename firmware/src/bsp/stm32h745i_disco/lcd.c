@@ -86,29 +86,40 @@ void HAL_DMA2D_MspInit(DMA2D_HandleTypeDef *hdma2d)
 static err_t lcd_pixel_clock(void)
 {
     RCC_PeriphCLKInitTypeDef p = {0};
+    uint32_t src = __HAL_RCC_GET_PLL_OSCSOURCE();
 
-    if (__HAL_RCC_GET_PLL_OSCSOURCE() == RCC_PLLSOURCE_NONE) {
+    if (src == RCC_PLLSOURCE_NONE) {
         RCC_OscInitTypeDef osc = {0};
 
         osc.OscillatorType = RCC_OSCILLATORTYPE_HSE;
         osc.HSEState = RCC_HSE_ON;
         osc.PLL.PLLState = RCC_PLL_NONE;
-        if (HAL_RCC_OscConfig(&osc) != HAL_OK) {
-            return ERR_IO;
+        if (HAL_RCC_OscConfig(&osc) == HAL_OK) {
+            __HAL_RCC_PLL_PLLSOURCE_CONFIG(RCC_PLLSOURCE_HSE);
+            src = RCC_PLLSOURCE_HSE;
+        } else {
+            __HAL_RCC_PLL_PLLSOURCE_CONFIG(RCC_PLLSOURCE_HSI);
+            src = RCC_PLLSOURCE_HSI;
         }
-        __HAL_RCC_PLL_PLLSOURCE_CONFIG(RCC_PLLSOURCE_HSE);
     }
 
-    /* 25 MHz / 5 * 160 / 83 ≈ 9.63 MHz (ST disco BSP). */
     p.PeriphClockSelection = RCC_PERIPHCLK_LTDC;
-    p.PLL3.PLL3M = 5;
     p.PLL3.PLL3N = 160;
     p.PLL3.PLL3P = 2;
     p.PLL3.PLL3Q = 2;
-    p.PLL3.PLL3R = 83;
-    p.PLL3.PLL3RGE = RCC_PLL3VCIRANGE_2;
     p.PLL3.PLL3VCOSEL = RCC_PLL3VCOWIDE;
     p.PLL3.PLL3FRACN = 0;
+    if (src == RCC_PLLSOURCE_HSE) {
+        /* 25 MHz / 5 * 160 / 83 ≈ 9.63 MHz (ST disco BSP). */
+        p.PLL3.PLL3M = 5;
+        p.PLL3.PLL3R = 83;
+        p.PLL3.PLL3RGE = RCC_PLL3VCIRANGE_2;
+    } else {
+        /* 64 MHz / 16 * 160 / 66 ≈ 9.70 MHz. */
+        p.PLL3.PLL3M = 16;
+        p.PLL3.PLL3R = 66;
+        p.PLL3.PLL3RGE = RCC_PLL3VCIRANGE_2;
+    }
     return cube_err(HAL_RCCEx_PeriphCLKConfig(&p));
 }
 

@@ -191,7 +191,7 @@ function(stm32_add_firmware CORE_ID)
         STM32H745xx
         ${CORE_DEFINE}
         USE_FULL_LL_DRIVER
-        USE_PWR_SMPS_1V8_SUPPLIES_LDO
+        USE_PWR_DIRECT_SMPS_SUPPLY
         HSE_VALUE=25000000U
         $<$<CONFIG:Debug>:DEBUG>
     )
