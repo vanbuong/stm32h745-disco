@@ -73,3 +73,27 @@ elseif(_mx_build_cm4)
 elseif(_mx_build_cm7)
     add_custom_target(stm32h745-disco_CM7 ALL DEPENDS _ext_CM7)
 endif()
+
+# Program both banks over SWD and NRST. Does not start GDB.
+if(WIN32)
+    add_custom_target(flash
+        COMMAND powershell -NoProfile -ExecutionPolicy Bypass -File ${CMAKE_SOURCE_DIR}/scripts/flash-board.ps1
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        USES_TERMINAL
+        COMMENT "Flash CM7+CM4 via STM32CubeProgrammer (no debugger)"
+    )
+else()
+    add_custom_target(flash
+        COMMAND ${CMAKE_SOURCE_DIR}/scripts/flash-board.sh
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        USES_TERMINAL
+        COMMENT "Flash CM7+CM4 via STM32CubeProgrammer (no debugger)"
+    )
+endif()
+if(_mx_build_cm4 AND _mx_build_cm7)
+    add_dependencies(flash _ext_CM4 _ext_CM7)
+elseif(_mx_build_cm4)
+    add_dependencies(flash _ext_CM4)
+elseif(_mx_build_cm7)
+    add_dependencies(flash _ext_CM7)
+endif()

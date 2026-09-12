@@ -285,6 +285,15 @@ scripts/ci/check-layering.sh
 clang-format -i $(git diff --name-only -- '*.c' '*.h')
 ```
 
+Flash both cores without GDB (needs CubeProgrammer / CubeCLT on PATH, or
+`STM32_PROGRAMMER_CLI`):
+
+```
+cmake --build --preset Debug --target flash
+```
+
+In VS Code: **Terminal → Run Task… → Build + Flash**. Stop the debug session first.
+
 A `pre-commit` hook (optional) runs format + layering only, not full tidy.
 
 ## 10. Static analysis policy

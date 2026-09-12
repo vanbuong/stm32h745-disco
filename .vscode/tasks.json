@@ -2,6 +2,61 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "Build firmware",
+      "type": "shell",
+      "command": "cmake --preset Debug && cmake --build --preset Debug",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build",
+      "detail": "Both cores → CM7/build and CM4/build ELFs",
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "Flash board",
+      "type": "shell",
+      "linux": {
+        "command": "${workspaceFolder}/scripts/flash-board.sh"
+      },
+      "osx": {
+        "command": "${workspaceFolder}/scripts/flash-board.sh"
+      },
+      "windows": {
+        "command": "powershell.exe",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "${workspaceFolder}/scripts/flash-board.ps1"
+        ]
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "detail": "SWD both ELFs + NRST, no debugger",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Build + Flash",
+      "dependsOrder": "sequence",
+      "dependsOn": ["Build firmware", "Flash board"],
+      "detail": "Build both cores, flash, reset (no debug session)",
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
       "label": "Host tests",
       "type": "shell",
       "command": "cmake --preset host-tests && cmake --build --preset host-tests && ctest --test-dir build-host --output-on-failure",

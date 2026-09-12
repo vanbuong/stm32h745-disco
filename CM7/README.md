@@ -6,3 +6,6 @@ These folders are thin wrappers: all sources stay in `firmware/`.
 
 Configure the **repo root** with preset **Debug** to build both
 ELFs at `CM7/build/stm32h745-disco_CM7.elf` and `CM4/build/stm32h745-disco_CM4.elf`.
+
+To program without a debug session: **Terminal → Run Task… → Build + Flash**
+(or `cmake --build --preset Debug --target flash`).

@@ -79,7 +79,8 @@ Install the [STM32CubeIDE for Visual Studio Code](https://marketplace.visualstud
 3. Accept **Configure discovered CMake project(s) as STM32Cube project(s)?**
 4. If the tool asks to map cores, set **CM7 → Cortex-M7** and **CM4 → Cortex-M4** (root is the dual-core CMake superbuild; each core is its own folder)
 5. Select the **Debug** CMake preset and build — that produces `CM7/build/stm32h745-disco_CM7.elf` and `CM4/build/stm32h745-disco_CM4.elf`
-6. Debug with **CM7_Debug** (flashes both ELFs) and optionally **DualCore_Debug**
+6. **Flash without debugging:** **Terminal → Run Task… → Build + Flash**. That programs both ELFs over SWD and pulses NRST so the board runs on its own. Stop any debug session first (ST-LINK can only have one owner). Or **Flash board** if the ELFs are already built.
+7. Debug with **CM7_Debug** (also flashes both ELFs) and optionally **DualCore_Debug** when you need breakpoints.
 
 The STM32 configuration tool may add local `cube-cmake` / `starm-clangd` keys to `.vscode/settings.json`; leave those. Do not change the Debug preset to a single core. Register view uses in-tree SVD files (`third_party/cmsis-svd/`). Device is `STM32H745XIH6` on **STM32H745I-DISCO**. Apps still never include HAL; only `firmware/src/port/cube` and `firmware/src/bsp` do.
 
