@@ -150,6 +150,16 @@ int main(void)
     LL_GPIO_SetPinMode(GPIOJ, LL_GPIO_PIN_2, LL_GPIO_MODE_OUTPUT);
 
     board_hsem_init();
+    /*
+     * Park D2 in STOP until M7 finishes PLL. A pin reset starts both cores
+     * together; if M4 keeps using D2 SRAM while M7 resets RCC, both freeze
+     * and the reset button looks dead. The debugger avoids that by starting
+     * CM4 first (it sits in wait) then CM7.
+     */
+    HAL_HSEM_ActivateNotification(__HAL_HSEM_SEMID_TO_MASK(BOARD_HSEM_M7_TO_M4));
+    HAL_PWREx_ClearPendingEvent();
+    HAL_PWREx_EnterSTOPMode(PWR_MAINREGULATOR_ON, PWR_STOPENTRY_WFE, PWR_D2_DOMAIN);
+    __HAL_HSEM_CLEAR_FLAG(__HAL_HSEM_SEMID_TO_MASK(BOARD_HSEM_M7_TO_M4));
     wait_m7();
     (void)SysTick_Config(BOARD_M4_SYSCLK_HZ / 1000u);
 

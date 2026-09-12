@@ -47,6 +47,7 @@ err_t board_clock_init(void);
 void board_cm4_boot(void);
 void board_hsem_init(void);
 void board_hsem_notify(uint32_t sem);
+void board_hsem_wake(uint32_t sem);
 uint8_t board_hsem_poll(uint32_t sem);
 err_t board_ipc_init(void);
 void board_ipc_poll(uint32_t now_ms);

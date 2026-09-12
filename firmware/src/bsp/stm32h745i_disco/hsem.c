@@ -22,6 +22,16 @@ void board_hsem_notify(uint32_t sem)
     HSEM->R[sem] = HSEM_CR_COREID_CURRENT;
 }
 
+void board_hsem_wake(uint32_t sem)
+{
+    if (sem > 31u) {
+        return;
+    }
+    /* Take then release so the peer WFE/STOP sees an HSEM event. */
+    HSEM->R[sem] = HSEM_CR_COREID_CURRENT | HSEM_R_LOCK;
+    HSEM->R[sem] = HSEM_CR_COREID_CURRENT;
+}
+
 uint8_t board_hsem_poll(uint32_t sem)
 {
     uint32_t mask;

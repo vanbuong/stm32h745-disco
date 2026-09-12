@@ -73,6 +73,7 @@ err_t board_clock_init(void)
     err_t e;
 
     __HAL_RCC_SYSCFG_CLK_ENABLE();
+    board_cm4_boot();
 
     /*
      * Same sequence as the CubeMX H745-DISCO blinky. HAL_PWREx_ConfigSupply
@@ -91,6 +92,8 @@ err_t board_clock_init(void)
         e = apply_pll(RCC_PLLSOURCE_HSI, 4u, 50u, FLASH_LATENCY_2);
     }
     if (e != ERR_OK) {
+        board_hsem_init();
+        board_hsem_wake(BOARD_HSEM_M7_TO_M4);
         return e;
     }
 
@@ -99,6 +102,8 @@ err_t board_clock_init(void)
     __HAL_RCC_D2SRAM1_CLK_ENABLE();
     __HAL_RCC_D2SRAM2_CLK_ENABLE();
     __HAL_RCC_D2SRAM3_CLK_ENABLE();
+    board_hsem_init();
+    board_hsem_wake(BOARD_HSEM_M7_TO_M4);
     return ERR_OK;
 }
 

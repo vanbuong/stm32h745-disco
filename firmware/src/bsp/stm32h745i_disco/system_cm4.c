@@ -17,6 +17,7 @@ void SystemInit(void)
     SCB->CPACR |= ((3UL << (10u * 2u)) | (3UL << (11u * 2u)));
 #endif
     SCB->SCR |= SCB_SCR_SEVONPEND_Msk;
+    SCB->VTOR = FLASH_BANK2_BASE;
     RCC->AHB2ENR |= (RCC_AHB2ENR_D2SRAM1EN | RCC_AHB2ENR_D2SRAM2EN | RCC_AHB2ENR_D2SRAM3EN);
     (void)RCC->AHB2ENR;
 }

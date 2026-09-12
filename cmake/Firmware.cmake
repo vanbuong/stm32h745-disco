@@ -192,6 +192,8 @@ function(stm32_add_firmware CORE_ID)
         ${CORE_DEFINE}
         USE_FULL_LL_DRIVER
         USE_PWR_DIRECT_SMPS_SUPPLY
+        USER_VECT_TAB_ADDRESS
+        DATA_IN_D2_SRAM
         HSE_VALUE=25000000U
         $<$<CONFIG:Debug>:DEBUG>
     )
