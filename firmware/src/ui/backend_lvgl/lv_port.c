@@ -82,6 +82,7 @@ err_t lv_port_init(void)
     }
     lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
     lv_indev_set_read_cb(indev, indev_read);
+    lv_indev_set_display(indev, disp);
 
     g_frames = 0u;
     g_ptr_down = 0u;

@@ -82,6 +82,13 @@ void board_i2c4_unlock(void)
     g_taken = 0u;
 }
 
+static void i2c4_recover(void)
+{
+    (void)HAL_I2C_DeInit(&g_i2c4);
+    (void)HAL_I2C_Init(&g_i2c4);
+    (void)HAL_I2CEx_ConfigAnalogFilter(&g_i2c4, I2C_ANALOGFILTER_ENABLE);
+}
+
 int32_t board_i2c4_read_reg(uint16_t addr, uint16_t reg, uint8_t *data, uint16_t len)
 {
     HAL_StatusTypeDef s;
@@ -92,7 +99,10 @@ int32_t board_i2c4_read_reg(uint16_t addr, uint16_t reg, uint8_t *data, uint16_t
     if (board_i2c4_lock() != ERR_OK) {
         return -1;
     }
-    s = HAL_I2C_Mem_Read(&g_i2c4, addr, reg, I2C_MEMADD_SIZE_8BIT, data, len, 100u);
+    s = HAL_I2C_Mem_Read(&g_i2c4, addr, reg, I2C_MEMADD_SIZE_8BIT, data, len, 200u);
+    if (s != HAL_OK) {
+        i2c4_recover();
+    }
     board_i2c4_unlock();
     return (s == HAL_OK) ? 0 : -1;
 }
@@ -107,7 +117,10 @@ int32_t board_i2c4_write_reg(uint16_t addr, uint16_t reg, uint8_t *data, uint16_
     if (board_i2c4_lock() != ERR_OK) {
         return -1;
     }
-    s = HAL_I2C_Mem_Write(&g_i2c4, addr, reg, I2C_MEMADD_SIZE_8BIT, data, len, 100u);
+    s = HAL_I2C_Mem_Write(&g_i2c4, addr, reg, I2C_MEMADD_SIZE_8BIT, data, len, 200u);
+    if (s != HAL_OK) {
+        i2c4_recover();
+    }
     board_i2c4_unlock();
     return (s == HAL_OK) ? 0 : -1;
 }
@@ -122,7 +135,10 @@ int32_t board_i2c4_read16(uint16_t addr, uint16_t reg, uint8_t *data, uint16_t l
     if (board_i2c4_lock() != ERR_OK) {
         return -1;
     }
-    s = HAL_I2C_Mem_Read(&g_i2c4, addr, reg, I2C_MEMADD_SIZE_16BIT, data, len, 100u);
+    s = HAL_I2C_Mem_Read(&g_i2c4, addr, reg, I2C_MEMADD_SIZE_16BIT, data, len, 200u);
+    if (s != HAL_OK) {
+        i2c4_recover();
+    }
     board_i2c4_unlock();
     return (s == HAL_OK) ? 0 : -1;
 }
@@ -137,7 +153,10 @@ int32_t board_i2c4_write16(uint16_t addr, uint16_t reg, uint8_t *data, uint16_t 
     if (board_i2c4_lock() != ERR_OK) {
         return -1;
     }
-    s = HAL_I2C_Mem_Write(&g_i2c4, addr, reg, I2C_MEMADD_SIZE_16BIT, data, len, 100u);
+    s = HAL_I2C_Mem_Write(&g_i2c4, addr, reg, I2C_MEMADD_SIZE_16BIT, data, len, 200u);
+    if (s != HAL_OK) {
+        i2c4_recover();
+    }
     board_i2c4_unlock();
     return (s == HAL_OK) ? 0 : -1;
 }

@@ -10,9 +10,13 @@
  * the current ST disco BSP. INT on PG2 is polled (no EXTI).
  */
 
+#define GT911_REG_CMD 0x8040u
+#define GT911_REG_XMAX 0x8048u
 #define GT911_REG_ID 0x8140u
 #define GT911_REG_STAT 0x814Eu
 #define GT911_REG_PT1 0x8150u
+#define GT911_STAT_READY 0x80u
+#define GT911_STAT_COUNT 0x0Fu
 
 #define TS_NONE 0u
 #define TS_FT5336 1u
@@ -21,6 +25,9 @@
 static FT5336_Object_t g_ft;
 static uint8_t g_kind;
 static uint16_t g_gt_addr;
+static uint16_t g_gt_max_x;
+static uint16_t g_gt_max_y;
+static uint8_t g_gt_swap_xy;
 static uint8_t g_was_down;
 static int16_t g_last_x;
 static int16_t g_last_y;
@@ -50,6 +57,36 @@ static uint8_t gt_id_ok(uint16_t addr)
     return (id[0] == (uint8_t)'9' && id[1] == (uint8_t)'1' && id[2] == (uint8_t)'1') ? 1u : 0u;
 }
 
+static void gt_start(void)
+{
+    uint8_t cmd;
+    uint8_t xy[4];
+    uint8_t clr = 0u;
+
+    cmd = 0x02u;
+    (void)board_i2c4_write16(g_gt_addr, GT911_REG_CMD, &cmd, 1u);
+    HAL_Delay(10u);
+    cmd = 0x00u;
+    (void)board_i2c4_write16(g_gt_addr, GT911_REG_CMD, &cmd, 1u);
+    HAL_Delay(10u);
+    (void)board_i2c4_write16(g_gt_addr, GT911_REG_STAT, &clr, 1u);
+
+    g_gt_max_x = BOARD_LCD_W;
+    g_gt_max_y = BOARD_LCD_H;
+    g_gt_swap_xy = 0u;
+    if (board_i2c4_read16(g_gt_addr, GT911_REG_XMAX, xy, 4u) == 0) {
+        uint16_t mx = (uint16_t)xy[0] | ((uint16_t)xy[1] << 8);
+        uint16_t my = (uint16_t)xy[2] | ((uint16_t)xy[3] << 8);
+        if (mx >= 100u && my >= 100u) {
+            g_gt_max_x = mx;
+            g_gt_max_y = my;
+        }
+    }
+    if (g_gt_max_x < g_gt_max_y) {
+        g_gt_swap_xy = 1u;
+    }
+}
+
 static uint8_t probe_gt911(void)
 {
     static const uint16_t addrs[2] = {BOARD_GT911_ADDR, BOARD_GT911_ADDR_ALT};
@@ -59,6 +96,7 @@ static uint8_t probe_gt911(void)
         if (gt_id_ok(addrs[i]) != 0u) {
             g_gt_addr = addrs[i];
             g_kind = TS_GT911;
+            gt_start();
             return 1u;
         }
     }
@@ -90,23 +128,50 @@ static uint8_t probe_ft5336(void)
     return 1u;
 }
 
+static int16_t gt_map(uint16_t raw, uint16_t max, uint16_t out)
+{
+    if (max == 0u) {
+        max = out;
+    }
+    if (raw >= max) {
+        raw = (uint16_t)(max - 1u);
+    }
+    return (int16_t)(((uint32_t)raw * (uint32_t)out) / (uint32_t)max);
+}
+
 static uint8_t gt_sample(int16_t *x, int16_t *y, uint8_t *down)
 {
     uint8_t st;
-    uint8_t xy[4];
+    uint8_t xy[8];
     uint8_t clr = 0u;
+    uint16_t rx;
+    uint16_t ry;
 
     if (board_i2c4_read16(g_gt_addr, GT911_REG_STAT, &st, 1u) != 0) {
         return 0u;
     }
-    *down = (((st & 0x80u) != 0u) && ((st & 0x0Fu) != 0u)) ? 1u : 0u;
+    if ((st & GT911_STAT_READY) == 0u) {
+        *down = 0u;
+        return 1u;
+    }
+    *down = ((st & GT911_STAT_COUNT) != 0u) ? 1u : 0u;
     if (*down != 0u) {
-        if (board_i2c4_read16(g_gt_addr, GT911_REG_PT1, xy, 4u) != 0) {
+        if (board_i2c4_read16(g_gt_addr, GT911_REG_PT1, xy, 8u) != 0) {
             (void)board_i2c4_write16(g_gt_addr, GT911_REG_STAT, &clr, 1u);
             return 0u;
         }
-        *x = (int16_t)((uint16_t)xy[0] | ((uint16_t)xy[1] << 8));
-        *y = (int16_t)((uint16_t)xy[2] | ((uint16_t)xy[3] << 8));
+        rx = (uint16_t)xy[0] | ((uint16_t)xy[1] << 8);
+        ry = (uint16_t)xy[2] | ((uint16_t)xy[3] << 8);
+        if (g_gt_swap_xy != 0u) {
+            uint16_t t = rx;
+            rx = ry;
+            ry = t;
+            *x = gt_map(rx, g_gt_max_y, BOARD_LCD_W);
+            *y = gt_map(ry, g_gt_max_x, BOARD_LCD_H);
+        } else {
+            *x = gt_map(rx, g_gt_max_x, BOARD_LCD_W);
+            *y = gt_map(ry, g_gt_max_y, BOARD_LCD_H);
+        }
     }
     (void)board_i2c4_write16(g_gt_addr, GT911_REG_STAT, &clr, 1u);
     return 1u;
@@ -131,6 +196,7 @@ err_t board_input_init(void)
 
     g_kind = TS_NONE;
     g_was_down = 0u;
+    HAL_Delay(50u);
     if (probe_gt911() == 0u) {
         (void)probe_ft5336();
     }

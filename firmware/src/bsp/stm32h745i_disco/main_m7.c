@@ -198,6 +198,9 @@ static uint8_t vfs_bringup(void)
     }
     log_err("vfs", e);
     if (e != ERR_OK) {
+        log_kv("emmc_err", board_emmc_last_error());
+    }
+    if (e != ERR_OK) {
         return 0u;
     }
     if (vfs_formatted_on_mount() != 0u) {
