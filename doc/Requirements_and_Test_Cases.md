@@ -299,6 +299,8 @@ Ethernet unplug with ESP32 present; Wi-Fi carries ICMP within 10 s.
 | REQ-GAME-06 | S | High score shall persist in `/user/game` across reset when eMMC is mounted. | HIL |
 | REQ-GAME-07 | S | A second game module shall be addable without changing the shell. | INSP |
 | REQ-GAME-08 | C | Audio playback shall continue during Brick without SAI underrun. | HIL |
+| REQ-GAME-09 | S | Game shall list Brick plus carts in `/user/game` and run a selected CHIP-8 ROM through `game_module_t.load`. | UT, HIL |
+| REQ-GAME-10 | S | `.ch8` / `.c8` shall open from Files into Game. Paths outside `/user` shall be rejected. | UT |
 
 ### Tests
 
@@ -313,6 +315,12 @@ Play 15 s; frame counter ≥ 30 FPS; drag paddle; Back shows pause; Resume conti
 
 **TC-GAME-04 (HIL)**  
 Beat a previous high score; reboot; Game shows the stored high score.
+
+**TC-GAME-05 (UT)**  
+Library always contains Brick; a jailed `/user/game/demo.ch8` appears; `game_load_path("/user/../etc")` fails; CHIP-8 CLS+DRW sets at least one playfield pixel.
+
+**TC-GAME-06 (HIL)**  
+Copy a `.ch8` onto eMMC; it shows in Game; tap runs it; Back returns to the library; Brick still plays.
 
 ---
 

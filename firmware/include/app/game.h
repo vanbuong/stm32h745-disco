@@ -11,6 +11,15 @@ extern "C" {
 #endif
 
 #define GAME_SAVE_PATH "/user/game/brick.sav"
+#define GAME_DIR "/user/game"
+#define GAME_TITLES_MAX 16u
+
+typedef struct {
+    char name[64];
+    char path[256];
+    const char *core;
+    uint8_t builtin;
+} game_title_t;
 
 void game_open(uint16_t w, uint16_t h);
 void game_close(void);
@@ -20,7 +29,15 @@ void game_pointer(input_kind_t kind, int16_t x, int16_t y);
 void game_pause(void);
 void game_resume(void);
 void game_new(void);
+void game_to_library(void);
 uint8_t game_on_back(void);
+err_t game_load_path(const char *path);
+void game_pick(unsigned index);
+
+uint8_t game_in_library(void);
+unsigned game_title_count(void);
+const game_title_t *game_title_at(unsigned index);
+const char *game_title(void);
 
 game_phase_t game_phase(void);
 uint32_t game_score(void);

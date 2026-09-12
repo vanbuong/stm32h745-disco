@@ -284,7 +284,7 @@ static void back_cb(lv_event_t *e)
     }
     if (id != NULL && strcmp(id, APP_ID_GAME) == 0) {
         if (game_on_back() != 0u) {
-            log_nav("game", "pause");
+            log_nav("game", game_in_library() ? "library" : "pause");
             return;
         }
     }
@@ -1043,8 +1043,20 @@ static void game_quit_cb(lv_event_t *e)
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
         return;
     }
-    shell_home();
-    log_nav("shell_home", NULL);
+    game_to_library();
+    log_nav("game", "library");
+}
+
+static void game_row_cb(lv_event_t *e)
+{
+    unsigned idx;
+
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
+        return;
+    }
+    idx = (unsigned)(uintptr_t)lv_event_get_user_data(e);
+    game_pick(idx);
+    log_nav("game", game_title());
 }
 
 static void game_ptr_cb(lv_event_t *e)
@@ -1100,6 +1112,9 @@ static void refresh_game_live(void)
     if (shell_top_id() == NULL || strcmp(shell_top_id(), APP_ID_GAME) != 0) {
         return;
     }
+    if (game_in_library() != 0u) {
+        return;
+    }
     want_h = (uint16_t)(content_h() - THEME_APPBAR_H);
     if (want_h < 80u) {
         want_h = 80u;
@@ -1129,14 +1144,42 @@ static void build_game_overlay(game_phase_t phase)
         card = add_card(80, y, 320, 96);
         add_label(card, "Paused", 16, 10, 288, 22, THEME_TEXT, LV_FONT_DEFAULT);
         add_pill_btn(card, 16, 44, 136, 40, "Resume", THEME_TILE_GAME, 0xFFFFFFu, game_resume_cb);
-        add_pill_btn(card, 168, 44, 136, 40, "Quit", THEME_SURFACE_2, THEME_TEXT, game_quit_cb);
+        add_pill_btn(card, 168, 44, 136, 40, "Games", THEME_SURFACE_2, THEME_TEXT, game_quit_cb);
         return;
     }
     card = add_card(80, y, 320, 110);
     add_label(card, "Game over", 16, 10, 288, 22, THEME_TEXT, LV_FONT_DEFAULT);
     add_label(card, game_score_str(), 16, 34, 288, 18, THEME_MUTED, &lv_font_montserrat_12);
     add_pill_btn(card, 16, 58, 136, 40, "New game", THEME_TILE_GAME, 0xFFFFFFu, game_new_cb);
-    add_pill_btn(card, 168, 58, 136, 40, "Quit", THEME_SURFACE_2, THEME_TEXT, game_quit_cb);
+    add_pill_btn(card, 168, 58, 136, 40, "Games", THEME_SURFACE_2, THEME_TEXT, game_quit_cb);
+}
+
+static void build_game_library(void)
+{
+    unsigned i;
+
+    make_bar("Games");
+    s_list = lv_list_create(s_content);
+    lv_obj_set_pos(s_list, 8, THEME_APPBAR_H + 4);
+    lv_obj_set_size(s_list, THEME_PANEL_W - 16, content_h() - THEME_APPBAR_H - 8);
+    lv_obj_set_style_bg_color(s_list, lv_color_hex(THEME_BG), 0);
+    lv_obj_set_style_border_width(s_list, 0, 0);
+    lv_obj_set_style_pad_all(s_list, 0, 0);
+    lv_obj_set_style_pad_row(s_list, 6, 0);
+    for (i = 0u; i < game_title_count(); i++) {
+        const game_title_t *t = game_title_at(i);
+        lv_obj_t *btn;
+        const char *lab = (t != NULL) ? t->name : "Game";
+        const char *sym =
+            (t != NULL && strcmp(t->core, "chip8") == 0) ? LV_SYMBOL_VIDEO : LV_SYMBOL_PLAY;
+
+        btn = lv_list_add_button(s_list, sym, lab);
+        lv_obj_set_height(btn, THEME_ROW_H);
+        lv_obj_set_style_bg_color(btn, lv_color_hex(THEME_SURFACE), 0);
+        lv_obj_set_style_radius(btn, 10, 0);
+        lv_obj_set_style_text_color(btn, lv_color_hex(THEME_TEXT), 0);
+        lv_obj_add_event_cb(btn, game_row_cb, LV_EVENT_CLICKED, (void *)(uintptr_t)i);
+    }
 }
 
 static void build_game(void)
@@ -1144,6 +1187,12 @@ static void build_game(void)
     lv_obj_t *bar;
     uint16_t field_h;
     game_phase_t phase;
+    const char *title;
+
+    if (game_in_library() != 0u) {
+        build_game_library();
+        return;
+    }
 
     field_h = (uint16_t)(content_h() - THEME_APPBAR_H);
     if (field_h < 80u) {
@@ -1151,7 +1200,8 @@ static void build_game(void)
     }
     game_resize(THEME_PANEL_W, field_h);
     phase = game_phase();
-    bar = make_bar("Brick");
+    title = game_title();
+    bar = make_bar((title != NULL && title[0] != '\0') ? title : "Game");
     add_label(bar, "SCORE", 96, 4, 56, 14, THEME_MUTED, &lv_font_montserrat_12);
     s_game_score =
         add_label(bar, game_score_str(), 96, 18, 56, 18, THEME_TEXT, &lv_font_montserrat_12);

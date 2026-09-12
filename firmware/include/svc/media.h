@@ -14,7 +14,8 @@ typedef enum {
     MEDIA_KIND_NONE = 0,
     MEDIA_KIND_TEXT,
     MEDIA_KIND_IMAGE,
-    MEDIA_KIND_AUDIO
+    MEDIA_KIND_AUDIO,
+    MEDIA_KIND_GAME
 } media_kind_t;
 
 media_kind_t media_probe_ext(const char *path);

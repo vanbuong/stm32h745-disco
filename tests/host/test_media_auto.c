@@ -18,6 +18,8 @@ static void test_media(void)
     TEST_ASSERT_EQUAL_INT(MEDIA_KIND_TEXT, media_probe_ext("n.c"));
     TEST_ASSERT_EQUAL_INT(MEDIA_KIND_TEXT, media_probe_ext("n.h"));
     TEST_ASSERT_EQUAL_INT(MEDIA_KIND_TEXT, media_probe_ext("n.log"));
+    TEST_ASSERT_EQUAL_INT(MEDIA_KIND_GAME, media_probe_ext("pong.ch8"));
+    TEST_ASSERT_EQUAL_INT(MEDIA_KIND_GAME, media_probe_ext("maze.C8"));
     TEST_ASSERT_EQUAL_INT(MEDIA_KIND_NONE, media_probe_ext("n.bin"));
     TEST_ASSERT_EQUAL_INT(MEDIA_KIND_NONE, media_probe_ext(NULL));
 }

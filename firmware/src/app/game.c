@@ -1,6 +1,7 @@
 #include "app/game.h"
 
 #include "game/gfx.h"
+#include "svc/media.h"
 #include "svc/vfs.h"
 
 #include <stddef.h>
@@ -25,9 +26,15 @@ static game_t g_game;
 static const game_module_t *g_mod;
 static uint32_t g_gen;
 static uint8_t g_open;
+static uint8_t g_lib;
+static uint16_t g_w;
+static uint16_t g_h;
 static char g_score[12];
 static char g_high[12];
 static char g_lives[4];
+static char g_title[32];
+static game_title_t g_titles[GAME_TITLES_MAX];
+static unsigned g_tn;
 
 static void bump(void)
 {
@@ -74,6 +81,62 @@ static uint32_t parse_u32(const char *s, size_t n)
     return v;
 }
 
+static int ascii_eq_ci(const char *a, const char *b)
+{
+    while (*a != '\0' && *b != '\0') {
+        char ca = *a++;
+        char cb = *b++;
+        if (ca >= 'A' && ca <= 'Z') {
+            ca = (char)(ca - 'A' + 'a');
+        }
+        if (cb >= 'A' && cb <= 'Z') {
+            cb = (char)(cb - 'A' + 'a');
+        }
+        if (ca != cb) {
+            return 0;
+        }
+    }
+    return *a == '\0' && *b == '\0';
+}
+
+static int is_cart_name(const char *name)
+{
+    const char *dot;
+
+    if (name == NULL) {
+        return 0;
+    }
+    dot = strrchr(name, '.');
+    if (dot == NULL || dot[1] == '\0') {
+        return 0;
+    }
+    dot++;
+    return ascii_eq_ci(dot, "ch8") || ascii_eq_ci(dot, "c8");
+}
+
+static void stem_name(char *out, size_t n, const char *name)
+{
+    size_t i = 0u;
+
+    if (out == NULL || n == 0u) {
+        return;
+    }
+    if (name == NULL) {
+        out[0] = '\0';
+        return;
+    }
+    while (name[i] != '\0' && name[i] != '.' && i + 1u < n) {
+        out[i] = name[i];
+        i++;
+    }
+    if (i == 0u) {
+        strncpy(out, name, n - 1u);
+        out[n - 1u] = '\0';
+        return;
+    }
+    out[i] = '\0';
+}
+
 static uint32_t load_high(void)
 {
     vfs_file_t fd = -1;
@@ -103,7 +166,10 @@ static void save_high(uint32_t high)
     if (vfs_mounted() == 0) {
         return;
     }
-    e = vfs_mkdir("/user/game");
+    if (g_mod == NULL || g_mod->id == NULL || strcmp(g_mod->id, "brick") != 0) {
+        return;
+    }
+    e = vfs_mkdir(GAME_DIR);
     if (e != ERR_OK && e != ERR_DENIED) {
         return;
     }
@@ -132,7 +198,8 @@ static void present(void)
 {
     gfx_t fx;
 
-    if (g_mod == NULL || g_mod->draw == NULL) {
+    if (g_lib != 0u || g_mod == NULL || g_mod->draw == NULL) {
+        refresh_str();
         return;
     }
     fx.fb = dst_px();
@@ -143,27 +210,129 @@ static void present(void)
     refresh_str();
 }
 
+static void clamp_size(uint16_t *w, uint16_t *h)
+{
+    if (w == NULL || h == NULL) {
+        return;
+    }
+    if (*w < 160u) {
+        *w = GAME_FIELD_MAX_W;
+    }
+    if (*h < 80u) {
+        *h = 200u;
+    }
+    if (*w > GAME_FIELD_MAX_W) {
+        *w = GAME_FIELD_MAX_W;
+    }
+    if (*h > GAME_FIELD_MAX_H) {
+        *h = GAME_FIELD_MAX_H;
+    }
+}
+
 static void apply_size(uint16_t w, uint16_t h)
 {
-    if (w < 160u) {
-        w = GAME_FIELD_MAX_W;
+    clamp_size(&w, &h);
+    g_w = w;
+    g_h = h;
+    if (g_lib != 0u) {
+        g_game.w = w;
+        g_game.h = h;
+        return;
     }
-    if (h < 80u) {
-        h = 200u;
-    }
-    if (w > GAME_FIELD_MAX_W) {
-        w = GAME_FIELD_MAX_W;
-    }
-    if (h > GAME_FIELD_MAX_H) {
-        h = GAME_FIELD_MAX_H;
-    }
-    if (g_open == 0u) {
-        if (g_mod != NULL && g_mod->reset != NULL) {
-            g_mod->reset(&g_game, w, h);
+    if (g_mod == game_brick_module()) {
+        if (g_open == 0u) {
+            if (g_mod->reset != NULL) {
+                g_mod->reset(&g_game, w, h);
+            }
+        } else {
+            game_resize_layout(&g_game, w, h);
         }
     } else {
-        game_resize_layout(&g_game, w, h);
+        g_game.w = w;
+        g_game.h = h;
     }
+}
+
+static void add_title(const char *name, const char *path, const char *core, uint8_t builtin)
+{
+    game_title_t *t;
+
+    if (g_tn >= GAME_TITLES_MAX || name == NULL || core == NULL) {
+        return;
+    }
+    t = &g_titles[g_tn++];
+    memset(t, 0, sizeof(*t));
+    strncpy(t->name, name, sizeof(t->name) - 1u);
+    if (path != NULL) {
+        strncpy(t->path, path, sizeof(t->path) - 1u);
+    }
+    t->core = core;
+    t->builtin = builtin;
+}
+
+static void reload_titles(void)
+{
+    vfs_dir_t d = -1;
+    vfs_dirent_t ent;
+
+    g_tn = 0u;
+    add_title("Brick", "", "brick", 1u);
+    add_title("CHIP-8 Demo", "", "chip8", 1u);
+    if (vfs_mounted() == 0) {
+        return;
+    }
+    (void)vfs_mkdir(GAME_DIR);
+    if (vfs_opendir(GAME_DIR, &d) != ERR_OK) {
+        return;
+    }
+    for (;;) {
+        char path[VFS_PATH_MAX];
+        char label[64];
+
+        if (vfs_readdir(d, &ent) != ERR_OK) {
+            break;
+        }
+        if (ent.is_dir != 0u || !is_cart_name(ent.name)) {
+            continue;
+        }
+        if (vfs_path_join(GAME_DIR, ent.name, path, sizeof(path)) != ERR_OK) {
+            continue;
+        }
+        stem_name(label, sizeof(label), ent.name);
+        add_title(label, path, "chip8", 0u);
+    }
+    (void)vfs_closedir(d);
+}
+
+static void start_core(const char *core, const uint8_t *rom, uint32_t n)
+{
+    uint32_t high = g_game.high;
+
+    g_mod = game_module_by_id(core);
+    if (g_mod == NULL) {
+        g_mod = game_brick_module();
+    }
+    memset(&g_game, 0, sizeof(g_game));
+    g_game.high = high;
+    g_lib = 0u;
+    g_open = 0u;
+    apply_size(g_w, g_h);
+    if (g_mod->load != NULL) {
+        if (rom != NULL && n > 0u) {
+            (void)g_mod->load(&g_game, rom, n);
+        }
+        if (g_mod->reset != NULL) {
+            g_mod->reset(&g_game, g_w, g_h);
+        }
+    } else if (g_mod->reset != NULL) {
+        g_mod->reset(&g_game, g_w, g_h);
+    }
+    g_game.high = high;
+    g_open = 1u;
+    strncpy(g_title, (g_mod->id != NULL && strcmp(g_mod->id, "chip8") == 0) ? "CHIP-8" : "Brick",
+            sizeof(g_title) - 1u);
+    present();
+    bump();
 }
 
 void game_open(uint16_t w, uint16_t h)
@@ -171,22 +340,25 @@ void game_open(uint16_t w, uint16_t h)
     g_mod = game_brick_module();
     memset(&g_game, 0, sizeof(g_game));
     g_game.high = load_high();
-    g_open = 0u;
-    apply_size(w, h);
     g_open = 1u;
-    present();
+    g_lib = 1u;
+    strncpy(g_title, "Games", sizeof(g_title) - 1u);
+    apply_size(w, h);
+    reload_titles();
+    refresh_str();
     bump();
 }
 
 void game_close(void)
 {
-    if (g_open != 0u) {
+    if (g_open != 0u && g_lib == 0u) {
         if (g_game.score > g_game.high) {
             g_game.high = g_game.score;
         }
         save_high(g_game.high);
     }
     g_open = 0u;
+    g_lib = 1u;
 }
 
 void game_resize(uint16_t w, uint16_t h)
@@ -195,7 +367,8 @@ void game_resize(uint16_t w, uint16_t h)
         game_open(w, h);
         return;
     }
-    if (w == g_game.w && h == g_game.h) {
+    clamp_size(&w, &h);
+    if (w == g_w && h == g_h && w == g_game.w && h == g_game.h) {
         return;
     }
     apply_size(w, h);
@@ -206,7 +379,7 @@ void game_step(uint32_t dt_ms)
 {
     game_phase_t before;
 
-    if (g_open == 0u || g_mod == NULL || g_mod->tick == NULL) {
+    if (g_open == 0u || g_lib != 0u || g_mod == NULL || g_mod->tick == NULL) {
         return;
     }
     before = (game_phase_t)g_game.phase;
@@ -224,7 +397,7 @@ void game_pointer(input_kind_t kind, int16_t x, int16_t y)
 {
     input_event_t e;
 
-    if (g_open == 0u || g_mod == NULL || g_mod->input == NULL) {
+    if (g_open == 0u || g_lib != 0u || g_mod == NULL || g_mod->input == NULL) {
         return;
     }
     e.kind = kind;
@@ -237,7 +410,7 @@ void game_pointer(input_kind_t kind, int16_t x, int16_t y)
 
 void game_pause(void)
 {
-    if (g_open == 0u) {
+    if (g_open == 0u || g_lib != 0u) {
         return;
     }
     if (g_game.phase == (uint8_t)GAME_PHASE_PLAY) {
@@ -248,7 +421,7 @@ void game_pause(void)
 
 void game_resume(void)
 {
-    if (g_open == 0u) {
+    if (g_open == 0u || g_lib != 0u) {
         return;
     }
     if (g_game.phase == (uint8_t)GAME_PHASE_PAUSE) {
@@ -259,18 +432,32 @@ void game_resume(void)
 
 void game_new(void)
 {
-    uint32_t high = g_game.high;
-    uint16_t w = g_game.w;
-    uint16_t h = g_game.h;
+    uint32_t high;
 
-    if (g_mod == NULL || g_mod->reset == NULL) {
+    if (g_open == 0u || g_lib != 0u || g_mod == NULL || g_mod->reset == NULL) {
         return;
     }
+    high = g_game.high;
+    g_mod->reset(&g_game, g_w, g_h);
     g_game.high = high;
-    g_mod->reset(&g_game, w, h);
-    g_game.high = high;
-    g_open = 1u;
     present();
+    bump();
+}
+
+void game_to_library(void)
+{
+    if (g_open == 0u) {
+        return;
+    }
+    if (g_lib == 0u) {
+        if (g_game.score > g_game.high) {
+            g_game.high = g_game.score;
+        }
+        save_high(g_game.high);
+    }
+    g_lib = 1u;
+    strncpy(g_title, "Games", sizeof(g_title) - 1u);
+    reload_titles();
     bump();
 }
 
@@ -279,11 +466,94 @@ uint8_t game_on_back(void)
     if (g_open == 0u) {
         return 0u;
     }
-    if (g_game.phase == (uint8_t)GAME_PHASE_PLAY) {
+    if (g_lib == 0u && g_game.phase == (uint8_t)GAME_PHASE_PLAY) {
         game_pause();
         return 1u;
     }
+    if (g_lib == 0u) {
+        game_to_library();
+        return 1u;
+    }
     return 0u;
+}
+
+err_t game_load_path(const char *path)
+{
+    char norm[VFS_PATH_MAX];
+    vfs_file_t fd = -1;
+    uint8_t rom[CHIP8_ROM_MAX];
+    size_t got = 0u;
+    err_t e;
+
+    if (path == NULL || path[0] == '\0') {
+        return ERR_INVAL;
+    }
+    e = vfs_normalize(path, norm, sizeof(norm));
+    if (e != ERR_OK) {
+        return e;
+    }
+    if (vfs_in_user_jail(norm) == 0) {
+        return ERR_DENIED;
+    }
+    if (!is_cart_name(norm)) {
+        return ERR_UNSUPPORTED;
+    }
+    if (vfs_open(norm, VFS_O_RD, &fd) != ERR_OK) {
+        return ERR_NOENT;
+    }
+    e = vfs_read(fd, rom, sizeof(rom), &got);
+    (void)vfs_close(fd);
+    if (e != ERR_OK || got == 0u) {
+        return (e != ERR_OK) ? e : ERR_CORRUPT;
+    }
+    start_core("chip8", rom, (uint32_t)got);
+    stem_name(g_title, sizeof(g_title), strrchr(norm, '/') ? strrchr(norm, '/') + 1 : norm);
+    return ERR_OK;
+}
+
+void game_pick(unsigned index)
+{
+    const game_title_t *t = game_title_at(index);
+
+    if (t == NULL) {
+        return;
+    }
+    if (t->builtin != 0u && strcmp(t->core, "brick") == 0) {
+        start_core("brick", NULL, 0u);
+        strncpy(g_title, "Brick", sizeof(g_title) - 1u);
+        return;
+    }
+    if (t->builtin != 0u && strcmp(t->core, "chip8") == 0) {
+        uint32_t n = 0u;
+        const uint8_t *rom = chip8_demo_rom(&n);
+        start_core("chip8", rom, n);
+        strncpy(g_title, "CHIP-8 Demo", sizeof(g_title) - 1u);
+        return;
+    }
+    (void)game_load_path(t->path);
+}
+
+uint8_t game_in_library(void)
+{
+    return g_lib;
+}
+
+unsigned game_title_count(void)
+{
+    return g_tn;
+}
+
+const game_title_t *game_title_at(unsigned index)
+{
+    if (index >= g_tn) {
+        return NULL;
+    }
+    return &g_titles[index];
+}
+
+const char *game_title(void)
+{
+    return g_title;
 }
 
 game_phase_t game_phase(void)

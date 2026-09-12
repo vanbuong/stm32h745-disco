@@ -1,6 +1,7 @@
 #ifndef GAME_SIM_H
 #define GAME_SIM_H
 
+#include "err.h"
 #include "hal/input.h"
 
 #include <stdint.h>
@@ -47,10 +48,16 @@ typedef struct {
     void (*input)(game_t *g, const input_event_t *e);
     void (*tick)(game_t *g, uint32_t dt_ms);
     void (*draw)(const game_t *g, struct gfx *fx);
+    err_t (*load)(game_t *g, const uint8_t *rom, uint32_t n);
 } game_module_t;
 
 const game_module_t *game_brick_module(void);
+const game_module_t *game_chip8_module(void);
 const game_module_t *game_module_by_id(const char *id);
+
+#define CHIP8_ROM_MAX 3584u
+const uint8_t *chip8_demo_rom(uint32_t *n);
+uint8_t chip8_pixel(unsigned x, unsigned y);
 
 game_phase_t game_get_phase(const game_t *g);
 uint32_t game_get_score(const game_t *g);

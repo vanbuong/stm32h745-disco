@@ -28,6 +28,10 @@ static void test_module_registry(void)
     TEST_ASSERT_EQUAL_PTR(m, game_module_by_id(NULL));
     TEST_ASSERT_EQUAL_PTR(m, game_module_by_id(""));
     TEST_ASSERT_NULL(game_module_by_id("snake"));
+    TEST_ASSERT_NOT_NULL(game_module_by_id("chip8"));
+    TEST_ASSERT_EQUAL_STRING("chip8", game_module_by_id("chip8")->id);
+    TEST_ASSERT_NULL(m->load);
+    TEST_ASSERT_NOT_NULL(game_chip8_module()->load);
     TEST_ASSERT_NOT_NULL(m->reset);
     TEST_ASSERT_NOT_NULL(m->input);
     TEST_ASSERT_NOT_NULL(m->tick);
@@ -218,6 +222,11 @@ static void test_app_back_and_save(void)
 
     TEST_ASSERT_EQUAL_INT(ERR_OK, vfs_mount());
     game_open(240, 160);
+    TEST_ASSERT_EQUAL_UINT8(1u, game_in_library());
+    TEST_ASSERT_TRUE(game_title_count() >= 2u);
+    TEST_ASSERT_EQUAL_STRING("brick", game_title_at(0u)->core);
+    game_pick(0u);
+    TEST_ASSERT_EQUAL_UINT8(0u, game_in_library());
     TEST_ASSERT_EQUAL_STRING("brick", game_module()->id);
     TEST_ASSERT_NOT_NULL(game_pixels());
     TEST_ASSERT_EQUAL_UINT16(240u, game_field_w());
@@ -225,7 +234,10 @@ static void test_app_back_and_save(void)
     TEST_ASSERT_EQUAL_UINT8(GAME_PHASE_PLAY, game_phase());
     TEST_ASSERT_EQUAL_UINT8(1u, game_on_back());
     TEST_ASSERT_EQUAL_UINT8(GAME_PHASE_PAUSE, game_phase());
+    TEST_ASSERT_EQUAL_UINT8(1u, game_on_back());
+    TEST_ASSERT_EQUAL_UINT8(1u, game_in_library());
     TEST_ASSERT_EQUAL_UINT8(0u, game_on_back());
+    game_pick(0u);
     game_resume();
     TEST_ASSERT_EQUAL_UINT8(GAME_PHASE_PLAY, game_phase());
 
@@ -242,6 +254,7 @@ static void test_app_back_and_save(void)
     game_open(240, 160);
     TEST_ASSERT_TRUE(game_high() >= 70u);
     TEST_ASSERT_EQUAL_STRING("70", game_high_str());
+    game_pick(0u);
     game_new();
     TEST_ASSERT_EQUAL_UINT8(GAME_PHASE_PLAY, game_phase());
     TEST_ASSERT_EQUAL_UINT32(0u, game_score());
@@ -298,6 +311,125 @@ static void test_level_clear_refill(void)
     TEST_ASSERT_EQUAL_UINT8(1u, game_brick_alive(&g, 1u));
 }
 
+static void write_demo_cart(void)
+{
+    vfs_file_t fd = -1;
+    uint32_t n = 0u;
+    const uint8_t *rom = chip8_demo_rom(&n);
+    size_t put = 0u;
+
+    TEST_ASSERT_EQUAL_INT(ERR_OK, vfs_mkdir(GAME_DIR));
+    TEST_ASSERT_EQUAL_INT(
+        ERR_OK, vfs_open("/user/game/demo.ch8", VFS_O_WR | VFS_O_CREAT | VFS_O_TRUNC, &fd));
+    TEST_ASSERT_EQUAL_INT(ERR_OK, vfs_write(fd, rom, n, &put));
+    TEST_ASSERT_EQUAL_UINT32(n, (uint32_t)put);
+    TEST_ASSERT_EQUAL_INT(ERR_OK, vfs_close(fd));
+}
+
+static void test_library_and_chip8(void)
+{
+    const game_module_t *c8 = game_chip8_module();
+    game_t g;
+    uint32_t n = 0u;
+    const uint8_t *rom = chip8_demo_rom(&n);
+    unsigned i;
+    int found = 0;
+
+    TEST_ASSERT_NOT_NULL(c8);
+    TEST_ASSERT_NOT_NULL(rom);
+    TEST_ASSERT_TRUE(n > 0u);
+    memset(&g, 0, sizeof(g));
+    TEST_ASSERT_EQUAL_INT(ERR_INVAL, c8->load(&g, NULL, 0u));
+    TEST_ASSERT_EQUAL_INT(ERR_OK, c8->load(&g, rom, n));
+    c8->reset(&g, 480, 160);
+    c8->tick(&g, 16u);
+    TEST_ASSERT_EQUAL_UINT8(1u, chip8_pixel(10u, 8u));
+
+    TEST_ASSERT_EQUAL_INT(ERR_OK, vfs_mount());
+    write_demo_cart();
+    game_open(480, 200);
+    TEST_ASSERT_EQUAL_UINT8(1u, game_in_library());
+    TEST_ASSERT_TRUE(game_title_count() >= 3u);
+    for (i = 0u; i < game_title_count(); i++) {
+        const game_title_t *t = game_title_at(i);
+        if (t != NULL && t->builtin == 0u && strstr(t->path, "demo.ch8") != NULL) {
+            found = 1;
+            game_pick(i);
+        }
+    }
+    TEST_ASSERT_EQUAL_INT(1, found);
+    TEST_ASSERT_EQUAL_UINT8(0u, game_in_library());
+    TEST_ASSERT_EQUAL_STRING("chip8", game_module()->id);
+    game_step(16u);
+    TEST_ASSERT_EQUAL_INT(ERR_DENIED, game_load_path("/user/../etc/x.ch8"));
+    TEST_ASSERT_EQUAL_INT(ERR_INVAL, game_load_path(NULL));
+    TEST_ASSERT_EQUAL_INT(ERR_UNSUPPORTED, game_load_path("/user/game/brick.sav"));
+    game_pick(1u);
+    TEST_ASSERT_EQUAL_STRING("chip8", game_module()->id);
+    game_to_library();
+    TEST_ASSERT_EQUAL_UINT8(1u, game_in_library());
+    game_close();
+}
+
+static void test_chip8_opcodes(void)
+{
+    const game_module_t *c8 = game_chip8_module();
+    game_t g;
+    gfx_t fx;
+    uint16_t fb[480 * 160];
+    input_event_t e;
+    static const uint8_t rom[] = {
+        0x00u, 0xE0u, 0x60u, 0x02u, 0x70u, 0x01u, 0x81u, 0x00u, 0x80u, 0x11u, 0x80u, 0x12u,
+        0x80u, 0x13u, 0x61u, 0x01u, 0x80u, 0x14u, 0x80u, 0x15u, 0x80u, 0x17u, 0x80u, 0x16u,
+        0x80u, 0x1Eu, 0x30u, 0x00u, 0x40u, 0xFFu, 0x51u, 0x00u, 0x91u, 0x00u, 0xA3u, 0x00u,
+        0xF0u, 0x1Eu, 0x60u, 0x01u, 0xF0u, 0x29u, 0x60u, 0x7Bu, 0xA3u, 0x00u, 0xF0u, 0x33u,
+        0x62u, 0x00u, 0xF2u, 0x55u, 0xF2u, 0x65u, 0xF0u, 0x15u, 0xF0u, 0x18u, 0xF0u, 0x07u,
+        0xC0u, 0xFFu, 0x22u, 0x42u, 0x12u, 0x40u, 0x00u, 0xEEu,
+    };
+    static const uint8_t wait_rom[] = {0xF0u, 0x0Au, 0x12u, 0x00u};
+    static const uint8_t key_rom[] = {0x60u, 0x01u, 0xE0u, 0x9Eu, 0xE0u, 0xA1u, 0x12u, 0x04u};
+
+    memset(&g, 0, sizeof(g));
+    memset(fb, 0, sizeof(fb));
+    fx.fb = fb;
+    fx.w = 480;
+    fx.h = 160;
+    fx.stride = 480;
+    TEST_ASSERT_EQUAL_INT(ERR_OK, c8->load(&g, rom, (uint32_t)sizeof(rom)));
+    c8->reset(&g, 480, 160);
+    c8->tick(&g, 0u);
+    c8->tick(&g, 64u);
+    c8->draw(&g, &fx);
+    e.kind = INPUT_PTR_DOWN;
+    e.x = 400;
+    e.y = 20;
+    e.id = 0u;
+    e.t_ms = 0u;
+    c8->input(&g, &e);
+    e.kind = INPUT_PTR_UP;
+    c8->input(&g, &e);
+    TEST_ASSERT_EQUAL_INT(ERR_OK, c8->load(&g, wait_rom, (uint32_t)sizeof(wait_rom)));
+    c8->reset(&g, 200, 100);
+    c8->tick(&g, 16u);
+    e.kind = INPUT_PTR_DOWN;
+    e.x = 10;
+    e.y = 10;
+    c8->input(&g, &e);
+    c8->tick(&g, 16u);
+    TEST_ASSERT_EQUAL_INT(ERR_OK, c8->load(&g, key_rom, (uint32_t)sizeof(key_rom)));
+    c8->reset(&g, 480, 160);
+    c8->draw(&g, &fx);
+    e.kind = INPUT_PTR_DOWN;
+    e.x = 400;
+    e.y = 20;
+    c8->input(&g, &e);
+    c8->tick(&g, 16u);
+    g.phase = (uint8_t)GAME_PHASE_PAUSE;
+    c8->tick(&g, 16u);
+    c8->input(&g, &e);
+    c8->draw(NULL, &fx);
+}
+
 void test_game_run(void)
 {
     UnitySetTestFile(__FILE__);
@@ -312,4 +444,6 @@ void test_game_run(void)
     RUN_TEST(test_app_back_and_save);
     RUN_TEST(test_walls_and_small_field);
     RUN_TEST(test_level_clear_refill);
+    RUN_TEST(test_library_and_chip8);
+    RUN_TEST(test_chip8_opcodes);
 }

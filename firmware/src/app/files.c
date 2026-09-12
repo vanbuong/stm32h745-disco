@@ -84,6 +84,9 @@ static const char *kind_app(media_kind_t k)
     if (k == MEDIA_KIND_AUDIO) {
         return APP_ID_PLAYER;
     }
+    if (k == MEDIA_KIND_GAME) {
+        return APP_ID_GAME;
+    }
     return NULL;
 }
 
@@ -317,6 +320,9 @@ const char *files_kind_tag(const files_row_t *r)
     }
     if (r->kind == MEDIA_KIND_AUDIO) {
         return "AUD";
+    }
+    if (r->kind == MEDIA_KIND_GAME) {
+        return "ROM";
     }
     return "BIN";
 }

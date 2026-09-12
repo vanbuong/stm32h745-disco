@@ -326,7 +326,7 @@ void gfx_blit(gfx_t *fx, int x, int y, const gfx_sprite_t *s);
 
 Host tests run `tick`/`input` with a fake `gfx` that records fill rects. The LVGL backend may implement `gfx_t` as an `lv_canvas` **or** a raw RGB565 buffer flushed with `disp_flush`. A later Zephyr port keeps `game_module_t`.
 
-First bundled module: **Brick** (breakout-style paddle + bricks) on a `reset(w,h)` playfield (typically 480 × content-minus-app-bar). Extra modules (Snake, puzzle) register with `game_module_by_id`; do not fork the app.
+First bundled module: **Brick**. The Game app is a **library**: Brick is always listed, then carts from `/user/game` (`*.ch8` / `*.c8`). The first eMMC-loadable core is **CHIP-8** (`game_module_t.load`). Extra cores register with `game_module_by_id` and an extension table; do not fork the app. No libretro / NES / GB in this generation.
 
 While a game is foreground it may borrow the image-decode SDRAM window. Leaving the game releases that buffer.
 

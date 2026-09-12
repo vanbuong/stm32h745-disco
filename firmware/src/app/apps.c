@@ -115,8 +115,12 @@ static void calendar_stop(void)
 
 static void game_start(void *args)
 {
-    (void)args;
+    const char *path = (const char *)args;
+
     game_open(0, 0);
+    if (path != NULL && path[0] != '\0') {
+        (void)game_load_path(path);
+    }
 }
 
 static void game_stop(void)

@@ -9,7 +9,7 @@ A small dual-core handheld-style shell on the 4.3" panel:
 - Launcher
 - File explorer, image viewer, text viewer
 - Audio player
-- **Game** (first title: Brick)
+- **Game** (library: built-in Brick + retro carts from eMMC)
 - **Home** (TI ZNP Zigbee host: network, device list, local automations)
 - Status (time, storage, Ethernet, Zigbee radio; optional Wi-Fi)
 
@@ -24,7 +24,8 @@ Game and Home use the same `ui_app_t` contract as Files. Game logic is a host-te
 - littlefs (or any second user-visible filesystem). The explorer volume stays FAT.
 - USB MSC as always-on gadget (it is **in-scope later**, exclusive / opt-in — see Later — USB MSC).
 - Treating ESP32 or TI ZNP as on-board hardware (both are UART expansions).
-- A 3D / GPU game engine, or Home Assistant / zigbee2mqtt running **on** the STM32.
+- A 3D / GPU game engine, libretro / MAME, or a NES/GB/SNES core on this MCU (CHIP-8 carts are the first eMMC-loadable retro core).
+- Home Assistant / zigbee2mqtt running **on** the STM32.
 - Binding Home UI to MQTT or HA dashboards as the primary control path.
 - A Matter/Thread stack, or a full Linux Zigbee gateway, on this MCU.
 
@@ -70,7 +71,8 @@ flowchart LR
   S4 --> S11[11 ZNP]
   S11 --> S12[12 automations]
   S8 --> S13[13 harden]
-  S10 --> S13
+  S10 --> S10b[10b retro]
+  S10b --> S13
   S12 --> S13
   S9 --> S13
 ```
@@ -96,6 +98,7 @@ gantt
   Sprint 9 net                  :s9, after s7, 7d
   section Apps
   Sprint 10 game                :s10, after s4, 7d
+  Sprint 10b retro library      :s10b, after s10, 5d
   Sprint 11 ZNP host            :s11, after s4, 14d
   Sprint 12 automations         :s12, after s11, 7d
   section Quality
@@ -278,6 +281,24 @@ Lock:
 - **Out:** no DMA2D blit, no extra NVIC, no SDMMC/ETH/SAI vectors, no ZNP pairing, no Home automations.
 
 - **Exit:** host tests for collision/score/`gfx` spy; HIL ≥ 30 FPS; Home returns to launcher with audio still healthy.
+
+### Follow-up — Retro library (after Sprint 10, not Sprint 11)
+
+Status: **done** (host-tested library jail, CHIP-8 load/draw, Brick still playable).
+
+The Game app is a **library**. Brick stays the built-in title. Other titles are **carts on eMMC** under `/user/game`, opened through `vfs_*` (jail still applies). Each cart is a ROM plus a `game_module_t` **core**. Do not fork the shell or draw one LVGL widget per sprite.
+
+Lock:
+
+- **Library:** opening Game lists titles. Row 0 is always **Brick**. Then every `/user/game/*.ch8` and `*.c8` (skip `.sav`). Tap starts that core. Back while playing pauses; Back while paused or “Games” returns to the library; Back in the library pops to the launcher. Audio stays running.
+- **Load:** `game_module_t.load(rom, n)` is optional. Brick has `load == NULL`. A core copies the ROM into its own RAM; it does not mmap eMMC. Max CHIP-8 ROM **3584** bytes (4 KB machine minus `0x200`). Jail: path must normalize under `/user`.
+- **First core:** **CHIP-8** (`id "chip8"`). Host-test the opcode groups used by the bundled demo (CLS, LD, ADD, JMP, DRW, font). 64×32 display scaled into the playfield via `gfx_fill`; 4×4 COSMAC keypad on the right when width allows (40 px cells), otherwise a lower-band 4×4. Delay timer at 60 Hz. **No SAI / no beep** (do not steal the music pipe).
+- **Files:** `.ch8` / `.c8` probe as `MEDIA_KIND_GAME` and open the Game app with that path (same as `.mp3` → player).
+- **Saves:** Brick keeps `/user/game/brick.sav`. Carts do not share that file. No copyrighted ROM dumps in tree; seed only an original tiny demo (`demo.ch8`) for host-sim / tests.
+- **Later cores (not this slice):** Game Boy / NES would be new `game_module_t` files + an extension table. Out until a dedicated sprint. No libretro, no MAME, no ZIP, no extra IRQ, no DMA2D blit.
+- **Out:** ZNP pairing, JPEG HW, `LV_USE_DRAW_DMA2D`.
+
+- **Exit:** host tests for library jail, CHIP-8 load/draw, Brick still playable; HIL: copy a `.ch8` onto eMMC, it appears in Game and runs; Brick still ≥ 30 FPS.
 
 ### Sprint 11 — Zigbee host (TI ZNP)
 

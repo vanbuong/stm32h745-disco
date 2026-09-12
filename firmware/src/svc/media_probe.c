@@ -44,5 +44,8 @@ media_kind_t media_probe_ext(const char *path)
     if (ascii_eq_ci(dot, "mp3") || ascii_eq_ci(dot, "wav")) {
         return MEDIA_KIND_AUDIO;
     }
+    if (ascii_eq_ci(dot, "ch8") || ascii_eq_ci(dot, "c8")) {
+        return MEDIA_KIND_GAME;
+    }
     return MEDIA_KIND_NONE;
 }

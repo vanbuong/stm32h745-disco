@@ -260,7 +260,10 @@ Playfield is the content region (typically 480×200). **Not** a widget tree of b
 - Game-over modal: score, New game, Quit.
 - High score persisted under `/user/game/brick.sav`.
 - If music is playing, keep it; do not steal SAI. If FPS drops below 25, drop particles first, not the paddle.
-- Extra modules later: a Pause-menu “Games” list if more than one module is compiled.
+- Opening Game shows a **library** (Brick + `/user/game` carts). Tap a row to run it.
+- Extra cores later: same list, new `game_module_t` + file extension. CHIP-8 is the first eMMC cart (`.ch8` / `.c8`).
+- Pause “Games” returns to the library; Back in the library returns to the launcher.
+- CHIP-8: scaled 64×32 playfield + 4×4 keypad. Do not steal SAI.
 
 ### 7.9 Home
 

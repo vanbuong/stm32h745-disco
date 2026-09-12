@@ -432,20 +432,12 @@ static void brick_draw(const game_t *g, struct gfx *fx)
 }
 
 static const game_module_t g_brick = {
-    "brick", brick_reset, brick_input, brick_tick, brick_draw,
+    "brick", brick_reset, brick_input, brick_tick, brick_draw, NULL,
 };
 
 const game_module_t *game_brick_module(void)
 {
     return &g_brick;
-}
-
-const game_module_t *game_module_by_id(const char *id)
-{
-    if (id == NULL || id[0] == '\0' || strcmp(id, "brick") == 0) {
-        return &g_brick;
-    }
-    return NULL;
 }
 
 game_phase_t game_get_phase(const game_t *g)
