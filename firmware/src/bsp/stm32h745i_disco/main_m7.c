@@ -239,8 +239,12 @@ static uint8_t vfs_bringup(void)
                 }
             }
             log_err("demo_mp3", we);
+            if (we == ERR_OK) {
+                log_kv("demo_bytes", n);
+            }
         } else {
             board_console_puts("demo_mp3 present\r\n");
+            log_kv("demo_bytes", n);
         }
     }
     vfs_list_user();

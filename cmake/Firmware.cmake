@@ -77,6 +77,8 @@ function(stm32_add_firmware CORE_ID)
             ${BSP}/emmc.c
             ${H745_ROOT}/firmware/src/svc/vfs.c
             PROPERTIES COMPILE_FLAGS "-include ${FFCONF}")
+        set_source_files_properties(${BSP}/demo_mp3.c PROPERTIES
+            COMPILE_FLAGS "-DDEMO_MP3_FILE=${BSP}/demo.mp3")
         set(APP_SRC
             ${BSP}/startup.c
             ${BSP}/main_m7.c

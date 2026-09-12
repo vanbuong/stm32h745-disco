@@ -15,7 +15,7 @@ while IFS= read -r f; do
     firmware/src/port/fatfs/ffconf.h) continue ;;
     firmware/src/port/lvgl/lv_conf.h) continue ;;
     firmware/src/port/lvgl_sim/lv_conf.h) continue ;;
-    firmware/src/bsp/stm32h745i_disco/demo_mp3.c) continue ;;
+    firmware/src/bsp/stm32h745i_disco/demo.mp3) continue ;;
     esac
     if [[ -f "$f" ]]; then
         files+=("$f")
