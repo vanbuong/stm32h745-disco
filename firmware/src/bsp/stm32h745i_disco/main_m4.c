@@ -145,21 +145,26 @@ int main(void)
     uint8_t led_on = 0u;
     const char *ready = "m4 ready";
 
+    /*
+     * CubeMX DUAL_CORE_BOOT_SYNC_SEQUENCE: park D2 in STOP before HAL_Init
+     * so M7 can program PLL. M7 waits for D2CKRDY=0, then HSEM-wakes this
+     * core and waits for D2CKRDY=1. After that, wait_m7() is app IPC.
+     * Skip STOP if M7 already switched SYSCLK to PLL (debugger started CM7
+     * first); the HSEM wake would already have been missed.
+     */
+    if (__HAL_RCC_GET_SYSCLK_SOURCE() != RCC_SYSCLKSOURCE_STATUS_PLLCLK) {
+        __HAL_RCC_HSEM_CLK_ENABLE();
+        HAL_HSEM_ActivateNotification(__HAL_HSEM_SEMID_TO_MASK(BOARD_HSEM_M7_TO_M4));
+        HAL_PWREx_ClearPendingEvent();
+        HAL_PWREx_EnterSTOPMode(PWR_MAINREGULATOR_ON, PWR_STOPENTRY_WFE, PWR_D2_DOMAIN);
+        __HAL_HSEM_CLEAR_FLAG(__HAL_HSEM_SEMID_TO_MASK(BOARD_HSEM_M7_TO_M4));
+    }
+
     (void)HAL_Init();
     LL_AHB4_GRP1_EnableClock(LL_AHB4_GRP1_PERIPH_GPIOJ);
     LL_GPIO_SetPinMode(GPIOJ, LL_GPIO_PIN_2, LL_GPIO_MODE_OUTPUT);
 
     board_hsem_init();
-    /*
-     * Park D2 in STOP until M7 finishes PLL. A pin reset starts both cores
-     * together; if M4 keeps using D2 SRAM while M7 resets RCC, both freeze
-     * and the reset button looks dead. The debugger avoids that by starting
-     * CM4 first (it sits in wait) then CM7.
-     */
-    HAL_HSEM_ActivateNotification(__HAL_HSEM_SEMID_TO_MASK(BOARD_HSEM_M7_TO_M4));
-    HAL_PWREx_ClearPendingEvent();
-    HAL_PWREx_EnterSTOPMode(PWR_MAINREGULATOR_ON, PWR_STOPENTRY_WFE, PWR_D2_DOMAIN);
-    __HAL_HSEM_CLEAR_FLAG(__HAL_HSEM_SEMID_TO_MASK(BOARD_HSEM_M7_TO_M4));
     wait_m7();
     (void)SysTick_Config(BOARD_M4_SYSCLK_HZ / 1000u);
 

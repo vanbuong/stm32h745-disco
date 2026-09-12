@@ -2,6 +2,8 @@
 
 #include "cube.h"
 
+#define D2_SYNC_MS 100u
+
 static uint32_t g_sysclk_hz = BOARD_HSI_HZ;
 static uint32_t g_pclk1_hz = BOARD_HSI_HZ;
 
@@ -23,6 +25,33 @@ static void wait_vos(uint32_t ms)
         if ((HAL_GetTick() - t0) > ms) {
             break;
         }
+    }
+}
+
+static uint8_t d2_ck_ready(void)
+{
+    return (__HAL_RCC_GET_FLAG(RCC_FLAG_D2CKRDY) != RESET) ? 1u : 0u;
+}
+
+static void wait_d2_ck(uint8_t want_ready, uint32_t ms)
+{
+    uint32_t t0 = HAL_GetTick();
+
+    while (d2_ck_ready() != want_ready) {
+        if ((HAL_GetTick() - t0) > ms) {
+            break;
+        }
+    }
+}
+
+/* CubeMX DUAL_CORE_BOOT_SYNC_SEQUENCE Boot_Mode_Sequence_2. */
+static void wake_cm4(void)
+{
+    board_hsem_init();
+    board_hsem_wake(BOARD_HSEM_M7_TO_M4);
+    wait_d2_ck(1u, D2_SYNC_MS);
+    if (d2_ck_ready() == 0u) {
+        board_console_puts("d2 wake to\r\n");
     }
 }
 
@@ -75,8 +104,14 @@ err_t board_clock_init(void)
     __HAL_RCC_SYSCFG_CLK_ENABLE();
     board_cm4_boot();
 
+    /* CubeMX Boot_Mode_Sequence_1: wait until CM4 entered D2 STOP. */
+    wait_d2_ck(0u, D2_SYNC_MS);
+    if (d2_ck_ready() != 0u) {
+        board_console_puts("d2 stop to\r\n");
+    }
+
     /*
-     * Same sequence as the CubeMX H745-DISCO blinky. HAL_PWREx_ConfigSupply
+     * Same PWR/PLL path as the CubeMX H745-DISCO blinky. HAL_PWREx_ConfigSupply
      * and ControlVoltageScaling return HAL_ERROR when CR3 is already locked
      * (ExitRun0Mode or a previous DIRECT_SMPS session) — do not abort; PLL
      * still has to start or LTDC PLL3 has no source.
@@ -92,8 +127,7 @@ err_t board_clock_init(void)
         e = apply_pll(RCC_PLLSOURCE_HSI, 4u, 50u, FLASH_LATENCY_2);
     }
     if (e != ERR_OK) {
-        board_hsem_init();
-        board_hsem_wake(BOARD_HSEM_M7_TO_M4);
+        wake_cm4();
         return e;
     }
 
@@ -102,8 +136,7 @@ err_t board_clock_init(void)
     __HAL_RCC_D2SRAM1_CLK_ENABLE();
     __HAL_RCC_D2SRAM2_CLK_ENABLE();
     __HAL_RCC_D2SRAM3_CLK_ENABLE();
-    board_hsem_init();
-    board_hsem_wake(BOARD_HSEM_M7_TO_M4);
+    wake_cm4();
     return ERR_OK;
 }
 

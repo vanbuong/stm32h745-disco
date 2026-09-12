@@ -539,9 +539,12 @@ sequenceDiagram
   participant M4 as Cortex-M4
   participant ZNP as TI ZNP
   RST->>M7: boot 0x08000000
-  M7->>M7: clocks 480 MHz, MPU, cache
-  M7->>M7: SDRAM + QSPI map + UART3 log
-  M7->>M7: start M4 (if option bytes BCM4)
+  RST->>M4: boot 0x08100000
+  M4->>M4: D2 STOP, wait HSEM 0
+  M7->>M7: wait D2CKRDY=0, PLL 400 MHz, HSEM wake, wait D2CKRDY=1
+  M7->>M7: MPU, cache, SDRAM, QSPI, UART3
+  M7->>M7: SRAM4 IPC ready
+  M4->>M4: leave STOP, wait IPC magic
   M7->>M7: LTDC + touch + VFS mount
   M7->>M7: LVGL + launcher
   M4-->>M7: SYS READY heartbeat
