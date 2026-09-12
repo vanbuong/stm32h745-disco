@@ -95,6 +95,7 @@ function(stm32_add_firmware CORE_ID)
             ${BSP}/codec.c
             ${BSP}/eth.c
             ${BSP}/rtc.c
+            ${BSP}/demo_mp3.c
             ${H745_ROOT}/firmware/src/port/lwip/ethernetif.c
             ${H745_ROOT}/firmware/src/bsp/mpu_map.c
             ${H745_ROOT}/firmware/src/bsp/disp_geom.c

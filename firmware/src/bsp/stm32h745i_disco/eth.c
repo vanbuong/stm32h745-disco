@@ -1,3 +1,4 @@
+#include "bsp/board.h"
 #include "hal/net_if.h"
 
 #include "ethernetif.h"
@@ -16,6 +17,8 @@ static uint16_t g_speed;
 static uint8_t g_duplex;
 static uint32_t g_last_phy_ms;
 static uint8_t g_mac[6];
+static net_link_t g_link_log = NET_LINK_DOWN;
+static uint32_t g_ip_log;
 
 static int32_t phy_io_read(uint32_t addr, uint32_t reg, uint32_t *val)
 {
@@ -114,6 +117,28 @@ static void phy_poll(uint32_t now_ms)
     st = LAN8742_GetLinkState(&g_phy);
     phy_decode(st);
     ethernetif_set_link((g_link == NET_LINK_UP) ? 1 : 0, g_speed, g_duplex);
+    if (g_link != g_link_log) {
+        g_link_log = g_link;
+        if (g_link == NET_LINK_UP) {
+            board_console_puts("net_link ");
+            board_console_put_hex32(((uint32_t)g_speed << 16) | g_duplex);
+            board_console_puts("\r\n");
+        } else {
+            board_console_puts("net_link down\r\n");
+        }
+        g_ip_log = 0u;
+    }
+    {
+        uint32_t ip = 0u;
+
+        ethernetif_query(&ip, NULL, NULL);
+        if (ip != g_ip_log) {
+            g_ip_log = ip;
+            board_console_puts("net_ip ");
+            board_console_put_hex32(ip);
+            board_console_puts("\r\n");
+        }
+    }
 }
 
 static err_t eth_bringup(void)

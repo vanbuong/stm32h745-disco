@@ -35,6 +35,9 @@ static uint32_t g_static_gw;
 static struct netif g_netif;
 static uint8_t g_lwip_up;
 static uint8_t g_started;
+static uint16_t g_mac_mbps;
+static uint8_t g_mac_duplex;
+static uint8_t g_mac_set;
 
 static uint8_t *rx_take(void)
 {
@@ -245,10 +248,20 @@ void ethernetif_set_link(int up, uint16_t speed_mbps, uint8_t duplex)
             netif_set_link_down(&g_netif);
             dhcp_stop(&g_netif);
             netif_set_addr(&g_netif, IP4_ADDR_ANY4, IP4_ADDR_ANY4, IP4_ADDR_ANY4);
+            g_mac_set = 0u;
         }
         return;
     }
-    (void)mac_speed(speed_mbps, duplex, &cfg);
+    /* Stop/Start only when speed or duplex changes. Doing it every PHY
+     * poll resets the DMA rings and DHCP never finishes. */
+    if (g_mac_set == 0u || g_mac_mbps != speed_mbps || g_mac_duplex != duplex) {
+        if (mac_speed(speed_mbps, duplex, &cfg) != 0) {
+            return;
+        }
+        g_mac_mbps = speed_mbps;
+        g_mac_duplex = duplex;
+        g_mac_set = 1u;
+    }
     if (netif_is_link_up(&g_netif) == 0u) {
         netif_set_link_up(&g_netif);
         apply_addr();

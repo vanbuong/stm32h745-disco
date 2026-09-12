@@ -49,7 +49,8 @@ err_t board_codec_init(uint32_t sample_hz, uint8_t vol_pct)
     }
     memset(&init, 0, sizeof(init));
     init.InputDevice = WM8994_IN_NONE;
-    init.OutputDevice = WM8994_OUT_HEADPHONE;
+    /* Headphone / line-out jack (CN10). Speaker DAC is also enabled. */
+    init.OutputDevice = WM8994_OUT_BOTH;
     init.Frequency = hz;
     init.Resolution = WM8994_RESOLUTION_16b;
     init.Volume = audio_volume_to_codec(vol_pct);

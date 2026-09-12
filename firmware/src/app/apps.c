@@ -46,6 +46,8 @@ static void player_start(void *args)
     g_view_path = (const char *)args;
     if (g_view_path != NULL && g_view_path[0] != '\0') {
         (void)player_open(g_view_path);
+    } else {
+        (void)player_open("/user/demo.mp3");
     }
 }
 
