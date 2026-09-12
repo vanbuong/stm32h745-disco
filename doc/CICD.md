@@ -65,9 +65,10 @@ cmake/
   Helix.cmake               # Sprint 8: libhelix-mp3 sources + C fallback
   Firmware.cmake
   Cube.cmake
-  gcc-arm-none-eabi.cmake
-  ArmGnu.cmake
   Coverage.cmake
+gcc-arm-none-eabi.cmake     # CubeMX / STM32 VS Code toolchain (CubeCLT on PATH)
+starm-clang.cmake
+mx-generated.cmake          # dual-core ExternalProject superbuild
 .settings/ide.store.json    # STM32 VS Code device (STM32H745XIH6, dual-core)
 CM7/ CM4/                   # per-core Cube CMake contexts
 .vscode/                    # CMake Tools presets + ST-LINK debug (in-tree SVD)

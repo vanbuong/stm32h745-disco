@@ -66,19 +66,7 @@ build-sim\host_sim.exe
 
 The window is 480×272 at 2× scale. Demo files are seeded under `user/` next to the binary (`hello.txt`, `notes.txt`, `photo.jpg` / `.png` / `.bmp`, `sub/`, …). Override with `H745_SIM_USER` or `host_sim /path/to/folder`. Close the window to quit.
 
-Cross-compile M7 / M4 (needs `gcc-arm-none-eabi` and the ST submodules):
-
-```
-git submodule update --init --recursive
-cmake --preset Debug && cmake --build --preset Debug
-```
-
-That is the STM32 VS Code / Ninja superbuild (CubeMX ExternalProject per core) and produces `CM7/build/firmware-m7.elf` and `CM4/build/firmware-m4.elf`. One core only:
-
-```
-cmake --preset m7-debug && cmake --build --preset m7-debug
-cmake --preset m4-debug && cmake --build --preset m4-debug
-```
+Firmware is built with the **STM32 VS Code** CubeCLT `arm-none-eabi-gcc` (same as `stm32h745-blinky`). That compiler is not on a normal shell PATH — do not expect `arm-none-eabi-gcc` from the terminal.
 
 ST HAL/LL v1.11.6, CMSIS device H7 v1.10.7, and CMSIS Core v5.9.0 live in `third_party/` (git submodules). Glue lives in `firmware/src/port/cube`.
 
@@ -90,7 +78,7 @@ Install the [STM32CubeIDE for Visual Studio Code](https://marketplace.visualstud
 2. **File → Open Folder** on this repo (or open `stm32h745-disco.code-workspace`)
 3. Accept **Configure discovered CMake project(s) as STM32Cube project(s)?**
 4. If the tool asks to map cores, set **CM7 → Cortex-M7** and **CM4 → Cortex-M4** (root is the dual-core CMake superbuild; each core is its own folder)
-5. Select the **Debug (M7 + M4)** CMake preset and build — that produces `CM7/build/firmware-m7.elf` and `CM4/build/firmware-m4.elf`
+5. Select the **Debug** CMake preset and build — that produces `CM7/build/firmware-m7.elf` and `CM4/build/firmware-m4.elf`
 6. Debug with **CM7_Debug** (flashes both ELFs) and optionally **DualCore_Debug**
 
 The STM32 configuration tool may add local `cube-cmake` / `starm-clangd` keys to `.vscode/settings.json`; leave those. Do not change the Debug preset to a single core. Register view uses in-tree SVD files (`third_party/cmsis-svd/`). Device is `STM32H745XIH6` on **STM32H745I-DISCO**. Apps still never include HAL; only `firmware/src/port/cube` and `firmware/src/bsp` do.

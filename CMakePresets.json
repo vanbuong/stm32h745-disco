@@ -3,20 +3,19 @@
   "cmakeMinimumRequired": { "major": 3, "minor": 22, "patch": 0 },
   "configurePresets": [
     {
-      "name": "firmware-base",
+      "name": "default",
       "hidden": true,
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/${presetName}",
       "toolchainFile": "${sourceDir}/gcc-arm-none-eabi.cmake",
       "cacheVariables": {
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       }
     },
     {
       "name": "Debug",
       "displayName": "Debug (M7 + M4)",
       "description": "STM32CubeIDE for VS Code / CMake Tools default firmware build",
-      "inherits": "firmware-base",
+      "inherits": "default",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug"
       }
@@ -24,7 +23,7 @@
     {
       "name": "Release",
       "displayName": "Release (M7 + M4)",
-      "inherits": "firmware-base",
+      "inherits": "default",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
       }
@@ -32,7 +31,7 @@
     {
       "name": "m7-debug",
       "displayName": "M7 only",
-      "inherits": "firmware-base",
+      "inherits": "default",
       "binaryDir": "${sourceDir}/build-m7",
       "cacheVariables": {
         "CORE": "M7",
@@ -42,7 +41,7 @@
     {
       "name": "m4-debug",
       "displayName": "M4 only",
-      "inherits": "firmware-base",
+      "inherits": "default",
       "binaryDir": "${sourceDir}/build-m4",
       "cacheVariables": {
         "CORE": "M4",
