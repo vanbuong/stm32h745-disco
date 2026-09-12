@@ -63,11 +63,8 @@ void HAL_SAI_MspInit(SAI_HandleTypeDef *hsai)
     g_dma.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
     g_dma.Init.Mode = DMA_CIRCULAR;
     g_dma.Init.Priority = DMA_PRIORITY_HIGH;
-    /* FIFO absorbs AHB stalls so SAI does not underrun into hiss/crackle. */
-    g_dma.Init.FIFOMode = DMA_FIFOMODE_ENABLE;
-    g_dma.Init.FIFOThreshold = DMA_FIFO_THRESHOLD_FULL;
-    g_dma.Init.MemBurst = DMA_MBURST_SINGLE;
-    g_dma.Init.PeriphBurst = DMA_PBURST_SINGLE;
+    /* FIFO mode scrambled 16-bit samples when HT/TC are polled without IRQs. */
+    g_dma.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
     (void)HAL_DMA_Init(&g_dma);
     __HAL_LINKDMA(hsai, hdmatx, g_dma);
 }
@@ -94,7 +91,7 @@ err_t audio_out_start(uint32_t sample_hz, uint8_t channels)
     g_sai.Init.Synchro = SAI_ASYNCHRONOUS;
     g_sai.Init.OutputDrive = SAI_OUTPUTDRIVE_ENABLE;
     g_sai.Init.NoDivider = SAI_MASTERDIVIDER_ENABLE;
-    g_sai.Init.FIFOThreshold = SAI_FIFOTHRESHOLD_HF;
+    g_sai.Init.FIFOThreshold = SAI_FIFOTHRESHOLD_1QF;
     g_sai.Init.AudioFrequency = sai_freq(sample_hz);
     g_sai.Init.Mckdiv = 0u;
     g_sai.Init.MonoStereoMode = SAI_STEREOMODE;
@@ -102,7 +99,12 @@ err_t audio_out_start(uint32_t sample_hz, uint8_t channels)
     g_sai.Init.TriState = SAI_OUTPUT_NOTRELEASED;
     g_sai.Init.MckOverSampling = SAI_MCK_OVERSAMPLING_DISABLE;
     g_sai.Init.MckOutput = SAI_MCK_OUTPUT_ENABLE;
-    if (HAL_SAI_InitProtocol(&g_sai, SAI_I2S_STANDARD, SAI_PROTOCOL_DATASIZE_16BIT, 2u) != HAL_OK) {
+    /*
+     * WM8994 I2S 16-bit wants 32-bit slots (64 BCLKs/frame). Tight 16-bit
+     * slots (32 BCLKs/frame) leave the codec sampling the next word as hiss.
+     */
+    if (HAL_SAI_InitProtocol(&g_sai, SAI_I2S_STANDARD, SAI_PROTOCOL_DATASIZE_16BITEXTENDED, 2u) !=
+        HAL_OK) {
         return ERR_IO;
     }
     if (HAL_SAI_Transmit_DMA(&g_sai, (uint8_t *)g_pcm[0],
@@ -139,9 +141,6 @@ uint8_t audio_out_half_ready(int16_t **pcm, size_t *frames)
 {
     if (g_run == 0u || pcm == NULL || frames == NULL) {
         return 0u;
-    }
-    if (__HAL_DMA_GET_FLAG(&g_dma, DMA_FLAG_TEIF1_5 | DMA_FLAG_FEIF1_5 | DMA_FLAG_DMEIF1_5) != 0u) {
-        __HAL_DMA_CLEAR_FLAG(&g_dma, DMA_FLAG_TEIF1_5 | DMA_FLAG_FEIF1_5 | DMA_FLAG_DMEIF1_5);
     }
     if (__HAL_DMA_GET_FLAG(&g_dma, DMA_FLAG_HTIF1_5) != 0u) {
         __HAL_DMA_CLEAR_FLAG(&g_dma, DMA_FLAG_HTIF1_5);
