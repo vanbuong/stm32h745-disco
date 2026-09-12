@@ -859,6 +859,15 @@ void ui_backend_handler(void)
     lv_timer_handler();
 }
 
+void ui_backend_invalidate(void)
+{
+    lv_obj_t *scr = lv_screen_active();
+
+    if (scr != NULL) {
+        lv_obj_invalidate(scr);
+    }
+}
+
 uint32_t ui_backend_frames(void)
 {
     return lv_port_frames();

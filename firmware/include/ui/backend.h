@@ -11,6 +11,7 @@ extern "C" {
 
 err_t ui_backend_init(void);
 void ui_backend_handler(void);
+void ui_backend_invalidate(void);
 uint32_t ui_backend_frames(void);
 
 #ifdef __cplusplus

@@ -10,9 +10,9 @@
 extern "C" {
 #endif
 
-#define BOARD_SYSCLK_HZ 480000000u
-#define BOARD_HCLK_HZ 240000000u
-#define BOARD_PCLK1_HZ 120000000u
+#define BOARD_SYSCLK_HZ 400000000u
+#define BOARD_HCLK_HZ 200000000u
+#define BOARD_PCLK1_HZ 100000000u
 #define BOARD_HSI_HZ 64000000u
 #define BOARD_UART_BAUD 115200u
 
@@ -34,6 +34,8 @@ extern "C" {
 #define BOARD_FB1_BASE (BOARD_SDRAM_BASE + BOARD_FB_PITCH)
 
 #define BOARD_FT5336_ADDR 0x70u
+#define BOARD_GT911_ADDR 0xBAu
+#define BOARD_GT911_ADDR_ALT 0x28u
 #define BOARD_WM8994_ADDR 0x34u
 
 #define BOARD_LVGL_MEM_BASE 0x24010000u
@@ -46,6 +48,8 @@ uint32_t board_millis(void);
 err_t board_clock_init(void);
 void board_cm4_boot(void);
 void board_cm4_wait_stop(void);
+uint8_t board_cm4_saw_stop(void);
+uint8_t board_cm4_saw_wake(void);
 void board_hsem_init(void);
 void board_hsem_notify(uint32_t sem);
 void board_hsem_wake(uint32_t sem);
@@ -93,6 +97,7 @@ err_t board_codec_pause(void);
 err_t board_codec_stop(void);
 err_t board_input_init(void);
 uint8_t board_touch_present(void);
+const char *board_touch_name(void);
 
 err_t board_emmc_init(void);
 int board_emmc_ready(void);

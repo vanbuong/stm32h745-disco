@@ -81,13 +81,18 @@ static void log_pong(const uint8_t *pl, uint16_t len)
     uint32_t t0;
     uint32_t dt;
     uint32_t us;
+    uint32_t hz;
 
     if (len < 4u || pl == NULL) {
         return;
     }
     memcpy(&t0, pl, sizeof(t0));
     dt = DWT->CYCCNT - t0;
-    us = dt / (BOARD_SYSCLK_HZ / 1000000u);
+    hz = board_sysclk_hz();
+    if (hz < 1000000u) {
+        hz = 400000000u;
+    }
+    us = dt / (hz / 1000000u);
     board_console_puts("ipc_rtt ");
     put_u32(us);
     board_console_puts(" us\r\n");

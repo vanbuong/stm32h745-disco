@@ -7,7 +7,7 @@
  * outstanding transfer. 8-bit regs for touch, 16-bit for the codec.
  */
 
-#define I2C4_TIMING 0x307075B1u /* 100 kHz at 120 MHz D3PCLK1 */
+#define I2C4_TIMING 0x10B017DBu /* 100 kHz at 100 MHz D3PCLK1 */
 
 static I2C_HandleTypeDef g_i2c4;
 static uint8_t g_taken;

@@ -7,6 +7,7 @@
 static uint32_t g_sysclk_hz = BOARD_HSI_HZ;
 static uint32_t g_pclk1_hz = BOARD_HSI_HZ;
 static uint8_t g_d2_stopped;
+static uint8_t g_d2_woke;
 
 uint32_t board_sysclk_hz(void)
 {
@@ -51,9 +52,7 @@ static void wake_cm4(void)
     board_hsem_init();
     board_hsem_wake(BOARD_HSEM_M7_TO_M4);
     wait_d2_ck(1u, D2_SYNC_MS);
-    if (d2_ck_ready() == 0u) {
-        board_console_puts("d2 wake to\r\n");
-    }
+    g_d2_woke = (d2_ck_ready() != 0u) ? 1u : 0u;
 }
 
 static err_t apply_pll(uint32_t src, uint32_t m, uint32_t n, uint32_t latency)
@@ -95,6 +94,8 @@ static err_t apply_pll(uint32_t src, uint32_t m, uint32_t n, uint32_t latency)
     if (HAL_RCC_ClockConfig(&clk, latency) != HAL_OK) {
         return ERR_TIMEOUT;
     }
+    /* PLL1Q clocks SDMMC (eMMC). 800 MHz VCO / 4 = 200 MHz. */
+    __HAL_RCC_PLLCLKOUT_ENABLE(RCC_PLL1_DIVQ);
     return ERR_OK;
 }
 
@@ -115,9 +116,6 @@ err_t board_clock_init(void)
     err_t e;
 
     __HAL_RCC_SYSCFG_CLK_ENABLE();
-    if (g_d2_stopped == 0u) {
-        board_console_puts("d2 stop to\r\n");
-    }
 
     /*
      * Same PWR/PLL path as the CubeMX H745-DISCO blinky. HAL_PWREx_ConfigSupply
@@ -157,4 +155,14 @@ uint32_t board_millis(void)
 void board_cm4_boot(void)
 {
     HAL_RCCEx_EnableBootCore(RCC_BOOT_C2);
+}
+
+uint8_t board_cm4_saw_stop(void)
+{
+    return g_d2_stopped;
+}
+
+uint8_t board_cm4_saw_wake(void)
+{
+    return g_d2_woke;
 }

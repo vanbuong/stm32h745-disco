@@ -97,7 +97,7 @@ err_t board_emmc_init(void)
     g_mmc.Init.ClockPowerSave = SDMMC_CLOCK_POWER_SAVE_DISABLE;
     g_mmc.Init.BusWide = SDMMC_BUS_WIDE_8B;
     g_mmc.Init.HardwareFlowControl = SDMMC_HARDWARE_FLOW_CONTROL_DISABLE;
-    /* PLL1Q = 240 MHz → SDMMC_CK = 240 / (2 * 4) = 30 MHz. */
+    /* PLL1Q = 200 MHz → SDMMC_CK = 200 / (2 * 4) = 25 MHz. */
     g_mmc.Init.ClockDiv = 4;
     if (HAL_MMC_Init(&g_mmc) != HAL_OK) {
         g_ready = 0u;
@@ -159,6 +159,7 @@ DRESULT disk_read(BYTE pdrv, BYTE *buff, LBA_t sector, UINT count)
         if (n > MMC_BOUNCE_SEC) {
             n = MMC_BOUNCE_SEC;
         }
+        SCB_CleanInvalidateDCache_by_Addr((uint32_t *)(uintptr_t)g_bounce, (int32_t)(n * 512u));
         if (HAL_MMC_ReadBlocks(&g_mmc, g_bounce, al, n, MMC_TIMEOUT_MS) != HAL_OK) {
             return RES_ERROR;
         }
@@ -204,6 +205,7 @@ DRESULT disk_write(BYTE pdrv, const BYTE *buff, LBA_t sector, UINT count)
             chunk = n - (off / 512u);
         }
         if (off != 0u || chunk != n) {
+            SCB_CleanInvalidateDCache_by_Addr((uint32_t *)(uintptr_t)g_bounce, (int32_t)(n * 512u));
             if (HAL_MMC_ReadBlocks(&g_mmc, g_bounce, al, n, MMC_TIMEOUT_MS) != HAL_OK) {
                 return RES_ERROR;
             }

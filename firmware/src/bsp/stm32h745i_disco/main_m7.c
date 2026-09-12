@@ -210,7 +210,9 @@ static void ui_fps_probe(void)
     f0 = ui_backend_frames();
     t0 = HAL_GetTick();
     while ((HAL_GetTick() - t0) < UI_FPS_MS) {
+        ui_backend_invalidate();
         ui_backend_handler();
+        board_ipc_poll(HAL_GetTick());
     }
     dt = HAL_GetTick() - t0;
     n = ui_backend_frames() - f0;
@@ -250,6 +252,12 @@ int main(void)
 
     e = board_clock_init();
     board_console_init(0);
+    if (board_cm4_saw_stop() == 0u) {
+        board_console_puts("d2 stop to\r\n");
+    }
+    if (board_cm4_saw_wake() == 0u) {
+        board_console_puts("d2 wake to\r\n");
+    }
     log_err("clk", e);
     log_kv("sysclk", board_sysclk_hz());
 
@@ -306,7 +314,9 @@ int main(void)
     e = board_input_init();
     log_err("input", e);
     if (board_touch_present() != 0u) {
-        board_console_puts("touch ok\r\n");
+        board_console_puts("touch ");
+        board_console_puts(board_touch_name());
+        board_console_puts("\r\n");
     } else {
         board_console_puts("touch none\r\n");
     }
