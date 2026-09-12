@@ -59,16 +59,13 @@ static uint8_t gt_id_ok(uint16_t addr)
 
 static void gt_start(void)
 {
-    uint8_t cmd;
     uint8_t xy[4];
     uint8_t clr = 0u;
+    uint8_t cmd = 0u;
 
-    cmd = 0x02u;
+    /* Do not write 0x02 (soft reset): INT is pulled up, so the chip can
+     * relatch onto 0x28 and leave us talking to a dead 0xBA. */
     (void)board_i2c4_write16(g_gt_addr, GT911_REG_CMD, &cmd, 1u);
-    HAL_Delay(10u);
-    cmd = 0x00u;
-    (void)board_i2c4_write16(g_gt_addr, GT911_REG_CMD, &cmd, 1u);
-    HAL_Delay(10u);
     (void)board_i2c4_write16(g_gt_addr, GT911_REG_STAT, &clr, 1u);
 
     g_gt_max_x = BOARD_LCD_W;
@@ -84,6 +81,12 @@ static void gt_start(void)
     }
     if (g_gt_max_x < g_gt_max_y) {
         g_gt_swap_xy = 1u;
+    }
+    if (gt_id_ok(g_gt_addr) == 0u) {
+        uint16_t alt = (g_gt_addr == BOARD_GT911_ADDR) ? BOARD_GT911_ADDR_ALT : BOARD_GT911_ADDR;
+        if (gt_id_ok(alt) != 0u) {
+            g_gt_addr = alt;
+        }
     }
 }
 
@@ -142,21 +145,28 @@ static int16_t gt_map(uint16_t raw, uint16_t max, uint16_t out)
 static uint8_t gt_sample(int16_t *x, int16_t *y, uint8_t *down)
 {
     uint8_t st;
-    uint8_t xy[8];
+    uint8_t xy[6];
     uint8_t clr = 0u;
+    uint8_t count;
+    uint8_t int_low;
     uint16_t rx;
     uint16_t ry;
 
     if (board_i2c4_read16(g_gt_addr, GT911_REG_STAT, &st, 1u) != 0) {
         return 0u;
     }
-    if ((st & GT911_STAT_READY) == 0u) {
-        *down = 0u;
+    /* ST's gt911_td_status uses the low count bits, not buffer-ready. */
+    count = (uint8_t)(st & GT911_STAT_COUNT);
+    if (count > 5u) {
+        count = 0u;
+    }
+    int_low = (HAL_GPIO_ReadPin(GPIOG, GPIO_PIN_2) == GPIO_PIN_RESET) ? 1u : 0u;
+    *down = (count != 0u) ? 1u : 0u;
+    if (*down == 0u && (st & GT911_STAT_READY) == 0u && int_low == 0u) {
         return 1u;
     }
-    *down = ((st & GT911_STAT_COUNT) != 0u) ? 1u : 0u;
-    if (*down != 0u) {
-        if (board_i2c4_read16(g_gt_addr, GT911_REG_PT1, xy, 8u) != 0) {
+    if (*down != 0u || int_low != 0u) {
+        if (board_i2c4_read16(g_gt_addr, GT911_REG_PT1, xy, 6u) != 0) {
             (void)board_i2c4_write16(g_gt_addr, GT911_REG_STAT, &clr, 1u);
             return 0u;
         }
@@ -172,8 +182,13 @@ static uint8_t gt_sample(int16_t *x, int16_t *y, uint8_t *down)
             *x = gt_map(rx, g_gt_max_x, BOARD_LCD_W);
             *y = gt_map(ry, g_gt_max_y, BOARD_LCD_H);
         }
+        if (count != 0u || (rx | ry) != 0u) {
+            *down = 1u;
+        }
     }
-    (void)board_i2c4_write16(g_gt_addr, GT911_REG_STAT, &clr, 1u);
+    if ((st & GT911_STAT_READY) != 0u || *down != 0u) {
+        (void)board_i2c4_write16(g_gt_addr, GT911_REG_STAT, &clr, 1u);
+    }
     return 1u;
 }
 
@@ -219,6 +234,35 @@ const char *board_touch_name(void)
     return "none";
 }
 
+void board_touch_diag(void)
+{
+    uint8_t id[4] = {0, 0, 0, 0};
+    uint8_t st = 0xFFu;
+    uint32_t pack;
+
+    if (g_kind != TS_GT911) {
+        return;
+    }
+    (void)board_i2c4_read16(g_gt_addr, GT911_REG_ID, id, 4u);
+    (void)board_i2c4_read16(g_gt_addr, GT911_REG_STAT, &st, 1u);
+    pack = ((uint32_t)id[0] << 16) | ((uint32_t)id[1] << 8) | id[2];
+    board_console_puts("gt addr ");
+    board_console_put_hex32(g_gt_addr);
+    board_console_puts("\r\n");
+    board_console_puts("gt id ");
+    board_console_put_hex32(pack);
+    board_console_puts("\r\n");
+    board_console_puts("gt st ");
+    board_console_put_hex32(st);
+    board_console_puts("\r\n");
+    board_console_puts("gt int ");
+    board_console_put_hex32((uint32_t)HAL_GPIO_ReadPin(GPIOG, GPIO_PIN_2));
+    board_console_puts("\r\n");
+    board_console_puts("gt max ");
+    board_console_put_hex32(((uint32_t)g_gt_max_x << 16) | g_gt_max_y);
+    board_console_puts("\r\n");
+}
+
 bool input_poll(input_event_t *out)
 {
     uint8_t down = 0u;
@@ -262,6 +306,11 @@ bool input_poll(input_event_t *out)
         out->y = y;
         out->id = 0u;
         out->t_ms = HAL_GetTick();
+        if (g_was_down == 0u) {
+            board_console_puts("touch xy ");
+            board_console_put_hex32(((uint32_t)(uint16_t)x << 16) | (uint16_t)y);
+            board_console_puts("\r\n");
+        }
         g_last_x = x;
         g_last_y = y;
         g_was_down = 1u;

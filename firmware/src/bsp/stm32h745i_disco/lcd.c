@@ -217,10 +217,24 @@ err_t board_disp_init(void)
     }
 
     __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOG_CLK_ENABLE();
+    /*
+     * GT911 latches 0x5D (0xBA) when INT is low as LCD_DISP/RST (PA2) rises.
+     * Hold INT low for ≥55 ms after that edge, then release to input.
+     */
+    lcd_gpio_out(GPIOG, GPIO_PIN_2, GPIO_PIN_RESET);
     lcd_gpio_out(GPIOA, GPIO_PIN_2, GPIO_PIN_RESET);
     HAL_Delay(20u);
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_SET);
-    HAL_Delay(10u);
+    HAL_Delay(60u);
+    {
+        GPIO_InitTypeDef g = {0};
+        g.Pin = GPIO_PIN_2;
+        g.Mode = GPIO_MODE_INPUT;
+        g.Pull = GPIO_PULLUP;
+        g.Speed = GPIO_SPEED_FREQ_LOW;
+        HAL_GPIO_Init(GPIOG, &g);
+    }
 
     g_fb[0] = (uint16_t *)BOARD_FB0_BASE;
     g_fb[1] = (uint16_t *)BOARD_FB1_BASE;

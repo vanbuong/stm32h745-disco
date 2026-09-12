@@ -321,12 +321,22 @@ err_t vfs_readdir(vfs_dir_t dir, vfs_dirent_t *ent)
         return ERR_INVAL;
     }
     memset(ent, 0, sizeof(*ent));
-    e = map_fr(f_readdir(&g_dir[dir], &info));
-    if (e != ERR_OK) {
-        return e;
-    }
-    if (info.fname[0] == '\0') {
-        return ERR_NOENT;
+    for (;;) {
+        memset(&info, 0, sizeof(info));
+        e = map_fr(f_readdir(&g_dir[dir], &info));
+        if (e != ERR_OK) {
+            return e;
+        }
+        if (info.fname[0] == '\0' || (uint8_t)info.fname[0] == 0xFFu) {
+            return ERR_NOENT;
+        }
+        if ((info.fattrib & 0x08u) != 0u) {
+            continue;
+        }
+        if ((info.fattrib & 0x0Fu) == 0x0Fu) {
+            continue;
+        }
+        break;
     }
     strncpy(ent->name, info.fname, VFS_NAME_MAX - 1u);
     ent->name[VFS_NAME_MAX - 1u] = '\0';

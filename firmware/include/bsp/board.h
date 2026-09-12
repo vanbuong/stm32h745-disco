@@ -98,6 +98,7 @@ err_t board_codec_stop(void);
 err_t board_input_init(void);
 uint8_t board_touch_present(void);
 const char *board_touch_name(void);
+void board_touch_diag(void);
 
 err_t board_emmc_init(void);
 int board_emmc_ready(void);

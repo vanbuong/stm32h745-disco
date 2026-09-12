@@ -84,6 +84,9 @@ static void vfs_list_user(void)
             break;
         }
         n++;
+        if (n > 64u) {
+            break;
+        }
         if (n <= 8u) {
             board_console_puts("vfs_ent ");
             board_console_puts(ent.name);
@@ -326,6 +329,7 @@ int main(void)
         board_console_puts("touch ");
         board_console_puts(board_touch_name());
         board_console_puts("\r\n");
+        board_touch_diag();
     } else {
         board_console_puts("touch none\r\n");
     }
