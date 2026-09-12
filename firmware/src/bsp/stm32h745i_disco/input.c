@@ -28,6 +28,7 @@ static uint16_t g_gt_addr;
 static uint16_t g_gt_max_x;
 static uint16_t g_gt_max_y;
 static uint8_t g_gt_swap_xy;
+static uint8_t g_gt_held;
 static uint8_t g_was_down;
 static int16_t g_last_x;
 static int16_t g_last_y;
@@ -148,24 +149,26 @@ static uint8_t gt_sample(int16_t *x, int16_t *y, uint8_t *down)
     uint8_t xy[6];
     uint8_t clr = 0u;
     uint8_t count;
-    uint8_t int_low;
     uint16_t rx;
     uint16_t ry;
 
     if (board_i2c4_read16(g_gt_addr, GT911_REG_STAT, &st, 1u) != 0) {
         return 0u;
     }
-    /* ST's gt911_td_status uses the low count bits, not buffer-ready. */
+    /*
+     * 0x814E is only valid when bit 7 is set. Between reports the register
+     * is 0; treating that as lift-off makes LVGL see DOWN/UP every poll.
+     */
+    if ((st & GT911_STAT_READY) == 0u) {
+        *down = g_gt_held;
+        return 1u;
+    }
     count = (uint8_t)(st & GT911_STAT_COUNT);
     if (count > 5u) {
         count = 0u;
     }
-    int_low = (HAL_GPIO_ReadPin(GPIOG, GPIO_PIN_2) == GPIO_PIN_RESET) ? 1u : 0u;
     *down = (count != 0u) ? 1u : 0u;
-    if (*down == 0u && (st & GT911_STAT_READY) == 0u && int_low == 0u) {
-        return 1u;
-    }
-    if (*down != 0u || int_low != 0u) {
+    if (*down != 0u) {
         if (board_i2c4_read16(g_gt_addr, GT911_REG_PT1, xy, 6u) != 0) {
             (void)board_i2c4_write16(g_gt_addr, GT911_REG_STAT, &clr, 1u);
             return 0u;
@@ -182,13 +185,9 @@ static uint8_t gt_sample(int16_t *x, int16_t *y, uint8_t *down)
             *x = gt_map(rx, g_gt_max_x, BOARD_LCD_W);
             *y = gt_map(ry, g_gt_max_y, BOARD_LCD_H);
         }
-        if (count != 0u || (rx | ry) != 0u) {
-            *down = 1u;
-        }
     }
-    if ((st & GT911_STAT_READY) != 0u || *down != 0u) {
-        (void)board_i2c4_write16(g_gt_addr, GT911_REG_STAT, &clr, 1u);
-    }
+    (void)board_i2c4_write16(g_gt_addr, GT911_REG_STAT, &clr, 1u);
+    g_gt_held = *down;
     return 1u;
 }
 
@@ -211,6 +210,7 @@ err_t board_input_init(void)
 
     g_kind = TS_NONE;
     g_was_down = 0u;
+    g_gt_held = 0u;
     HAL_Delay(50u);
     if (probe_gt911() == 0u) {
         (void)probe_ft5336();
@@ -306,11 +306,6 @@ bool input_poll(input_event_t *out)
         out->y = y;
         out->id = 0u;
         out->t_ms = HAL_GetTick();
-        if (g_was_down == 0u) {
-            board_console_puts("touch xy ");
-            board_console_put_hex32(((uint32_t)(uint16_t)x << 16) | (uint16_t)y);
-            board_console_puts("\r\n");
-        }
         g_last_x = x;
         g_last_y = y;
         g_was_down = 1u;

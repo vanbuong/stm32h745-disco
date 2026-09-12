@@ -35,7 +35,8 @@ static void indev_read(lv_indev_t *indev, lv_indev_data_t *data)
     input_event_t ev;
 
     (void)indev;
-    while (input_poll(&ev)) {
+    /* One event per LVGL read. Draining DOWN/UP in one call ends released. */
+    if (input_poll(&ev)) {
         if (ev.kind == INPUT_PTR_DOWN || ev.kind == INPUT_PTR_MOVE) {
             g_ptr_down = 1u;
             g_ptr_x = ev.x;
