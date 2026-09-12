@@ -17,8 +17,10 @@
 #define MMC_ALIGN_SEC 8u
 #define MMC_BOUNCE_SEC 64u
 #define MMC_TIMEOUT_MS 2000u
-/* ST disco BSP: PLL1Q 200 MHz / (2 * 8) = 12.5 MHz. 25 MHz (div 4) CRC-fails. */
-#define MMC_CLKDIV 8u
+/* PLL1Q 200 MHz, SDMMC_CK = ker / (2 * div). Init in default speed (≤26 MHz),
+ * then HS switch programs div 2 → 50 MHz. */
+#define MMC_CLKDIV_INIT 8u
+#define MMC_CLKDIV_DEFAULT 4u
 #define MMC_CLKDIV_SLOW 16u
 
 static MMC_HandleTypeDef g_mmc;
@@ -100,6 +102,30 @@ static err_t mmc_probe_read(void)
     return ERR_OK;
 }
 
+static void mmc_set_div(uint32_t div)
+{
+    SDMMC_InitTypeDef init;
+
+    g_mmc.Init.ClockDiv = div;
+    init = g_mmc.Init;
+    (void)SDMMC_Init(g_mmc.Instance, init);
+}
+
+static err_t mmc_try_fast(void)
+{
+    if (HAL_MMC_ConfigSpeedBusOperation(&g_mmc, SDMMC_SPEED_MODE_HIGH) == HAL_OK &&
+        mmc_probe_read() == ERR_OK) {
+        return ERR_OK;
+    }
+    g_last_err = HAL_MMC_GetError(&g_mmc);
+    mmc_set_div(MMC_CLKDIV_DEFAULT);
+    if (mmc_probe_read() == ERR_OK) {
+        return ERR_OK;
+    }
+    mmc_set_div(MMC_CLKDIV_INIT);
+    return mmc_probe_read();
+}
+
 err_t board_emmc_init(void)
 {
     RCC_PeriphCLKInitTypeDef p = {0};
@@ -111,7 +137,7 @@ err_t board_emmc_init(void)
         return ERR_IO;
     }
 
-    mmc_fill_init(MMC_CLKDIV);
+    mmc_fill_init(MMC_CLKDIV_INIT);
     if (HAL_MMC_Init(&g_mmc) != HAL_OK) {
         g_ready = 0u;
         g_last_err = HAL_MMC_GetError(&g_mmc);
@@ -133,6 +159,8 @@ err_t board_emmc_init(void)
         if (HAL_MMC_GetCardInfo(&g_mmc, &info) == HAL_OK) {
             g_blocks = info.LogBlockNbr;
         }
+    } else {
+        (void)mmc_try_fast();
     }
     g_ready = 1u;
     return ERR_OK;
@@ -151,6 +179,25 @@ uint32_t board_emmc_block_count(void)
 uint32_t board_emmc_last_error(void)
 {
     return g_last_err;
+}
+
+uint32_t board_emmc_clock_hz(void)
+{
+    uint32_t ker;
+    uint32_t div;
+
+    if (g_mmc.Instance == NULL) {
+        return 0u;
+    }
+    ker = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_SDMMC);
+    if (ker == 0u) {
+        ker = 200000000u;
+    }
+    div = g_mmc.Instance->CLKCR & SDMMC_CLKCR_CLKDIV;
+    if (div == 0u) {
+        return ker;
+    }
+    return ker / (2u * div);
 }
 
 DSTATUS disk_initialize(BYTE pdrv)

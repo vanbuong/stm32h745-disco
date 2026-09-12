@@ -193,6 +193,7 @@ static uint8_t vfs_bringup(void)
         return 0u;
     }
     log_kv("emmc_blocks", board_emmc_block_count());
+    log_kv("emmc_hz", board_emmc_clock_hz());
     board_console_puts("vfs mount\r\n");
     e = vfs_mount();
     if (e == ERR_CORRUPT) {
