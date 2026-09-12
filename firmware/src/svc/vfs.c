@@ -122,6 +122,7 @@ err_t vfs_format(void)
         return map_fr(r);
     }
     g_mounted = 1u;
+    g_did_format = 1u;
     return ERR_OK;
 }
 
@@ -133,21 +134,12 @@ uint8_t vfs_formatted_on_mount(void)
 err_t vfs_mount(void)
 {
     FRESULT r;
-    err_t e;
 
     if (g_mounted) {
         return ERR_OK;
     }
     g_did_format = 0u;
     r = f_mount(&g_fs, "0:", 1);
-    if (r == FR_NO_FILESYSTEM) {
-        e = vfs_format();
-        if (e != ERR_OK) {
-            return e;
-        }
-        g_did_format = 1u;
-        return ERR_OK;
-    }
     if (r != FR_OK) {
         return map_fr(r);
     }

@@ -183,19 +183,25 @@ static uint8_t vfs_bringup(void)
 {
     err_t e;
 
+    board_console_puts("emmc\r\n");
     e = board_emmc_init();
     log_err("emmc", e);
     if (e != ERR_OK) {
         return 0u;
     }
     log_kv("emmc_blocks", board_emmc_block_count());
+    board_console_puts("vfs mount\r\n");
     e = vfs_mount();
+    if (e == ERR_CORRUPT) {
+        board_console_puts("vfs fmt\r\n");
+        e = vfs_format();
+    }
     log_err("vfs", e);
     if (e != ERR_OK) {
         return 0u;
     }
     if (vfs_formatted_on_mount() != 0u) {
-        board_console_puts("vfs fmt\r\n");
+        board_console_puts("vfs fmt done\r\n");
     }
     log_err("vfs_rw", vfs_selftest());
     vfs_list_user();
@@ -247,15 +253,16 @@ int main(void)
     uint8_t led_on = 0;
     uint8_t vfs_ok;
     err_t e;
+    err_t ui_e;
 
     board_cm4_wait_stop();
     HAL_Init();
     led_init();
     board_console_init(0);
-    board_console_puts("M7 stm32h745-disco s9\r\n");
 
     e = board_clock_init();
     board_console_init(0);
+    board_console_puts("M7 stm32h745-disco s9\r\n");
     if (board_cm4_saw_stop() == 0u) {
         board_console_puts("d2 stop to\r\n");
     }
@@ -275,9 +282,11 @@ int main(void)
     e = board_ipc_init();
     log_err("ipc", e);
 
+    board_console_puts("sdram\r\n");
     e = board_sdram_init();
     log_err("sdram", e);
     if (e == ERR_OK) {
+        board_console_puts("walk\r\n");
         board_cache_d_disable();
         e = memtest_walking((volatile uint32_t *)BOARD_SDRAM_BASE, BOARD_SDRAM_BYTES / 4u,
                             &fail_off);
@@ -306,13 +315,6 @@ int main(void)
     log_kv("mpu_faults", board_mpu_faults());
     log_kv("mpu_mmfar", board_mpu_last_mmfar());
 
-    vfs_ok = vfs_bringup();
-
-    e = time_init();
-    log_err("rtc", e);
-    e = net_service_init();
-    log_err("net", e);
-
     e = board_disp_init();
     log_err("disp", e);
     e = board_input_init();
@@ -326,14 +328,23 @@ int main(void)
     }
 
     shell_init();
-    shell_status_set_storage(vfs_ok);
+    shell_status_set_storage(0u);
     shell_status_set_m4(0u);
-    e = ui_backend_init();
-    log_err("ui", e);
-    if (e == ERR_OK) {
+    ui_e = ui_backend_init();
+    log_err("ui", ui_e);
+    if (ui_e == ERR_OK) {
         board_console_puts("shell ready\r\n");
+        ui_backend_handler();
         ui_fps_probe();
     }
+
+    vfs_ok = vfs_bringup();
+    shell_status_set_storage(vfs_ok);
+
+    e = time_init();
+    log_err("rtc", e);
+    e = net_service_init();
+    log_err("net", e);
 
     last_ms = HAL_GetTick();
     blink_at = last_ms + 250u;
@@ -345,7 +356,7 @@ int main(void)
         board_ipc_poll(now);
         shell_status_set_m4(board_ipc_peer_alive(now));
         shell_tick(dt);
-        if (e == ERR_OK) {
+        if (ui_e == ERR_OK) {
             ui_backend_handler();
         }
 
