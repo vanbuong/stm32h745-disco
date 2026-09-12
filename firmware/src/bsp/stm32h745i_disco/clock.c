@@ -6,6 +6,7 @@
 
 static uint32_t g_sysclk_hz = BOARD_HSI_HZ;
 static uint32_t g_pclk1_hz = BOARD_HSI_HZ;
+static uint8_t g_d2_stopped;
 
 uint32_t board_sysclk_hz(void)
 {
@@ -97,16 +98,24 @@ static err_t apply_pll(uint32_t src, uint32_t m, uint32_t n, uint32_t latency)
     return ERR_OK;
 }
 
+void board_cm4_wait_stop(void)
+{
+    uint32_t n = 2000000u;
+
+    board_cm4_boot();
+    /* Before HAL_Init / USART3. Clocking D2 keeps D2CKRDY set. */
+    while ((d2_ck_ready() != 0u) && (n > 0u)) {
+        n--;
+    }
+    g_d2_stopped = (d2_ck_ready() == 0u) ? 1u : 0u;
+}
+
 err_t board_clock_init(void)
 {
     err_t e;
 
     __HAL_RCC_SYSCFG_CLK_ENABLE();
-    board_cm4_boot();
-
-    /* CubeMX Boot_Mode_Sequence_1: wait until CM4 entered D2 STOP. */
-    wait_d2_ck(0u, D2_SYNC_MS);
-    if (d2_ck_ready() != 0u) {
+    if (g_d2_stopped == 0u) {
         board_console_puts("d2 stop to\r\n");
     }
 

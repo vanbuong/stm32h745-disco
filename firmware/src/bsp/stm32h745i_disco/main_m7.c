@@ -242,6 +242,7 @@ int main(void)
     uint8_t vfs_ok;
     err_t e;
 
+    board_cm4_wait_stop();
     HAL_Init();
     led_init();
     board_console_init(0);

@@ -45,6 +45,7 @@ uint32_t board_millis(void);
 
 err_t board_clock_init(void);
 void board_cm4_boot(void);
+void board_cm4_wait_stop(void);
 void board_hsem_init(void);
 void board_hsem_notify(uint32_t sem);
 void board_hsem_wake(uint32_t sem);

@@ -61,16 +61,18 @@ err_t board_sdram_init(void)
     g_sdram.Init.RowBitsNumber = FMC_SDRAM_ROW_BITS_NUM_12;
     g_sdram.Init.MemoryDataWidth = FMC_SDRAM_MEM_BUS_WIDTH_16;
     g_sdram.Init.InternalBankNumber = FMC_SDRAM_INTERN_BANKS_NUM_4;
-    g_sdram.Init.CASLatency = FMC_SDRAM_CAS_LATENCY_2;
+    /* 100 MHz SDCLK (AHB 200 MHz / 2). CAS2 + tRC=6 is too tight; ST Cube
+     * examples that pass a walking test use CAS3 and 0x603 refresh. */
+    g_sdram.Init.CASLatency = FMC_SDRAM_CAS_LATENCY_3;
     g_sdram.Init.WriteProtection = FMC_SDRAM_WRITE_PROTECTION_DISABLE;
     g_sdram.Init.SDClockPeriod = FMC_SDRAM_CLOCK_PERIOD_2;
     g_sdram.Init.ReadBurst = FMC_SDRAM_RBURST_ENABLE;
     g_sdram.Init.ReadPipeDelay = FMC_SDRAM_RPIPE_DELAY_0;
 
     t.LoadToActiveDelay = 2;
-    t.ExitSelfRefreshDelay = 6;
+    t.ExitSelfRefreshDelay = 7;
     t.SelfRefreshTime = 4;
-    t.RowCycleDelay = 6;
+    t.RowCycleDelay = 7;
     t.WriteRecoveryTime = 2;
     t.RPDelay = 2;
     t.RCDDelay = 2;
@@ -89,9 +91,11 @@ err_t board_sdram_init(void)
     if (sdram_cmd(FMC_SDRAM_CMD_AUTOREFRESH_MODE, 8, 0) != ERR_OK) {
         return ERR_IO;
     }
-    /* Burst length 1, sequential, CAS2, single write burst. */
-    if (sdram_cmd(FMC_SDRAM_CMD_LOAD_MODE, 1, 0x220u) != ERR_OK) {
+    /* Burst length 1, sequential, CAS3, single write burst. */
+    if (sdram_cmd(FMC_SDRAM_CMD_LOAD_MODE, 1, 0x230u) != ERR_OK) {
         return ERR_IO;
     }
-    return cube_err(HAL_SDRAM_ProgramRefreshRate(&g_sdram, 1875u));
+    /* 100 MHz * 64 ms / 4096 rows − 20 ≈ 0x603 (Cube H745I-DISCO). 1875 is
+     * the 120 MHz (480 MHz SYSCLK) count and drops rows at 400 MHz. */
+    return cube_err(HAL_SDRAM_ProgramRefreshRate(&g_sdram, 0x603u));
 }
