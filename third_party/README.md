@@ -6,7 +6,7 @@ Policy (locked in `doc/Architecture.md` §3.1):
 
 1. **Our BSP** lives in `firmware/src/bsp/stm32h745i_disco/` and talks to hardware through `port/cube` (HAL/LL).
 2. **ST chip drivers** (touch, panel timings, codec, NOR, PHY) are pulled from ST's *component* repos, not from `stm32h745i-disco-bsp`.
-3. **Middleware** (LVGL, FreeRTOS, FatFS, LwIP, Helix, later TinyUSB) comes from upstream. Cube `Middlewares/` is not used unless an ST glue file is the only practical port. Do **not** add littlefs.
+3. **Middleware** (LVGL, FatFS, LwIP, Helix, later TinyUSB) comes from upstream. There is **no FreeRTOS**. Cube `Middlewares/` is not used unless an ST glue file is the only practical port. Do **not** add littlefs.
 4. Apps never include these trees. Format / cppcheck / coverage skip `third_party/`.
 
 ## In tree now (CubeH7 1.13.0 set)
@@ -45,7 +45,7 @@ git submodule update --init --recursive
 | QSPI assets | [stm32-mt25tl01g](https://github.com/STMicroelectronics/stm32-mt25tl01g) | Quad/mmap commands beyond Sprint 1's 1-1-1 READ. |
 | 4 shell | [lvgl](https://github.com/lvgl/lvgl) | Done. Only `src/ui/backend_lvgl`. |
 | 6 viewers | TJpgDec + puff | Done. Vendored under `firmware/src/svc/vendor/` (standalone ChaN TJpgDec, Mark Adler puff). Not LVGL's `libs/tjpgd`. LibJPEG stays out. |
-| OSAL | [FreeRTOS-Kernel](https://github.com/FreeRTOS/FreeRTOS-Kernel) | Not Cube `stm32-mw-freertos` unless we need their CMSIS-RTOS glue. |
+| OSAL | — | Superloop. Do not add FreeRTOS-Kernel. Host tests use `osal/posix`. |
 | 8 audio | [stm32-wm8994](https://github.com/STMicroelectronics/stm32-wm8994), Helix | Done. Codec + MP3. SAI DMA is our BSP. |
 | 9 net | [stm32-lan8742](https://github.com/STMicroelectronics/stm32-lan8742), LwIP | Done. PHY + DHCP. `ethernetif` is our port. |
 | USB MSC (later) | [tinyusb](https://github.com/hathach/tinyusb) | Device MSC over OTG FS. Exclusive with FatFs. Not Cube `USB_Device`. |

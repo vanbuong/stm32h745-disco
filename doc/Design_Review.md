@@ -46,7 +46,7 @@ That layout is framework-agnostic, maximizes the 480×240 content region, and ma
 
 | Layer | First implementation | Later replacement | App code sees |
 | --- | --- | --- | --- |
-| OS | FreeRTOS (or CMSIS-RTOS2) | Zephyr `k_*` | `osal_*` |
+| OS | Superloop (no FreeRTOS) | Zephyr `k_*` later | `osal_*` (host POSIX today) |
 | UI | LVGL | LVGL on Zephyr (same widgets) | `ui_*` view-models + nav stack |
 | Display / touch | STM32 LTDC + FT5336 BSP | Zephyr display + input DT | `disp_*` / `input_*` |
 | FS | FatFS (FAT) on eMMC | Same FAT volume (Zephyr FAT / FatFs). **No LittleFS** | `vfs_*` |

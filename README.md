@@ -2,7 +2,7 @@
 
 HMI firmware for the **STM32H745I-DISCO**: dual-core shell with file explorer, image and text viewers, audio, game, and **Zigbee home automation** (TI ZNP host) on the 4.3" 480×272 panel.
 
-The first implementation is **FreeRTOS + LVGL + STM32Cube HAL/LL**. The board BSP is **ours** (`firmware/src/bsp`); ST HAL/LL and later chip drivers are git submodules. The full [`STM32CubeH7`](https://github.com/STMicroelectronics/STM32CubeH7) package is **not** in tree — see [third_party/README.md](third_party/README.md). Apps still never include those headers.
+Both cores run a **superloop** (no FreeRTOS). UI is **LVGL** (`LV_OS_NONE`); LwIP is `NO_SYS`. The board BSP is **ours** (`firmware/src/bsp`); ST HAL/LL and later chip drivers are git submodules. The full [`STM32CubeH7`](https://github.com/STMicroelectronics/STM32CubeH7) package is **not** in tree — see [third_party/README.md](third_party/README.md). Apps still never include those headers.
 
 ## Documentation
 
@@ -30,7 +30,7 @@ The first implementation is **FreeRTOS + LVGL + STM32Cube HAL/LL**. The board BS
 
 ## Design rules (short)
 
-1. Apps do not call LVGL, FreeRTOS, FatFS, MQTT, MT, or HAL.
+1. Apps do not call LVGL, FatFS, MQTT, MT, or HAL. There is no RTOS in the firmware images.
 2. M7 owns UI, VFS, image decode, game sim, Zigbee host, and local automations. M4 owns SAI audio (and optional net or ZNP UART).
 3. IPC is versioned messages in SRAM4, not shared C pointers.
 4. Explorer is jailed to `/user`. Home UI talks only to `home_*`. Game logic talks only to `game_module_t` / `gfx_*`.

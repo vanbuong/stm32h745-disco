@@ -33,7 +33,7 @@ Game and Home use the same `ui_app_t` contract as Files. Game logic is a host-te
 
 | Concern | Now | Later |
 | --- | --- | --- |
-| RTOS | FreeRTOS on each core (M7 first) | Zephyr |
+| OS | Superloop on each core (no FreeRTOS) | Optional Zephyr later |
 | UI | LVGL over `disp_*` / `input_*` | LVGL on Zephyr |
 | Host UI sim | none (logic-only `host-tests`) | SDL2 window on **Ubuntu and Windows** (Sprint 5b) |
 | FS | FatFs (FAT) on eMMC behind `vfs_*` | Same FAT volume (Zephyr FAT or FatFs). No littlefs |

@@ -44,7 +44,7 @@ Clock values, DMA engines, and the pin table live in [`Board_Map.md`](Board_Map.
 ├──────────────┴──────────────────────────────────────────────┤
 │  OSAL   IPC protocol   disp/input HAL   media decode HAL    │
 ├─────────────────────────────────────────────────────────────┤
-│  Ports: FreeRTOS + STM32Cube  →  later Zephyr + device tree │
+│  Ports: superloop + STM32Cube  →  later Zephyr + device tree │
 │  BSP: clocks, MPU, cache, LTDC, SDMMC, SAI, ETH, QSPI       │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -144,7 +144,7 @@ firmware/
     svc/
     ui/backend_lvgl/     ui_lvgl.c (MCU + PC sim); lv_port is BSP- or SDL-specific
     ipc/
-    osal/freertos/           later: osal/zephyr/
+    osal/posix/              host tests only; MCU has no RTOS (later: zephyr/)
     bsp/stm32h745i_disco/
     port/cube/               STM32Cube HAL/LL glue (later: port/zephyr/)
     port/lvgl/               lv_conf.h (MCU); lv_conf_sim.h (Sprint 5b PC)
@@ -168,7 +168,7 @@ third_party/
   stm32-lan8742/             ST component (Sprint 9)
   lwip/                      upstream LwIP 2.2.1 (Sprint 9)
   cmsis-svd/                 STM32H745_CM7/CM4 SVD (debug register view)
-  lvgl/  FreeRTOS-Kernel/  fatfs/  lwip/  helix/  tinyusb/   upstream, per sprint
+  lvgl/  fatfs/  lwip/  helix/  tinyusb/   upstream, per sprint (no FreeRTOS-Kernel)
 .settings/                   STM32CubeIDE for VS Code device store (dual-core)
 CM7/                         Cube CMake context for Cortex-M7 (wrapper)
 CM4/                         Cube CMake context for Cortex-M4 (wrapper)
@@ -271,7 +271,7 @@ Keep these headers OS- and toolkit-free.
 
 Threads, mutexes, recursive mutexes, semaphores, queues, timers, sleep, millis, heap. Timeouts in milliseconds. Fatal errors go to `osal_panic()` (log + reset policy).
 
-First port: FreeRTOS. Second port: Zephyr. CMSIS-RTOS2 is acceptable as an intermediate, but apps still call `osal_*`.
+MCU firmware is a **superloop** on each core. `osal_*` on the board is unused; host tests use `osal/posix`. A later Zephyr port would implement `osal_*` there. Do not add FreeRTOS-Kernel unless a sprint explicitly needs threads.
 
 ### 7.2 Display and input
 
@@ -522,7 +522,7 @@ Inventory (clocks, DMA engines, pin table): [`Board_Map.md`](Board_Map.md). Asse
 
 If LVGL is already the backend, the remaining work is a **port swap**, not an app rewrite:
 
-1. Replace `osal/freertos` with `osal/zephyr`.
+1. Add `osal/zephyr` if threads are needed; do not add FreeRTOS.
 2. Replace `port/cube` + Cube clock init with Zephyr DTS (`stm32h745i_disco`).
 3. Map `disp_*` to Zephyr display, `input_*` to FT5336 input, `vfs_*` to a **FAT** volume on eMMC (same layout). Do **not** switch `/user` to littlefs.
 4. Map `ipc` transport to `ipm` / OpenAMP; keep `ipc_msg.h`.
@@ -734,7 +734,7 @@ Shared `err.h`: `OK=0`, `BUSY`, `TIMEOUT`, `NOMEM`, `NOENT`, `INVAL`, `IO`, `NOS
 ```mermaid
 flowchart LR
   A[src/app + shell] -->|unchanged| Z[Zephyr product]
-  B[osal/freertos] -->|rewrite| C[osal/zephyr]
+  B[superloop] -->|optional osal| C[osal/zephyr]
   D[port/cube] -->|rewrite| E[DTS + west]
   F[disp input uart vfs] -->|thin wrappers| E
   G[znp_mt zb_host auto game] -->|unchanged| Z
