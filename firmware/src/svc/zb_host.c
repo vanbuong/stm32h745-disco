@@ -39,6 +39,7 @@ static uint8_t s_dev_file[DEV_HDR + (DEV_REC * HOME_DEV_MAX)];
 static uint8_t g_drv;
 static uint8_t g_drv_inited;
 static uint8_t g_znp_busy;
+static uint8_t g_core_busy;
 static uint32_t g_sync_acc;
 #endif
 
@@ -705,6 +706,7 @@ void zb_host_reset(void)
     g_now_ms = 0u;
 #ifdef ZB_IOTDEV_DRIVER
     g_drv = 0u;
+    g_core_busy = 0u;
     g_sync_acc = 0u;
 #endif
 }
@@ -772,9 +774,11 @@ void zb_host_poll(uint32_t dt_ms)
         g_permit_acc = 0u;
     }
 #ifdef ZB_IOTDEV_DRIVER
-    if (g_drv != 0u) {
+    if (g_drv != 0u && g_core_busy == 0u) {
+        g_core_busy = 1u;
         driver_idle();
         zb_core_task();
+        g_core_busy = 0u;
         g_sync_acc += dt_ms;
         if (g_sync_acc >= 1000u) {
             g_sync_acc = 0u;
@@ -793,7 +797,7 @@ err_t zb_form(const zb_net_cfg_t *cfg)
         return ERR_INVAL;
     }
 #ifdef ZB_IOTDEV_DRIVER
-    if (g_drv != 0u) {
+    if (g_drv != 0u && g_core_busy == 0u) {
         zb_core_apply_default_network_config(cfg->channel, 0u, 5);
         if (zb_core_get_running_status() == false) {
             (void)zb_core_request_start();
@@ -810,7 +814,7 @@ err_t zb_form(const zb_net_cfg_t *cfg)
 err_t zb_permit_join(uint8_t seconds)
 {
 #ifdef ZB_IOTDEV_DRIVER
-    if (g_drv != 0u) {
+    if (g_drv != 0u && g_core_busy == 0u) {
         (void)zb_zdo_permit_join(seconds);
     }
 #endif
@@ -840,7 +844,7 @@ static err_t forget_local(const uint8_t ieee[8])
 err_t zb_leave(const uint8_t ieee[8])
 {
 #ifdef ZB_IOTDEV_DRIVER
-    if (g_drv != 0u && ieee != NULL) {
+    if (g_drv != 0u && g_core_busy == 0u && ieee != NULL) {
         uint64_t addr = ieee_u64(ieee);
         s_zb_device_t *dev = zb_device_manager_find_by_ieee(addr);
         if (dev != NULL) {

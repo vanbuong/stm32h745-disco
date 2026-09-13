@@ -2344,8 +2344,10 @@ zb_core_task()
             if (entering)
             {
                 ZB_LOGI(TAG, "Zigbee State Idle");
-                /* Retry immediately on first entry. */
-                s_idle_retry_not_before = 0;
+                /* Do not clear s_idle_retry_not_before. INIT/reset failures
+                 * already armed a backoff; zeroing it here retried the 6-16 s
+                 * blocking bring-up on the next tick and froze the UI. First
+                 * boot starts with the deadline at 0. */
             }
 
             /* Back-off so we don't hammer zb_znp_set_mode_znp() (which

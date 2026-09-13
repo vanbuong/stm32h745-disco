@@ -9,13 +9,21 @@
 #include <string.h>
 
 #define ZB_OS_TIMER_MAX 16u
+#define ZB_OS_YIELD_MS 16u
 
 static void (*g_idle)(void);
+static void (*g_yield)(void);
 static uint8_t g_pump_depth;
+static uint32_t g_yield_last;
 
 void zb_os_set_idle_pump(void (*fn)(void))
 {
     g_idle = fn;
+}
+
+void zb_os_set_yield_pump(void (*fn)(void))
+{
+    g_yield = fn;
 }
 
 static void idle_pump(void)
@@ -28,6 +36,14 @@ static void idle_pump(void)
         g_idle();
     } else {
         wdog_kick();
+    }
+    if (g_pump_depth == 1u && g_yield != NULL) {
+        uint32_t now = zb_os_now_ms();
+
+        if ((uint32_t)(now - g_yield_last) >= ZB_OS_YIELD_MS) {
+            g_yield_last = now;
+            g_yield();
+        }
     }
     g_pump_depth--;
 }

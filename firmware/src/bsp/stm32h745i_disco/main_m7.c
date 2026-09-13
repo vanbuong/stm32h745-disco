@@ -13,6 +13,7 @@
 #include "svc/vfs.h"
 #include "ui/backend.h"
 #include "ui/shell.h"
+#include "zb_port.h"
 
 #include "cube.h"
 
@@ -22,6 +23,20 @@
 #define VFS_FILE_BYTES (1024u * 1024u)
 #define VFS_READ_GOAL (8u * 1024u * 1024u)
 #define UI_FPS_MS 2000u
+
+static uint8_t g_ui_ok;
+
+static void m7_zb_yield(void)
+{
+    uint32_t now = board_millis();
+
+    board_ipc_poll(now);
+    shell_status_set_m4(board_ipc_peer_alive(now));
+    wdog_kick();
+    if (g_ui_ok != 0u) {
+        ui_backend_handler();
+    }
+}
 
 static void led_init(void)
 {
@@ -371,12 +386,14 @@ int main(void)
     shell_status_set_storage(0u);
     shell_status_set_m4(0u);
     ui_e = ui_backend_init();
+    g_ui_ok = (ui_e == ERR_OK) ? 1u : 0u;
     log_err("ui", ui_e);
     if (ui_e == ERR_OK) {
         board_console_puts("shell ready\r\n");
         ui_backend_handler();
         ui_fps_probe();
     }
+    zb_os_set_yield_pump(m7_zb_yield);
 
     vfs_ok = vfs_bringup();
     shell_status_set_storage(vfs_ok);

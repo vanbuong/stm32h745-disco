@@ -17,6 +17,27 @@ static char g_core[CORE_MAX];
 static char g_last[LOG_LINE_MAX];
 static uint32_t g_count;
 static void (*g_sink)(const char *line, size_t n);
+static uint32_t (*g_clock)(void);
+
+#if defined(CORE_CM7)
+static uint32_t default_clock(void)
+{
+    return board_millis();
+}
+#else
+static uint32_t default_clock(void)
+{
+    return 0u;
+}
+#endif
+
+static uint32_t now_ms(void)
+{
+    if (g_clock != NULL) {
+        return g_clock();
+    }
+    return default_clock();
+}
 
 static void copy_str(char *dst, size_t n, const char *s)
 {
@@ -282,6 +303,7 @@ void log_reset(void)
     g_last[0] = '\0';
     g_count = 0u;
     g_sink = NULL;
+    g_clock = NULL;
 }
 
 void log_set_level(log_lvl_t max)
@@ -300,6 +322,11 @@ log_lvl_t log_level(void)
 void log_set_core(const char *core)
 {
     copy_str(g_core, sizeof(g_core), (core != NULL && core[0] != '\0') ? core : default_core());
+}
+
+void log_set_clock(uint32_t (*millis)(void))
+{
+    g_clock = millis;
 }
 
 void log_set_sink(void (*fn)(const char *line, size_t n))
@@ -321,6 +348,8 @@ void log_write(log_lvl_t lvl, const char *mod, const char *fmt, ...)
     }
     copy_str(tag, sizeof(tag), (mod != NULL && mod[0] != '\0') ? mod : "app");
     put_str(g_last, sizeof(g_last), &o, g_core[0] != '\0' ? g_core : default_core());
+    put_ch(g_last, sizeof(g_last), &o, ',');
+    put_u64(g_last, sizeof(g_last), &o, (uint64_t)now_ms(), 10u, 0, 0, 0);
     put_ch(g_last, sizeof(g_last), &o, ',');
     put_ch(g_last, sizeof(g_last), &o, lvl_ch(lvl));
     put_ch(g_last, sizeof(g_last), &o, ',');
