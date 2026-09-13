@@ -47,6 +47,7 @@ static void test_ram_ops(void)
     vfs_stat_t st;
     char buf[16];
     size_t n = 0;
+    size_t put = 0;
     unsigned seen = 0;
     int got_hello = 0;
     int got_sub = 0;
@@ -112,6 +113,16 @@ static void test_ram_ops(void)
     TEST_ASSERT_EQUAL_INT(ERR_OK, vfs_stat("/user/newd", &st));
     TEST_ASSERT_EQUAL_UINT8(1u, st.is_dir);
     TEST_ASSERT_EQUAL_INT(ERR_DENIED, vfs_mkdir("/user/../x"));
+    TEST_ASSERT_EQUAL_INT(ERR_OK,
+                          vfs_open("/user/tmp.bin", VFS_O_WR | VFS_O_CREAT | VFS_O_TRUNC, &fd));
+    TEST_ASSERT_EQUAL_INT(ERR_OK, vfs_write(fd, "xy", 2u, &put));
+    TEST_ASSERT_EQUAL_INT(ERR_OK, vfs_close(fd));
+    TEST_ASSERT_EQUAL_INT(ERR_OK, vfs_rename("/user/tmp.bin", "/user/renamed.bin"));
+    TEST_ASSERT_EQUAL_INT(ERR_OK, vfs_stat("/user/renamed.bin", &st));
+    TEST_ASSERT_EQUAL_INT(ERR_NOENT, vfs_stat("/user/tmp.bin", &st));
+    TEST_ASSERT_EQUAL_INT(ERR_OK, vfs_unlink("/user/renamed.bin"));
+    TEST_ASSERT_EQUAL_INT(ERR_NOENT, vfs_stat("/user/renamed.bin", &st));
+    TEST_ASSERT_EQUAL_INT(ERR_DENIED, vfs_unlink("/user/../x"));
 
     TEST_ASSERT_EQUAL_INT(ERR_OK, vfs_unmount());
     TEST_ASSERT_EQUAL_INT(0, vfs_mounted());

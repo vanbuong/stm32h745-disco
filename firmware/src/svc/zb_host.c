@@ -5,6 +5,15 @@
 #include "svc/vfs.h"
 #include "svc/znp_mt.h"
 
+#ifdef ZB_IOTDEV_DRIVER
+#include "core/zb_core.h"
+#include "device/zb_device_manager.h"
+#include "svc/cfg.h"
+#include "zb_port.h"
+#include "zdo/zb_zdo.h"
+#include "znp/zb_znp.h"
+#endif
+
 #include <string.h>
 
 #define MT_SYS_SREQ 0x21u
@@ -23,6 +32,13 @@ static uint8_t g_ready;
 static uint8_t g_dirty;
 static uint32_t g_permit_acc;
 static uint32_t g_now_ms;
+#ifdef ZB_IOTDEV_DRIVER
+static uint8_t g_drv;
+static uint8_t g_drv_inited;
+static uint8_t g_znp_busy;
+#endif
+
+static err_t forget_local(const uint8_t ieee[8]);
 
 static void copy_str(char *dst, size_t n, const char *s)
 {
@@ -408,6 +424,186 @@ static void try_sys_ping(void)
     copy_str(g_net.znp_ver, sizeof(g_net.znp_ver), "down");
 }
 
+#ifdef ZB_IOTDEV_DRIVER
+static void ieee_bytes(uint8_t out[8], uint64_t v)
+{
+    uint8_t i;
+
+    for (i = 0u; i < 8u; i++) {
+        out[i] = (uint8_t)(v >> (8u * i));
+    }
+}
+
+static uint64_t ieee_u64(const uint8_t in[8])
+{
+    uint64_t v = 0u;
+    uint8_t i;
+
+    for (i = 0u; i < 8u; i++) {
+        v |= (uint64_t)in[i] << (8u * i);
+    }
+    return v;
+}
+
+static home_kind_t kind_from_joined(const s_zb_device_joined_info_t *info)
+{
+    uint8_t onoff = 0u;
+    uint8_t level = 0u;
+    uint8_t bin = 0u;
+    uint8_t temp = 0u;
+    uint8_t i;
+
+    if (info == NULL) {
+        return HOME_SWITCH;
+    }
+    for (i = 0u; i < info->function_count; i++) {
+        switch (info->functions[i].type) {
+        case ZB_FUNC_OCCUPANCY:
+        case ZB_FUNC_IAS_MOTION_SENSOR:
+        case ZB_FUNC_IAS_CONTACT_SWITCH:
+        case ZB_FUNC_IAS_DOOR_WINDOW_HANDLE:
+        case ZB_FUNC_IAS_FIRE_SENSOR:
+        case ZB_FUNC_IAS_WATER_SENSOR:
+        case ZB_FUNC_IAS_CO_SENSOR:
+        case ZB_FUNC_IAS_PERSONAL_EMERGENCY:
+        case ZB_FUNC_IAS_VIBRATION_SENSOR:
+        case ZB_FUNC_IAS_GENERIC_SENSOR:
+            bin = 1u;
+            break;
+        case ZB_FUNC_TEMPERATURE:
+            temp = 1u;
+            break;
+        case ZB_FUNC_DIMMABLE_LIGHT:
+        case ZB_FUNC_COLOR_TEMP_LIGHT:
+        case ZB_FUNC_COLOR_LIGHT:
+        case ZB_FUNC_EXTENDED_COLOR_LIGHT:
+        case ZB_FUNC_DIMMABLE_PLUGIN_UNIT:
+            onoff = 1u;
+            level = 1u;
+            break;
+        case ZB_FUNC_ONOFF_LIGHT:
+        case ZB_FUNC_ONOFF_PLUGIN_UNIT:
+        case ZB_FUNC_ONOFF_SMART_PLUG:
+        case ZB_FUNC_RELAY:
+        case ZB_FUNC_MAINS_POWER_OUTLET:
+        case ZB_FUNC_ONOFF_SWITCH:
+        case ZB_FUNC_DIMMER_SWITCH:
+            onoff = 1u;
+            break;
+        default:
+            break;
+        }
+    }
+    if (bin != 0u) {
+        return HOME_BINARY_SENSOR;
+    }
+    if (temp != 0u && onoff == 0u) {
+        return HOME_CLIMATE;
+    }
+    if (onoff != 0u && level != 0u) {
+        return HOME_LIGHT;
+    }
+    if (temp != 0u) {
+        return HOME_CLIMATE;
+    }
+    return HOME_SWITCH;
+}
+
+static void driver_idle(void)
+{
+    zb_plat_serial_poll();
+    zb_os_timer_pump();
+    if (g_znp_busy == 0u) {
+        g_znp_busy = 1u;
+        zb_znp_task();
+        g_znp_busy = 0u;
+    }
+    wdog_kick();
+}
+
+static void on_driver_event(const s_zb_event_t *ev)
+{
+    uint8_t ieee[8];
+    s_zb_device_t *dev;
+    const char *name;
+    uint16_t nwk;
+
+    if (ev == NULL) {
+        return;
+    }
+    ieee_bytes(ieee, ev->ieee_addr);
+    switch (ev->type) {
+    case ZB_EVENT_NETWORK_INFO:
+        g_net.channel = ev->network_info.channel;
+        g_net.pan = ev->network_info.pan_id;
+        g_net.formed = (ev->network_info.state == ZB_NETWORK_STATE_RUN) ? 1u : 0u;
+        g_net.radio_ok =
+            (ev->network_info.coordinator_state == ZB_COORDINATOR_STATE_READY) ? 1u : 0u;
+        g_net.mock = 0u;
+        mark_dirty();
+        break;
+    case ZB_EVENT_NETWORK_OPEN:
+        break;
+    case ZB_EVENT_DEVICE_JOINED:
+    case ZB_EVENT_DEVICE_UPDATED:
+        dev = zb_device_manager_find_by_ieee(ev->ieee_addr);
+        nwk = (dev != NULL) ? dev->nwk_addr : 0u;
+        name = ev->device_info.model[0] != '\0' ? ev->device_info.model : ev->name;
+        if (zb_host_find(ieee, NULL) != ERR_OK) {
+            (void)zb_host_add(ieee, nwk, kind_from_joined(&ev->device_info),
+                              (name[0] != '\0') ? name : "New device", "Home");
+        } else {
+            (void)zb_host_apply_announce(nwk, ieee);
+        }
+        break;
+    case ZB_EVENT_DEVICE_LEFT:
+        (void)forget_local(ieee);
+        break;
+    case ZB_EVENT_LIGHT_ONOFF_STATE:
+        (void)zb_host_apply_report(ieee, ZB_CLUSTER_ONOFF, ev->onoff_light.on ? 1u : 0u, 0u);
+        break;
+    case ZB_EVENT_SWITCH_ONOFF_STATE:
+        (void)zb_host_apply_report(ieee, ZB_CLUSTER_ONOFF, ev->switch_onoff.on ? 1u : 0u, 0u);
+        break;
+    case ZB_EVENT_BINARY_STATE:
+        (void)zb_host_apply_report(ieee, ZB_CLUSTER_ONOFF, ev->binary.active ? 1u : 0u, 0u);
+        break;
+    case ZB_EVENT_LIGHT_DIMMABLE_STATE:
+        (void)zb_host_apply_report(ieee, ZB_CLUSTER_LEVEL, 0u, ev->dimmable_light.level);
+        break;
+    case ZB_EVENT_SWITCH_LEVEL_STATE:
+        (void)zb_host_apply_report(ieee, ZB_CLUSTER_LEVEL, 0u, ev->switch_level.level);
+        break;
+    case ZB_EVENT_SENSOR_OCCUPANCY:
+    case ZB_EVENT_SENSOR_IAS_ZONE:
+        (void)zb_host_apply_report(ieee, ZB_CLUSTER_OCC, ev->binary.active ? 1u : 0u, 0u);
+        break;
+    default:
+        break;
+    }
+}
+
+static void driver_init(void)
+{
+    zb_os_set_idle_pump(driver_idle);
+    if (g_drv_inited == 0u) {
+        zb_core_init();
+        g_drv_inited = 1u;
+    }
+    if (zb_plat_serial_ok() == 0) {
+        g_drv = 0u;
+        return;
+    }
+    g_drv = 1u;
+    (void)vfs_mkdir(ZB_HOME_DIR);
+    (void)vfs_mkdir("/user/home/zb");
+    zb_core_set_auto_permit_join_on_form(false);
+    zb_core_apply_default_network_config(cfg_zb_channel(), 0u, 5);
+    zb_core_set_event_callback(on_driver_event);
+    zb_device_manager_register_event_notify_callback(on_driver_event);
+}
+#endif
+
 void zb_host_reset(void)
 {
     memset(g_dev, 0, sizeof(g_dev));
@@ -417,6 +613,9 @@ void zb_host_reset(void)
     g_dirty = 0u;
     g_permit_acc = 0u;
     g_now_ms = 0u;
+#ifdef ZB_IOTDEV_DRIVER
+    g_drv = 0u;
+#endif
 }
 
 err_t zb_host_init(void)
@@ -430,10 +629,29 @@ err_t zb_host_init(void)
     g_dirty = 0u;
     g_permit_acc = 0u;
     g_now_ms = 1u;
+#ifdef ZB_IOTDEV_DRIVER
+    driver_init();
+    if (g_drv != 0u) {
+        g_net.radio_ok = 1u;
+        g_net.mock = 0u;
+        copy_str(g_net.znp_ver, sizeof(g_net.znp_ver), "ZNP");
+        if (persist_load() == 0u) {
+            g_net.persist_ok = 0u;
+        }
+    } else {
+        g_net.radio_ok = 0u;
+        g_net.mock = 1u;
+        copy_str(g_net.znp_ver, sizeof(g_net.znp_ver), "none");
+        if (persist_load() == 0u) {
+            seed_mock();
+        }
+    }
+#else
     try_sys_ping();
     if (persist_load() == 0u) {
         seed_mock();
     }
+#endif
     g_ready = 1u;
     if (g_dirty != 0u) {
         persist_save();
@@ -456,6 +674,12 @@ void zb_host_poll(uint32_t dt_ms)
     } else {
         g_permit_acc = 0u;
     }
+#ifdef ZB_IOTDEV_DRIVER
+    if (g_drv != 0u) {
+        driver_idle();
+        zb_core_task();
+    }
+#endif
     if (g_dirty != 0u) {
         persist_save();
     }
@@ -466,6 +690,16 @@ err_t zb_form(const zb_net_cfg_t *cfg)
     if (cfg == NULL) {
         return ERR_INVAL;
     }
+#ifdef ZB_IOTDEV_DRIVER
+    if (g_drv != 0u) {
+        zb_core_apply_default_network_config(cfg->channel, 0u, 5);
+        if (zb_core_get_running_status()) {
+            (void)zb_core_request_factory_reset();
+        } else {
+            (void)zb_core_request_start();
+        }
+    }
+#endif
     g_net.formed = 1u;
     g_net.channel = cfg->channel;
     g_net.pan = cfg->pan;
@@ -475,12 +709,17 @@ err_t zb_form(const zb_net_cfg_t *cfg)
 
 err_t zb_permit_join(uint8_t seconds)
 {
+#ifdef ZB_IOTDEV_DRIVER
+    if (g_drv != 0u) {
+        (void)zb_zdo_permit_join(seconds);
+    }
+#endif
     g_net.permit_left = seconds;
     g_permit_acc = 0u;
     return ERR_OK;
 }
 
-err_t zb_leave(const uint8_t ieee[8])
+static err_t forget_local(const uint8_t ieee[8])
 {
     size_t idx;
     size_t i;
@@ -495,6 +734,21 @@ err_t zb_leave(const uint8_t ieee[8])
     memset(&g_dev[g_n], 0, sizeof(g_dev[0]));
     mark_dirty();
     return ERR_OK;
+}
+
+err_t zb_leave(const uint8_t ieee[8])
+{
+#ifdef ZB_IOTDEV_DRIVER
+    if (g_drv != 0u && ieee != NULL) {
+        uint64_t addr = ieee_u64(ieee);
+        s_zb_device_t *dev = zb_device_manager_find_by_ieee(addr);
+        if (dev != NULL) {
+            (void)zb_zdo_send_mgmt_leave_req(dev->nwk_addr, addr, false, false);
+        }
+        (void)zb_device_manager_remove_device(addr);
+    }
+#endif
+    return forget_local(ieee);
 }
 
 err_t zb_interview(const uint8_t ieee[8])

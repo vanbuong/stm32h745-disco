@@ -61,6 +61,13 @@ SECTIONS
         . = ALIGN(32);
     } > AXIRAM
 
+    /* After LVGL working set at 0x24010000 (96 KB). */
+    .axi_heap 0x24028000 (NOLOAD) : ALIGN(8)
+    {
+        KEEP(*(.axi_heap))
+        . = ALIGN(8);
+    } > AXIRAM
+
     .eth_dma (NOLOAD) : ALIGN(32)
     {
         KEEP(*(.eth_dma))

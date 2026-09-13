@@ -15,7 +15,9 @@ extern "C"
 
 #define ZB_ALL_CHANNEL_MASK                0x07FFF800U
 
-#define ZB_MAX_DEVICE                      256  /* Maximum number of devices */
+#ifndef ZB_MAX_DEVICE
+#define ZB_MAX_DEVICE                      32   /* Superloop host: match HOME_DEV_MAX */
+#endif
 #define ZB_MAX_ENDPOINTS                   4    /* Maximum number of endpoints */
 #define ZB_MAX_IN_CLUSTERS                 16   /* Maximum number of in clusters */
 #define ZB_MAX_OUT_CLUSTERS                8    /* Maximum number of out clusters */

@@ -72,6 +72,8 @@ err_t vfs_readdir(vfs_dir_t dir, vfs_dirent_t *ent);
 err_t vfs_closedir(vfs_dir_t dir);
 
 err_t vfs_mkdir(const char *path);
+err_t vfs_unlink(const char *path);
+err_t vfs_rename(const char *from, const char *to);
 
 #ifdef __cplusplus
 }

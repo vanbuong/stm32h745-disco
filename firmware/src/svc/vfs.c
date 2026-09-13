@@ -394,3 +394,38 @@ err_t vfs_mkdir(const char *path)
     }
     return map_fr(f_mkdir(fat));
 }
+
+err_t vfs_unlink(const char *path)
+{
+    char fat[VFS_PATH_MAX + 4];
+    err_t e;
+
+    if (!g_mounted) {
+        return ERR_IO;
+    }
+    e = to_fat(path, fat, sizeof(fat));
+    if (e != ERR_OK) {
+        return e;
+    }
+    return map_fr(f_unlink(fat));
+}
+
+err_t vfs_rename(const char *from, const char *to)
+{
+    char fat_from[VFS_PATH_MAX + 4];
+    char fat_to[VFS_PATH_MAX + 4];
+    err_t e;
+
+    if (!g_mounted) {
+        return ERR_IO;
+    }
+    e = to_fat(from, fat_from, sizeof(fat_from));
+    if (e != ERR_OK) {
+        return e;
+    }
+    e = to_fat(to, fat_to, sizeof(fat_to));
+    if (e != ERR_OK) {
+        return e;
+    }
+    return map_fr(f_rename(fat_from, fat_to));
+}

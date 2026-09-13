@@ -5,6 +5,7 @@ include_guard(GLOBAL)
 include(${H745_ROOT}/cmake/Helix.cmake)
 include(${H745_ROOT}/cmake/LwIP.cmake)
 include(${H745_ROOT}/cmake/Cube.cmake)
+include(${H745_ROOT}/cmake/IotdevZigbee.cmake)
 
 function(stm32_add_firmware CORE_ID)
     set(BSP ${H745_ROOT}/firmware/src/bsp/stm32h745i_disco)
@@ -122,6 +123,7 @@ function(stm32_add_firmware CORE_ID)
             ${H745_ROOT}/firmware/src/svc/health.c
             ${H745_ROOT}/firmware/src/hal/uart.c
             ${H745_ROOT}/firmware/src/hal/wdog.c
+            ${BSP}/m7_heap.c
             ${H745_ROOT}/firmware/src/svc/vendor/tjpgd/tjpgd.c
             ${H745_ROOT}/firmware/src/svc/vendor/puff/puff.c
             ${H745_ROOT}/firmware/src/shell/nav.c
@@ -218,6 +220,8 @@ function(stm32_add_firmware CORE_ID)
     )
     if(CORE_ID STREQUAL "M7")
         target_compile_definitions(${TGT} PRIVATE USE_HAL_DRIVER LV_CONF_INCLUDE_SIMPLE)
+        stm32_add_iotdev_zigbee(${TGT})
+        target_link_libraries(${TGT} PRIVATE m)
     else()
         target_compile_definitions(${TGT} PRIVATE USE_HAL_DRIVER)
     endif()

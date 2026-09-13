@@ -45,6 +45,8 @@ extern "C" {
 
 #define BOARD_LVGL_MEM_BASE 0x24010000u
 #define BOARD_LVGL_MEM_BYTES (96u * 1024u)
+#define BOARD_ZB_HEAP_BASE 0x24028000u
+#define BOARD_ZB_HEAP_BYTES (128u * 1024u)
 
 uint32_t board_sysclk_hz(void);
 uint32_t board_pclk1_hz(void);

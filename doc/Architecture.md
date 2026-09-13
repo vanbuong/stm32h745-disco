@@ -227,7 +227,7 @@ flowchart LR
 | Flash bank 1 | `0x08000000` | 1 MB | M7 | Default boot |
 | Flash bank 2 | `0x08100000` | 1 MB | M4 | Default CM4 boot |
 | DTCM | `0x20000000` | 128 KB | M7 | Stacks, hard-RT data |
-| AXI SRAM | `0x24000000` | 512 KB | M7 | LVGL working set, FS cache |
+| AXI SRAM | `0x24000000` | 512 KB | M7 | LVGL working set, ZNP driver heap, FS cache |
 | SRAM1 | `0x30000000` | 128 KB | M4 | M4 .data/.bss/heap |
 | SRAM2 | `0x30020000` | 128 KB | M4 / DMA | Audio PCM rings if not in SRAM3 |
 | SRAM3 | `0x30040000` | 32 KB | M7 ETH DMA | Descriptors, Rx/Tx bounce, LwIP heap (MPU NC) |
@@ -340,13 +340,15 @@ The STM32 is the **Zigbee host**. A TI **ZNP** (Z-Stack Network Processor, e.g. 
   Home UI  ──►  home_*  ──►  zb_host (device table, interview, bind)
                      │              │
                      │              ▼
-                     │         znp_mt  (SYS / ZDO / AF / SAPI)
+                     │         iotdev_zigbee (M7 superloop poll)
                      │              │
                      │              ▼
                      │         uart_*  → TI ZNP
                      ▼
                  auto_*  (rules on M7, host-testable)
 ```
+
+`third_party/iotdev_zigbee` is the ESP32 coordinator driver. M7 does **not** define `ZB_PLATFORM_IOTDEV` and does not compile FreeRTOS, `zb_osal_freertos.c`, or `source/iotdev_zigbee.c`. A superloop OSAL (`zb_osal_superloop.c`) pumps `zb_znp_task` / `zb_core_task` from `zb_host_poll`. Local shims replace `iotdev_config` / `iotdev_uart` / `iotdev_gpio` / nanopb / filesystem with `cfg_*`, `uart_*`, and jailed `vfs_*` under `/user/home/zb`. Host tests keep the mock `zb_host` path and do not start the driver.
 
 `src/app/home` never includes MT command IDs, UART HAL, or MQTT.
 

@@ -489,6 +489,108 @@ err_t vfs_mkdir(const char *path)
     return ERR_OK;
 }
 
+err_t vfs_unlink(const char *path)
+{
+    int node;
+    int i;
+    err_t e;
+
+    if (!g_mounted) {
+        return ERR_IO;
+    }
+    e = walk(path, &node);
+    if (e != ERR_OK) {
+        return e;
+    }
+    if (node == 0) {
+        return ERR_DENIED;
+    }
+    if (g_nodes[node].is_dir != 0u) {
+        for (i = 0; i < RAM_MAX; i++) {
+            if (g_nodes[i].used != 0u && g_nodes[i].parent == node) {
+                return ERR_DENIED;
+            }
+        }
+    }
+    for (i = 0; i < 4; i++) {
+        if (g_files[i].used != 0u && g_files[i].node == node) {
+            return ERR_BUSY;
+        }
+    }
+    memset(&g_nodes[node], 0, sizeof(g_nodes[node]));
+    return ERR_OK;
+}
+
+err_t vfs_rename(const char *from, const char *to)
+{
+    int src;
+    int dest;
+    int parent;
+    char norm[VFS_PATH_MAX];
+    char rel[VFS_PATH_MAX];
+    char parent_abs[VFS_PATH_MAX];
+    const char *slash;
+    char leaf[VFS_NAME_MAX];
+    size_t leaf_n;
+    err_t e;
+
+    if (!g_mounted) {
+        return ERR_IO;
+    }
+    e = walk(from, &src);
+    if (e != ERR_OK) {
+        return e;
+    }
+    if (src == 0) {
+        return ERR_DENIED;
+    }
+    if (walk(to, &dest) == ERR_OK) {
+        e = vfs_unlink(to);
+        if (e != ERR_OK) {
+            return e;
+        }
+    }
+    e = vfs_normalize(to, norm, sizeof(norm));
+    if (e != ERR_OK) {
+        return e;
+    }
+    e = vfs_jail_rel(norm, rel, sizeof(rel));
+    if (e != ERR_OK) {
+        return e;
+    }
+    slash = strrchr(rel, '/');
+    if (slash == NULL || slash[1] == '\0') {
+        return ERR_INVAL;
+    }
+    leaf_n = strlen(slash + 1);
+    if (leaf_n >= VFS_NAME_MAX) {
+        return ERR_NOSPC;
+    }
+    memcpy(leaf, slash + 1, leaf_n + 1u);
+    if (slash == rel) {
+        parent = 0;
+    } else {
+        size_t pl = (size_t)(slash - rel);
+        if (pl + 5u + 1u > VFS_PATH_MAX) {
+            return ERR_NOSPC;
+        }
+        memcpy(parent_abs, "/user", 5u);
+        memcpy(parent_abs + 5u, rel, pl);
+        parent_abs[5u + pl] = '\0';
+        e = walk(parent_abs, &parent);
+        if (e != ERR_OK) {
+            return e;
+        }
+        if (g_nodes[parent].is_dir == 0u) {
+            return ERR_INVAL;
+        }
+    }
+    g_nodes[src].parent = parent;
+    memset(g_nodes[src].name, 0, sizeof(g_nodes[src].name));
+    memcpy(g_nodes[src].name, leaf, leaf_n + 1u);
+    return ERR_OK;
+}
+
 void vfs_ram_set_mounted(int on)
 {
     g_mounted = (on != 0) ? 1u : 0u;

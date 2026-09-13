@@ -43,8 +43,6 @@
 #include "core/zb_core.h"
 
 #include <stddef.h>
-#include <dirent.h>
-#include <sys/stat.h>
 
 #define TAG "ZB_DEV_MGR"
 
