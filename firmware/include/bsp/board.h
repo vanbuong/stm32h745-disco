@@ -18,11 +18,11 @@ extern "C" {
 #define BOARD_ZNP_UART_BAUD 921600u
 
 #define BOARD_SDRAM_BASE 0xD0000000u
-/* MB1381 IS42S32800G (or 16-bit equivalent). 16-bit FMC, 12 row × 9 col ×
- * 4 banks maps the full 16 MB. Cube examples use 8 col (8 MB); walking
- * past that window with an 8 MB MPU region hangs the boot memtest. */
-#define BOARD_SDRAM_BYTES (16u * 1024u * 1024u)
-#define BOARD_SDRAM_CHIP_BYTES BOARD_SDRAM_BYTES
+/* 16 MB part. 16-bit FMC stays 12 row × 8 col × 4 banks → 8 MB at
+ * 0xD0000000. 9 col remaps the AHB window and the LTDC UI goes to
+ * garbage. Walk and MPU must stay on BOARD_SDRAM_BYTES, not the die. */
+#define BOARD_SDRAM_CHIP_BYTES (16u * 1024u * 1024u)
+#define BOARD_SDRAM_BYTES (8u * 1024u * 1024u)
 #define BOARD_QSPI_BASE 0x90000000u
 #define BOARD_SRAM4_BASE 0x38000000u
 #define BOARD_SRAM4_BYTES (64u * 1024u)

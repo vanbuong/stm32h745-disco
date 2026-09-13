@@ -311,6 +311,8 @@ int main(void)
         board_console_puts("walk\r\n");
         log_kv("sdram_bytes", BOARD_SDRAM_BYTES);
         board_cache_d_disable();
+        /* Mapped window only. CHIP_BYTES is 16 MB; walking that hangs or
+         * needs 9 col, which remaps the framebuffer and breaks the UI. */
         e = memtest_walking((volatile uint32_t *)BOARD_SDRAM_BASE, BOARD_SDRAM_BYTES / 4u,
                             &fail_off);
         board_cache_d_enable();

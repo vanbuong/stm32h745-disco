@@ -2,7 +2,7 @@
 
 const mpu_region_desc_t g_mpu_map[] = {
     {"sram4", 0x38000000u, MPU_ENC_64K, MPU_ATTR_NORMAL_NC, 0},
-    {"sdram", 0xD0000000u, MPU_ENC_16M, MPU_ATTR_WT, 1},
+    {"sdram", 0xD0000000u, MPU_ENC_8M, MPU_ATTR_WT, 1},
     {"qspi", 0x90000000u, MPU_ENC_64M, MPU_ATTR_WT, 1},
     {"axi", 0x24000000u, MPU_ENC_512K, MPU_ATTR_WB, 1},
     {"sram3", 0x30040000u, MPU_ENC_32K, MPU_ATTR_NORMAL_NC, 0},

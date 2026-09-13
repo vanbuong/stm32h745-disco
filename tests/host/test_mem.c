@@ -48,9 +48,10 @@ static void test_mpu_map(void)
     TEST_ASSERT_EQUAL_UINT8(MPU_ATTR_NORMAL_NC, g_mpu_map[0].attr);
     TEST_ASSERT_EQUAL_UINT8(0, g_mpu_map[0].exec);
     TEST_ASSERT_EQUAL_HEX32(0xD0000000u, g_mpu_map[1].base);
-    TEST_ASSERT_EQUAL_UINT8(MPU_ENC_16M, g_mpu_map[1].size_enc);
+    TEST_ASSERT_EQUAL_UINT8(MPU_ENC_8M, g_mpu_map[1].size_enc);
     TEST_ASSERT_EQUAL_UINT32(BOARD_SDRAM_BYTES, mpu_size_bytes(g_mpu_map[1].size_enc));
-    TEST_ASSERT_EQUAL_UINT32(16u * 1024u * 1024u, BOARD_SDRAM_BYTES);
+    TEST_ASSERT_EQUAL_UINT32(8u * 1024u * 1024u, BOARD_SDRAM_BYTES);
+    TEST_ASSERT_EQUAL_UINT32(16u * 1024u * 1024u, BOARD_SDRAM_CHIP_BYTES);
     TEST_ASSERT_EQUAL_UINT8(MPU_ATTR_WT, g_mpu_map[1].attr);
     TEST_ASSERT_EQUAL_UINT8(1, g_mpu_map[1].exec);
     TEST_ASSERT_EQUAL_HEX32(0x90000000u, g_mpu_map[2].base);
