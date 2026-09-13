@@ -290,11 +290,11 @@ The Game app is a **library**. Brick stays the built-in title. Other titles are 
 
 Lock:
 
-- **Library:** opening Game lists titles. Row 0 is always **Brick**. Then every `/user/game/*.ch8` and `*.c8` (skip `.sav`). Tap starts that core. Back while playing pauses; Back while paused or “Games” returns to the library; Back in the library pops to the launcher. Audio stays running.
+- **Library:** opening Game lists titles. Row 0 is always **Brick**. Then bundled CHIP-8 carts (Demo, Snek, Super Pong, Br8kout), then every `/user/game/*.ch8` and `*.c8` (skip `.sav`). Tap starts that core. Back while playing pauses; Back while paused or “Games” returns to the library; Back in the library pops to the launcher. Audio stays running.
 - **Load:** `game_module_t.load(rom, n)` is optional. Brick has `load == NULL`. A core copies the ROM into its own RAM; it does not mmap eMMC. Max CHIP-8 ROM **3584** bytes (4 KB machine minus `0x200`). Jail: path must normalize under `/user`.
 - **First core:** **CHIP-8** (`id "chip8"`). Host-test the opcode groups used by the bundled demo (CLS, LD, ADD, JMP, DRW, font). 64×32 display scaled into the playfield via `gfx_fill`; 4×4 COSMAC keypad on the right when width allows (40 px cells), otherwise a lower-band 4×4. Delay timer at 60 Hz. **No SAI / no beep** (do not steal the music pipe).
 - **Files:** `.ch8` / `.c8` probe as `MEDIA_KIND_GAME` and open the Game app with that path (same as `.mp3` → player).
-- **Saves:** Brick keeps `/user/game/brick.sav`. Carts do not share that file. No copyrighted ROM dumps in tree; seed only an original tiny demo (`demo.ch8`) for host-sim / tests.
+- **Saves:** Brick keeps `/user/game/brick.sav`. Carts do not share that file. No copyrighted ROM dumps. Bundled playable carts are CC0 from chip8Archive (`snek`, `superpong`, `br8kout`).
 - **Later cores (not this slice):** Game Boy / NES would be new `game_module_t` files + an extension table. Out until a dedicated sprint. No libretro, no MAME, no ZIP, no extra IRQ, no DMA2D blit.
 - **Out:** ZNP pairing, JPEG HW, `LV_USE_DRAW_DMA2D`.
 

@@ -105,6 +105,7 @@ set(SIM_SRC
     ${CMAKE_SOURCE_DIR}/firmware/src/game/gfx.c
     ${CMAKE_SOURCE_DIR}/firmware/src/game/brick.c
     ${CMAKE_SOURCE_DIR}/firmware/src/game/chip8.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/game/chip8_roms.c
     ${CMAKE_SOURCE_DIR}/firmware/src/game/game_mod.c
     ${CMAKE_SOURCE_DIR}/firmware/src/ui/backend_lvgl/ui_lvgl.c
     ${CMAKE_SOURCE_DIR}/firmware/src/ui/backend_lvgl/lv_port_sim.c

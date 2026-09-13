@@ -39,29 +39,12 @@ static const uint8_t k_font[80] = {
     0xF0u, 0x80u, 0xF0u, 0xF0u, 0x80u, 0xF0u, 0x80u, 0x80u,
 };
 
-/* Original bouncing glyph: draw, wait DT, xor-erase, step, bounce. */
-static const uint8_t k_demo[] = {
-    0x00u, 0xE0u, 0x60u, 0x1Cu, 0x61u, 0x0Cu, 0x62u, 0x01u, 0x63u, 0x01u, 0xA2u, 0x3Cu, 0xD0u,
-    0x15u, 0x64u, 0x03u, 0xF4u, 0x15u, 0xF4u, 0x07u, 0x34u, 0x00u, 0x12u, 0x12u, 0xD0u, 0x15u,
-    0x80u, 0x24u, 0x81u, 0x34u, 0x30u, 0x00u, 0x12u, 0x26u, 0x65u, 0x00u, 0x82u, 0x57u, 0x40u,
-    0x38u, 0x12u, 0x22u, 0x31u, 0x00u, 0x12u, 0x34u, 0x65u, 0x00u, 0x83u, 0x57u, 0x12u, 0x3Au,
-    0x41u, 0x1Bu, 0x12u, 0x2Eu, 0x12u, 0x3Au, 0x12u, 0x0Cu, 0xF8u, 0x88u, 0x88u, 0x88u, 0xF8u,
-};
-
 static const uint8_t k_hex[16] = {0x1u, 0x2u, 0x3u, 0xCu, 0x4u, 0x5u, 0x6u, 0xDu,
                                   0x7u, 0x8u, 0x9u, 0xEu, 0xAu, 0x0u, 0xBu, 0xFu};
 
 static uint16_t rgb565(uint32_t rgb)
 {
     return (uint16_t)(((rgb >> 8) & 0xF800u) | ((rgb >> 5) & 0x07E0u) | ((rgb >> 3) & 0x001Fu));
-}
-
-const uint8_t *chip8_demo_rom(uint32_t *n)
-{
-    if (n != NULL) {
-        *n = (uint32_t)sizeof(k_demo);
-    }
-    return k_demo;
 }
 
 uint8_t chip8_pixel(unsigned x, unsigned y)
@@ -114,7 +97,9 @@ static void chip8_reset(game_t *g, uint16_t w, uint16_t h)
         g->phase = (uint8_t)GAME_PHASE_PLAY;
     }
     if (s_rom_n == 0u) {
-        (void)chip8_load(g, k_demo, (uint32_t)sizeof(k_demo));
+        uint32_t n = 0u;
+        const uint8_t *rom = chip8_demo_rom(&n);
+        (void)chip8_load(g, rom, n);
         if (g != NULL) {
             g->w = w;
             g->h = h;
@@ -361,7 +346,7 @@ static void chip8_tick(game_t *g, uint32_t dt_ms)
         if (s_st > 0u) {
             s_st--;
         }
-        steps = 12u;
+        steps = 20u;
         for (i = 0u; i < steps; i++) {
             op_step();
         }

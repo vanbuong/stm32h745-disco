@@ -277,7 +277,15 @@ static void reload_titles(void)
 
     g_tn = 0u;
     add_title("Brick", "", "brick", 1u);
-    add_title("CHIP-8 Demo", "", "chip8", 1u);
+    {
+        unsigned i;
+        for (i = 0u; i < chip8_cart_count(); i++) {
+            const chip8_cart_t *c = chip8_cart_at(i);
+            if (c != NULL && c->name != NULL && c->id != NULL) {
+                add_title(c->name, c->id, "chip8", 1u);
+            }
+        }
+    }
     if (vfs_mounted() == 0) {
         return;
     }
@@ -530,10 +538,14 @@ void game_pick(unsigned index)
         return;
     }
     if (t->builtin != 0u && strcmp(t->core, "chip8") == 0) {
+        const chip8_cart_t *c = chip8_cart_by_id(t->path);
         uint32_t n = 0u;
-        const uint8_t *rom = chip8_demo_rom(&n);
+        const uint8_t *rom = (c != NULL) ? c->bytes : chip8_demo_rom(&n);
+        if (c != NULL) {
+            n = c->n;
+        }
         start_core("chip8", rom, n);
-        strncpy(g_title, "CHIP-8 Demo", sizeof(g_title) - 1u);
+        strncpy(g_title, (c != NULL && c->name != NULL) ? c->name : "CHIP-8", sizeof(g_title) - 1u);
         return;
     }
     (void)game_load_path(t->path);

@@ -55,6 +55,7 @@ set(HOST_SRC
     ${CMAKE_SOURCE_DIR}/firmware/src/game/gfx.c
     ${CMAKE_SOURCE_DIR}/firmware/src/game/brick.c
     ${CMAKE_SOURCE_DIR}/firmware/src/game/chip8.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/game/chip8_roms.c
     ${CMAKE_SOURCE_DIR}/firmware/src/game/game_mod.c
     ${CMAKE_SOURCE_DIR}/firmware/src/osal/posix/osal.c
     ${CMAKE_SOURCE_DIR}/tests/host/test_main.c

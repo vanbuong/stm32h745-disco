@@ -375,6 +375,30 @@ static void test_library_and_chip8(void)
     game_pick(1u);
     TEST_ASSERT_EQUAL_STRING("chip8", game_module()->id);
     TEST_ASSERT_EQUAL_UINT8(1u, chip8_pixel(28u, 12u));
+    TEST_ASSERT_TRUE(chip8_cart_count() >= 4u);
+    TEST_ASSERT_NOT_NULL(chip8_cart_at(0u));
+    TEST_ASSERT_NULL(chip8_cart_at(99u));
+    TEST_ASSERT_NOT_NULL(chip8_cart_by_id(NULL));
+    TEST_ASSERT_NULL(chip8_cart_by_id("nope"));
+    TEST_ASSERT_NOT_NULL(chip8_cart_by_id("snek"));
+    TEST_ASSERT_NOT_NULL(chip8_cart_by_id("superpong"));
+    TEST_ASSERT_NOT_NULL(chip8_cart_by_id("br8kout"));
+    TEST_ASSERT_EQUAL_STRING("Snek", chip8_cart_by_id("snek")->name);
+    {
+        int snek = 0;
+        for (i = 0u; i < game_title_count(); i++) {
+            const game_title_t *t = game_title_at(i);
+            if (t != NULL && t->builtin != 0u && strcmp(t->path, "snek") == 0) {
+                snek = 1;
+                game_pick(i);
+            }
+        }
+        TEST_ASSERT_EQUAL_INT(1, snek);
+        TEST_ASSERT_EQUAL_STRING("Snek", game_title());
+        TEST_ASSERT_EQUAL_STRING("chip8", game_module()->id);
+        game_step(16u);
+        TEST_ASSERT_EQUAL_UINT8(1u, chip8_pixel(33u, 16u));
+    }
     game_to_library();
     TEST_ASSERT_EQUAL_UINT8(1u, game_in_library());
     game_close();

@@ -56,7 +56,18 @@ const game_module_t *game_chip8_module(void);
 const game_module_t *game_module_by_id(const char *id);
 
 #define CHIP8_ROM_MAX 3584u
+
+typedef struct {
+    const char *id;
+    const char *name;
+    const uint8_t *bytes;
+    uint32_t n;
+} chip8_cart_t;
+
 const uint8_t *chip8_demo_rom(uint32_t *n);
+unsigned chip8_cart_count(void);
+const chip8_cart_t *chip8_cart_at(unsigned index);
+const chip8_cart_t *chip8_cart_by_id(const char *id);
 uint8_t chip8_pixel(unsigned x, unsigned y);
 
 game_phase_t game_get_phase(const game_t *g);

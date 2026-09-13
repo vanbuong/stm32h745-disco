@@ -139,6 +139,7 @@ function(stm32_add_firmware CORE_ID)
             ${H745_ROOT}/firmware/src/game/gfx.c
             ${H745_ROOT}/firmware/src/game/brick.c
             ${H745_ROOT}/firmware/src/game/chip8.c
+            ${H745_ROOT}/firmware/src/game/chip8_roms.c
             ${H745_ROOT}/firmware/src/game/game_mod.c
             ${H745_ROOT}/firmware/src/ui/backend_lvgl/lv_port.c
             ${H745_ROOT}/firmware/src/ui/backend_lvgl/ui_lvgl.c
