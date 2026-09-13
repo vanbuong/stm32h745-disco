@@ -9,6 +9,7 @@
 #define RULE_REC 51u
 #define RULE_STORE_MAX 4u
 
+/* NOLINTNEXTLINE(clang-analyzer-optin.performance.Padding) */
 typedef struct {
     uint8_t used;
     uint8_t ieee[8];

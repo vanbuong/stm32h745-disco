@@ -28,7 +28,7 @@ static int16_t q8_px(int32_t v)
 
 static int32_t px_q8(int16_t v)
 {
-    return ((int32_t)v) << Q;
+    return (int32_t)v * QONE;
 }
 
 static int clampi(int v, int lo, int hi)

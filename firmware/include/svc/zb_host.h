@@ -38,6 +38,7 @@ typedef struct {
     char znp_ver[16];
 } zb_net_info_t;
 
+/* NOLINTNEXTLINE(clang-analyzer-optin.performance.Padding) */
 typedef struct {
     uint8_t used;
     uint8_t ieee[8];

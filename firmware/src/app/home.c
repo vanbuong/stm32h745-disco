@@ -41,13 +41,13 @@ static void copy_str(char *dst, size_t n, const char *s)
 
 static void put_u16(char *out, size_t n, uint16_t v, size_t *o)
 {
-    char tmp[6];
+    char tmp[7];
     int i = 6;
 
     if (out == NULL || o == NULL || n == 0u) {
         return;
     }
-    tmp[5] = '\0';
+    tmp[6] = '\0';
     if (v == 0u) {
         tmp[--i] = '0';
     }
