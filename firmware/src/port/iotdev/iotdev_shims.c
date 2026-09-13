@@ -48,12 +48,12 @@ int iotdev_config_save(void)
     return 1;
 }
 
-void iotdev_gpio_set_coprocessor_reset_pin(bool level)
+int iotdev_gpio_set_coprocessor_reset_pin(bool level)
 {
-    (void)uart_set_gpio(UART_ID_ZNP, UART_PIN_RESET, level ? 1 : 0);
+    return (uart_set_gpio(UART_ID_ZNP, UART_PIN_RESET, level ? 1 : 0) == ERR_OK) ? 0 : -1;
 }
 
-void iotdev_gpio_set_coprocessor_boot_pin(bool level)
+int iotdev_gpio_set_coprocessor_boot_pin(bool level)
 {
-    (void)uart_set_gpio(UART_ID_ZNP, UART_PIN_BOOT, level ? 1 : 0);
+    return (uart_set_gpio(UART_ID_ZNP, UART_PIN_BOOT, level ? 1 : 0) == ERR_OK) ? 0 : -1;
 }

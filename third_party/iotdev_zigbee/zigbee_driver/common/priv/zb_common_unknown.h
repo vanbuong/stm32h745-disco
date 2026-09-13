@@ -5,6 +5,7 @@
 #include "zb_port_fs.h"
 #include "zb_osal.h"
 #endif
+#include "iotdev_utils/iotdev_datetime/iotdev_datetime.h"
 
 #define ZB_LOGS(TAG, fmt, ...)                  do { } while (0)
 #define ZB_LOGS_BUFFER_HEX(TAG, data, len)      do { } while (0)
