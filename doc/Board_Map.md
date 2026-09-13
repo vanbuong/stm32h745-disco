@@ -172,8 +172,8 @@ Port masks in `sdram.c`: PD{0,1,8,9,10,14,15}, PE{0,1,7–15}, PF{0–5,11–15}
 | --- | --- | --- | --- |
 | USART2_TX | PD5 AF7 | STMOD#2 | 921600 8N1, polled. Not Arduino PB6. |
 | USART2_RX | PD6 AF7 | STMOD#3 | Pull-up |
-| RESET | PH10 GPIO | STMOD#12 | Active low. `uart_open` holds BOOT low, pulses RESET, waits 250 ms, drains `SYS_RESET_IND` |
-| BOOT | PA4 GPIO | STMOD#13 | High = ROM serial bootloader. Held low so ZNP runs the app |
+| RESET | PH10 GPIO | STMOD#12 | Active low. `uart_open` holds BOOT high, pulses RESET, waits 250 ms, drains `SYS_RESET_IND` |
+| BOOT | PA4 GPIO | STMOD#13 | High = normal ZNP boot. Low during reset enters the serial bootloader |
 
 No USART2 NVIC. `uart_set_gpio` can retake RESET/BOOT.
 

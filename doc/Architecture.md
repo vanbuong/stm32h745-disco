@@ -288,7 +288,7 @@ bool input_poll(input_event_t *out);
 
 LVGL `flush_cb` and `indev_read_cb` are adapters over `disp_flush` / `input_poll`. Zephyr `display_write` / `input` subsystems replace the BSP, not the apps.
 
-UART (ZNP): `uart_open` / `uart_write` / `uart_read` / `uart_set_gpio` (RESET / BOOT). Default ZNP link is **USART2** on CN2 STMod+ (**PD5 TX / PD6 RX**, STMOD#2/#3), **921600** 8N1, polled. RESET is **PH10** (STMOD#12, active low). Bootloader enable is **PA4** (STMOD#13, high = SBL). `uart_open` holds BOOT low, pulses RESET, then `zb_host` sends SYS_PING. **USART3 is the console** and must not be used for ZNP.
+UART (ZNP): `uart_open` / `uart_write` / `uart_read` / `uart_set_gpio` (RESET / BOOT). Default ZNP link is **USART2** on CN2 STMod+ (**PD5 TX / PD6 RX**, STMOD#2/#3), **921600** 8N1, polled. RESET is **PH10** (STMOD#12, active low). BOOT is **PA4** (STMOD#13): high = ZNP app, low during reset = serial bootloader. `uart_open` holds BOOT high, pulses RESET, then `zb_host` sends SYS_PING. **USART3 is the console** and must not be used for ZNP.
 
 ### 7.3 VFS
 

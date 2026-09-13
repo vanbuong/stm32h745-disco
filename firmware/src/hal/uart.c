@@ -6,8 +6,8 @@
 
 /*
  * TI ZNP on CN2 STMod+: USART2 PD5/PD6 (STMOD#2 TX / #3 RX), 921600 8N1.
- * PH10 = RESET (STMOD#12, active low). PA4 = bootloader enable (STMOD#13,
- * high = ROM SBL). Polled only; vector table stays the 16 exceptions.
+ * PH10 = RESET (STMOD#12, active low). PA4 = BOOT (STMOD#13): high = ZNP
+ * app, low during reset = SBL. Polled only; 16-exception vector table.
  */
 #define ZNP_USART USART2
 #define ZNP_RESET_PORT GPIOH
@@ -49,8 +49,8 @@ static void drain_rx(uint32_t ms)
 
 static void znp_reset_app(void)
 {
-    /* BOOT low during reset runs the ZNP image, not the serial bootloader. */
-    HAL_GPIO_WritePin(ZNP_BOOT_PORT, ZNP_BOOT_PIN, GPIO_PIN_RESET);
+    /* BOOT high during reset runs the ZNP image; low enters the SBL. */
+    HAL_GPIO_WritePin(ZNP_BOOT_PORT, ZNP_BOOT_PIN, GPIO_PIN_SET);
     HAL_GPIO_WritePin(ZNP_RESET_PORT, ZNP_RESET_PIN, GPIO_PIN_RESET);
     HAL_Delay(10u);
     HAL_GPIO_WritePin(ZNP_RESET_PORT, ZNP_RESET_PIN, GPIO_PIN_SET);
@@ -75,7 +75,7 @@ err_t uart_open(uart_id_t id, const uart_cfg_t *cfg)
     __HAL_RCC_GPIOH_CLK_ENABLE();
     LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_USART2);
 
-    gpio_out(ZNP_BOOT_PORT, ZNP_BOOT_PIN, GPIO_PIN_RESET);
+    gpio_out(ZNP_BOOT_PORT, ZNP_BOOT_PIN, GPIO_PIN_SET);
     gpio_out(ZNP_RESET_PORT, ZNP_RESET_PIN, GPIO_PIN_RESET);
 
     cube_gpio_af(GPIOD, GPIO_PIN_5, GPIO_AF7_USART2, GPIO_NOPULL);
