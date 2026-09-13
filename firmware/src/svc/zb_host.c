@@ -1,6 +1,7 @@
 #include "svc/zb_host.h"
 
 #include "hal/uart.h"
+#include "hal/wdog.h"
 #include "svc/vfs.h"
 #include "svc/znp_mt.h"
 
@@ -9,6 +10,8 @@
 #define MT_SYS_SREQ 0x21u
 #define MT_SYS_SRSP 0x61u
 #define MT_SYS_PING 0x01u
+#define ZNP_PING_WAIT_MS 200u
+#define ZNP_PING_TRIES (UART_ZNP_RESET_MS / ZNP_PING_WAIT_MS)
 #define DEV_REC 54u
 #define DEV_HDR 6u
 #define NET_LEN 18u
@@ -369,6 +372,7 @@ static void try_sys_ping(void)
     uint8_t plen = 0u;
     size_t n = 0u;
     size_t got = 0u;
+    uint32_t attempt;
 
     memset(&cfg, 0, sizeof(cfg));
     cfg.baud = UART_ZNP_BAUD;
@@ -385,22 +389,23 @@ static void try_sys_ping(void)
         g_net.mock = 1u;
         return;
     }
-    if (uart_write(UART_ID_ZNP, tx, n) != ERR_OK) {
-        g_net.radio_ok = 0u;
-        g_net.mock = 1u;
-        return;
+    for (attempt = 0u; attempt < ZNP_PING_TRIES; attempt++) {
+        wdog_kick();
+        if (uart_write(UART_ID_ZNP, tx, n) != ERR_OK) {
+            continue;
+        }
+        if (uart_read(UART_ID_ZNP, rx, sizeof(rx), &got, ZNP_PING_WAIT_MS) == ERR_OK &&
+            znp_mt_decode(rx, got, &cmd0, &cmd1, pl, (uint8_t)sizeof(pl), &plen) == ERR_OK &&
+            cmd0 == MT_SYS_SRSP && cmd1 == MT_SYS_PING) {
+            g_net.radio_ok = 1u;
+            g_net.mock = 0u;
+            copy_str(g_net.znp_ver, sizeof(g_net.znp_ver), "ZNP");
+            return;
+        }
     }
-    if (uart_read(UART_ID_ZNP, rx, sizeof(rx), &got, 200u) != ERR_OK ||
-        znp_mt_decode(rx, got, &cmd0, &cmd1, pl, (uint8_t)sizeof(pl), &plen) != ERR_OK ||
-        cmd0 != MT_SYS_SRSP || cmd1 != MT_SYS_PING) {
-        g_net.radio_ok = 0u;
-        g_net.mock = 1u;
-        copy_str(g_net.znp_ver, sizeof(g_net.znp_ver), "down");
-        return;
-    }
-    g_net.radio_ok = 1u;
-    g_net.mock = 0u;
-    copy_str(g_net.znp_ver, sizeof(g_net.znp_ver), "ZNP");
+    g_net.radio_ok = 0u;
+    g_net.mock = 1u;
+    copy_str(g_net.znp_ver, sizeof(g_net.znp_ver), "down");
 }
 
 void zb_host_reset(void)

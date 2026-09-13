@@ -64,6 +64,7 @@ static void test_sys_ping_stub(void)
     cfg.data_bits = 8u;
     cfg.stop_bits = 1u;
     TEST_ASSERT_EQUAL_UINT32(921600u, UART_ZNP_BAUD);
+    TEST_ASSERT_EQUAL_UINT32(6000u, UART_ZNP_RESET_MS);
     TEST_ASSERT_EQUAL_INT(ERR_OK, uart_open(UART_ID_ZNP, &cfg));
     TEST_ASSERT_EQUAL_INT(ERR_UNSUPPORTED, uart_open(UART_ID_CONSOLE, &cfg));
     TEST_ASSERT_EQUAL_INT(ERR_OK, uart_set_gpio(UART_ID_ZNP, UART_PIN_BOOT, 1));

@@ -54,7 +54,7 @@ static void znp_reset_app(void)
     HAL_GPIO_WritePin(ZNP_RESET_PORT, ZNP_RESET_PIN, GPIO_PIN_RESET);
     HAL_Delay(10u);
     HAL_GPIO_WritePin(ZNP_RESET_PORT, ZNP_RESET_PIN, GPIO_PIN_SET);
-    HAL_Delay(250u);
+    /* App start can take up to UART_ZNP_RESET_MS; zb_host retries SYS_PING. */
     drain_rx(50u);
 }
 

@@ -25,7 +25,7 @@ ETH DMA descriptors, Rx/Tx bounce, and the LwIP heap live in **SRAM3** (`0x30040
 
 ## TI ZNP (CN2 STMod+)
 
-USART2 on **PD5 TX / PD6 RX** (STMOD#2 / #3), **921600** 8N1, polled. RESET is **PH10** (STMOD#12, active low). BOOT is **PA4** (STMOD#13): high = ZNP app, low during reset = serial bootloader. `uart_open` holds BOOT high, pulses RESET, waits 250 ms, then `zb_host` SYS_PINGs. No USART2 IRQ.
+USART2 on **PD5 TX / PD6 RX** (STMOD#2 / #3), **921600** 8N1, polled. RESET is **PH10** (STMOD#12, active low). BOOT is **PA4** (STMOD#13): high = ZNP app, low during reset = serial bootloader. `uart_open` holds BOOT high and pulses RESET. `zb_host` retries SYS_PING for up to **6 s** (IWDG kicked). No USART2 IRQ.
 
 ## RTC
 
