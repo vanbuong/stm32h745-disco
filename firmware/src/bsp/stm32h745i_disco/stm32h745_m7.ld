@@ -68,6 +68,13 @@ SECTIONS
         . = ALIGN(8);
     } > AXIRAM
 
+    /* After newlib/Zigbee bump at 0x24028000 (128 KB). */
+    .freertos_heap 0x24048000 (NOLOAD) : ALIGN(8)
+    {
+        KEEP(*(.freertos_heap))
+        . = ALIGN(8);
+    } > AXIRAM
+
     .eth_dma (NOLOAD) : ALIGN(32)
     {
         KEEP(*(.eth_dma))

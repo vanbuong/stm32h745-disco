@@ -2,6 +2,7 @@
 #include "hal/disp.h"
 #include "hal/input.h"
 #include "hal/wdog.h"
+#include "osal/osal.h"
 #include "svc/audio.h"
 #include "svc/cfg.h"
 #include "svc/health.h"
@@ -13,10 +14,10 @@
 #include "svc/vfs.h"
 #include "ui/backend.h"
 #include "ui/shell.h"
-#include "zb_port.h"
-#include "znp/zb_znp.h"
 
+#include "FreeRTOS.h"
 #include "cube.h"
+#include "task.h"
 
 #include <string.h>
 
@@ -27,16 +28,36 @@
 
 static uint8_t g_ui_ok;
 
-static void m7_zb_yield(void)
+static void ui_task(void *arg)
 {
-    uint32_t now = board_millis();
+    uint32_t last_ms = board_millis();
+    uint32_t blink_at = last_ms + 250u;
+    uint8_t led_on = 0u;
 
-    zb_plat_serial_poll();
-    board_ipc_poll(now);
-    shell_status_set_m4(board_ipc_peer_alive(now));
-    wdog_kick();
-    if (g_ui_ok != 0u && zb_znp_awaiting_reply() == 0) {
-        ui_backend_handler();
+    (void)arg;
+    for (;;) {
+        uint32_t now = board_millis();
+        uint32_t dt = now - last_ms;
+
+        last_ms = now;
+        board_ipc_poll(now);
+        shell_status_set_m4(board_ipc_peer_alive(now));
+        shell_tick(dt);
+        if (g_ui_ok != 0u) {
+            ui_backend_handler();
+        }
+        wdog_kick();
+        if ((int32_t)(now - blink_at) >= 0) {
+            blink_at = now + 250u;
+            if (led_on != 0u) {
+                LL_GPIO_ResetOutputPin(GPIOI, LL_GPIO_PIN_13);
+                led_on = 0u;
+            } else {
+                LL_GPIO_SetOutputPin(GPIOI, LL_GPIO_PIN_13);
+                led_on = 1u;
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(5u));
     }
 }
 
@@ -288,12 +309,11 @@ int main(void)
     uint8_t id[3] = {0, 0, 0};
     uint32_t word = 0;
     uint32_t fail_off = 0;
-    uint32_t blink_at = 0;
-    uint32_t last_ms;
-    uint8_t led_on = 0;
     uint8_t vfs_ok;
     err_t e;
     err_t ui_e;
+    osal_thread_t *ui = NULL;
+    osal_thread_attr_t attr;
 
     board_cm4_wait_stop();
     HAL_Init();
@@ -395,7 +415,6 @@ int main(void)
         ui_backend_handler();
         ui_fps_probe();
     }
-    zb_os_set_yield_pump(m7_zb_yield);
 
     vfs_ok = vfs_bringup();
     shell_status_set_storage(vfs_ok);
@@ -423,29 +442,18 @@ int main(void)
     e = net_service_init();
     log_err("net", e);
 
-    last_ms = HAL_GetTick();
-    blink_at = last_ms + 250u;
+    attr.name = "ui";
+    attr.stack_bytes = 4096u;
+    attr.priority = 3u;
+    e = osal_thread_create(&ui, &attr, ui_task, NULL);
+    log_err("rtos_ui", e);
+    if (e != ERR_OK) {
+        for (;;) {
+        }
+    }
+    board_console_puts("rtos on\r\n");
+    vTaskStartScheduler();
+    board_console_puts("rtos exit\r\n");
     for (;;) {
-        uint32_t now = HAL_GetTick();
-        uint32_t dt = now - last_ms;
-
-        last_ms = now;
-        board_ipc_poll(now);
-        shell_status_set_m4(board_ipc_peer_alive(now));
-        shell_tick(dt);
-        if (ui_e == ERR_OK) {
-            ui_backend_handler();
-        }
-
-        if ((int32_t)(now - blink_at) >= 0) {
-            blink_at = now + 250u;
-            if (led_on != 0u) {
-                LL_GPIO_ResetOutputPin(GPIOI, LL_GPIO_PIN_13);
-                led_on = 0u;
-            } else {
-                LL_GPIO_SetOutputPin(GPIOI, LL_GPIO_PIN_13);
-                led_on = 1u;
-            }
-        }
     }
 }

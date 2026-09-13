@@ -76,7 +76,7 @@ set(IOTDEV_ZB_VENDOR_SRC
 )
 
 set(IOTDEV_ZB_PORT_SRC
-    ${IOTDEV_ZB_PORT}/zb_osal_superloop.c
+    ${IOTDEV_ZB_PORT}/zb_osal_freertos.c
     ${IOTDEV_ZB_PORT}/zb_plat_serial_h745.c
     ${IOTDEV_ZB_PORT}/zb_port_fs.c
     ${IOTDEV_ZB_PORT}/zb_port_time.c

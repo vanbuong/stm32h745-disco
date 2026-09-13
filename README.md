@@ -2,7 +2,7 @@
 
 HMI firmware for the **STM32H745I-DISCO**: dual-core shell with file explorer, image and text viewers, audio, game, and **Zigbee home automation** (TI ZNP host) on the 4.3" 480×272 panel.
 
-Both cores run a **superloop** (no FreeRTOS). UI is **LVGL** (`LV_OS_NONE`); LwIP is `NO_SYS`. The board BSP is **ours** (`firmware/src/bsp`); ST HAL/LL and later chip drivers are git submodules. The full [`STM32CubeH7`](https://github.com/STMicroelectronics/STM32CubeH7) package is **not** in tree — see [third_party/README.md](third_party/README.md). Apps still never include those headers.
+M7 runs **FreeRTOS** (UI, Zigbee ZNP, Zigbee core). M4 stays a **superloop** for SAI. UI is **LVGL** (`LV_OS_NONE`, one UI task); LwIP is `NO_SYS` (polled from the UI task). The board BSP is **ours** (`firmware/src/bsp`); ST HAL/LL and later chip drivers are git submodules. The full [`STM32CubeH7`](https://github.com/STMicroelectronics/STM32CubeH7) package is **not** in tree — see [third_party/README.md](third_party/README.md). Apps still never include those headers.
 
 ## Documentation
 

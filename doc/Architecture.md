@@ -44,7 +44,7 @@ Clock values, DMA engines, and the pin table live in [`Board_Map.md`](Board_Map.
 ├──────────────┴──────────────────────────────────────────────┤
 │  OSAL   IPC protocol   disp/input HAL   media decode HAL    │
 ├─────────────────────────────────────────────────────────────┤
-│  Ports: superloop + STM32Cube  →  later Zephyr + device tree │
+│  Ports: FreeRTOS (M7) + superloop (M4) + STM32Cube           │
 │  BSP: clocks, MPU, cache, LTDC, SDMMC, SAI, ETH, QSPI       │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -168,7 +168,7 @@ third_party/
   stm32-lan8742/             ST component (Sprint 9)
   lwip/                      upstream LwIP 2.2.1 (Sprint 9)
   cmsis-svd/                 STM32H745_CM7/CM4 SVD (debug register view)
-  lvgl/  fatfs/  lwip/  helix/  tinyusb/   upstream, per sprint (no FreeRTOS-Kernel)
+  freertos-kernel/ lvgl/ fatfs/ lwip/ helix/ tinyusb/   upstream, per sprint
 .settings/                   STM32CubeIDE for VS Code device store (dual-core)
 CM7/                         Cube CMake context for Cortex-M7 (wrapper)
 CM4/                         Cube CMake context for Cortex-M4 (wrapper)
@@ -271,7 +271,7 @@ Keep these headers OS- and toolkit-free.
 
 Threads, mutexes, recursive mutexes, semaphores, queues, timers, sleep, millis, heap. Timeouts in milliseconds. Fatal errors go to `osal_panic()` (log + reset policy).
 
-MCU firmware is a **superloop** on each core. `osal_*` on the board is unused; host tests use `osal/posix`. A later Zephyr port would implement `osal_*` there. Do not add FreeRTOS-Kernel unless a sprint explicitly needs threads.
+M7 runs **FreeRTOS-Kernel** (`firmware/src/osal/freertos`, `zb_osal_freertos.c`). M4 stays a superloop for SAI. Host tests use `osal/posix`. Apps and shell never include `FreeRTOS.h`. A later Zephyr port would implement `osal_*` there.
 
 ### 7.2 Display and input
 
@@ -340,7 +340,7 @@ The STM32 is the **Zigbee host**. A TI **ZNP** (Z-Stack Network Processor, e.g. 
   Home UI  ──►  home_*  ──►  zb_host (device table, interview, bind)
                      │              │
                      │              ▼
-                     │         iotdev_zigbee (M7 superloop poll)
+                     │         iotdev_zigbee (M7 FreeRTOS ZNP + core tasks)
                      │              │
                      │              ▼
                      │         uart_*  → TI ZNP
@@ -348,7 +348,7 @@ The STM32 is the **Zigbee host**. A TI **ZNP** (Z-Stack Network Processor, e.g. 
                  auto_*  (rules on M7, host-testable)
 ```
 
-`third_party/iotdev_zigbee` is the ESP32 coordinator driver. M7 does **not** define `ZB_PLATFORM_IOTDEV` and does not compile FreeRTOS, `zb_osal_freertos.c`, or `source/iotdev_zigbee.c`. A superloop OSAL (`zb_osal_superloop.c`) pumps `zb_znp_task` / `zb_core_task` from `zb_host_poll`. Local shims replace `iotdev_config` / `iotdev_uart` / `iotdev_gpio` / nanopb / filesystem with `cfg_*`, `uart_*`, and jailed `vfs_*` under `/user/home/zb`. Host tests keep the mock `zb_host` path and do not start the driver.
+`third_party/iotdev_zigbee` is the ESP32 coordinator driver. M7 does **not** define `ZB_PLATFORM_IOTDEV` and does not compile the ESP-IDF `zb_osal_freertos.c` or `source/iotdev_zigbee.c`. The vanilla FreeRTOS OSAL (`firmware/src/port/iotdev/zb_osal_freertos.c`) runs `zb_znp_task` and `zb_core_task` on their own tasks. `zb_host_poll` only updates permit/persist. Local shims replace `iotdev_config` / `iotdev_uart` / `iotdev_gpio` / nanopb / filesystem with `cfg_*`, `uart_*`, and jailed `vfs_*` under `/user/home/zb`. Host tests keep the mock `zb_host` path and do not start the driver.
 
 `src/app/home` never includes MT command IDs, UART HAL, or MQTT.
 
@@ -524,7 +524,7 @@ Inventory (clocks, DMA engines, pin table): [`Board_Map.md`](Board_Map.md). Asse
 
 If LVGL is already the backend, the remaining work is a **port swap**, not an app rewrite:
 
-1. Add `osal/zephyr` if threads are needed; do not add FreeRTOS.
+1. Add `osal/zephyr` and keep apps off the RTOS headers. FreeRTOS is the M7 port now.
 2. Replace `port/cube` + Cube clock init with Zephyr DTS (`stm32h745i_disco`).
 3. Map `disp_*` to Zephyr display, `input_*` to FT5336 input, `vfs_*` to a **FAT** volume on eMMC (same layout). Do **not** switch `/user` to littlefs.
 4. Map `ipc` transport to `ipm` / OpenAMP; keep `ipc_msg.h`.
@@ -563,17 +563,15 @@ M7 does not wait forever for ZNP. If SYS_PING fails, Home shows “Radio not rea
 
 ## 14. Thread model (M7)
 
-| Thread | Prio (high=low number) | Period | Notes |
+| Thread | Prio (FreeRTOS, high=more urgent) | Period | Notes |
 | --- | --- | --- | --- |
-| `t_ui` | 4 | LVGL tick ~5 ms | No VFS, no UART, no JPEG |
-| `t_input` | 3 | event | optional; may merge into UI |
-| `t_fs` | 5 | work queue | VFS, decode, listing |
-| `t_zb` | 4 | UART worker | MT parse, interview |
-| `t_auto` | 6 | 100 ms | rule eval, delays |
-| `t_ipc` | 3 | notify | drain SRAM4 |
-| `t_idle` | idle | — | WFI |
+| `ui` | 3 | 5 ms | LVGL, `shell_tick` (VFS/net/home poll), IPC, IWDG |
+| `zb` | 4 | 10 ms | `zb_core_task` |
+| `znp` | 5 | UART/SREQ | `zb_plat_serial_poll` + `zb_znp_task` |
+| timer | 2 | — | FreeRTOS timer daemon |
+| idle | 0 | — | WFI |
 
-M4: `t_audio` (highest), `t_ipc`, optional `t_net` or `t_znp_uart`.
+M4 stays a superloop: SAI DMA + IPC + IWDG.
 
 ## 15. OSAL API (minimum)
 
@@ -736,7 +734,7 @@ Shared `err.h`: `OK=0`, `BUSY`, `TIMEOUT`, `NOMEM`, `NOENT`, `INVAL`, `IO`, `NOS
 ```mermaid
 flowchart LR
   A[src/app + shell] -->|unchanged| Z[Zephyr product]
-  B[superloop] -->|optional osal| C[osal/zephyr]
+  B[osal/freertos] -->|port swap| C[osal/zephyr]
   D[port/cube] -->|rewrite| E[DTS + west]
   F[disp input uart vfs] -->|thin wrappers| E
   G[znp_mt zb_host auto game] -->|unchanged| Z
