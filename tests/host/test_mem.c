@@ -1,5 +1,6 @@
 #include "unity.h"
 
+#include "bsp/board.h"
 #include "bsp/mpu_map.h"
 #include "svc/memtest.h"
 
@@ -28,12 +29,14 @@ static void test_mpu_map(void)
     TEST_ASSERT_EQUAL_UINT32(32u, mpu_size_bytes(4));
     TEST_ASSERT_EQUAL_UINT32(65536u, mpu_size_bytes(15));
     TEST_ASSERT_EQUAL_UINT32(8u * 1024u * 1024u, mpu_size_bytes(22));
+    TEST_ASSERT_EQUAL_UINT32(16u * 1024u * 1024u, mpu_size_bytes(MPU_ENC_16M));
     TEST_ASSERT_EQUAL_UINT32(64u * 1024u * 1024u, mpu_size_bytes(25));
     TEST_ASSERT_EQUAL_UINT32(0u, mpu_size_bytes(31));
     TEST_ASSERT_EQUAL_UINT32(0u, mpu_size_bytes(200));
     TEST_ASSERT_EQUAL_INT(1, mpu_base_aligned(0x38000000u, MPU_ENC_64K));
     TEST_ASSERT_EQUAL_INT(0, mpu_base_aligned(0x38000001u, MPU_ENC_64K));
     TEST_ASSERT_EQUAL_INT(1, mpu_base_aligned(0xD0000000u, MPU_ENC_8M));
+    TEST_ASSERT_EQUAL_INT(1, mpu_base_aligned(0xD0000000u, MPU_ENC_16M));
     TEST_ASSERT_EQUAL_INT(0, mpu_base_aligned(0u, 31));
 
     TEST_ASSERT_GREATER_OR_EQUAL_UINT(4u, g_mpu_map_n);
@@ -45,6 +48,9 @@ static void test_mpu_map(void)
     TEST_ASSERT_EQUAL_UINT8(MPU_ATTR_NORMAL_NC, g_mpu_map[0].attr);
     TEST_ASSERT_EQUAL_UINT8(0, g_mpu_map[0].exec);
     TEST_ASSERT_EQUAL_HEX32(0xD0000000u, g_mpu_map[1].base);
+    TEST_ASSERT_EQUAL_UINT8(MPU_ENC_16M, g_mpu_map[1].size_enc);
+    TEST_ASSERT_EQUAL_UINT32(BOARD_SDRAM_BYTES, mpu_size_bytes(g_mpu_map[1].size_enc));
+    TEST_ASSERT_EQUAL_UINT32(16u * 1024u * 1024u, BOARD_SDRAM_BYTES);
     TEST_ASSERT_EQUAL_UINT8(MPU_ATTR_WT, g_mpu_map[1].attr);
     TEST_ASSERT_EQUAL_UINT8(1, g_mpu_map[1].exec);
     TEST_ASSERT_EQUAL_HEX32(0x90000000u, g_mpu_map[2].base);

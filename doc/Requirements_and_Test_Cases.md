@@ -51,7 +51,7 @@ THEN `health_expired` is false. WHEN kicks stop past `HEALTH_WDOG_MS` THEN expir
 
 | ID | Pri | Requirement | Verify |
 | --- | --- | --- | --- |
-| REQ-MEM-01 | M | Framebuffers shall reside in SDRAM at `0xD0000000` and shall not exceed the mapped window (8 MB of the 16 MB / 128 Mbit part). | INSP, IT |
+| REQ-MEM-01 | M | Framebuffers shall reside in SDRAM at `0xD0000000` and shall not exceed the mapped 16 MB window. | INSP, IT |
 | REQ-MEM-02 | M | SRAM4 at `0x38000000` shall be mapped non-cacheable (or Device) and reserved for IPC. | INSP, UT |
 | REQ-MEM-03 | M | DMA buffers shared with peripherals shall be aligned and either non-cacheable or maintained with `bsp_cache_*`. | INSP, HIL |
 | REQ-MEM-04 | M | QSPI shall be memory-mapped for read-only assets before UI start. | IT |
@@ -60,7 +60,7 @@ THEN `health_expired` is false. WHEN kicks stop past `HEALTH_WDOG_MS` THEN expir
 ### Tests
 
 **TC-MEM-01 (IT) — SDRAM**  
-Walking 1s / 0s over the mapped 8 MB window of the 16 MB (128 Mbit) SDRAM; fail on mismatch.
+Walking 1s / 0s over the mapped 16 MB SDRAM window; fail on mismatch.
 
 **TC-MEM-02 (UT) — IPC region**  
 Linker symbols for SRAM4 rings lie inside `0x38000000`–`0x38010000` and do not overlap.

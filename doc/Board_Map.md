@@ -14,7 +14,7 @@ Board: MB1381, STM32H745XIH6. Analog out is **CN10 3.5 mm headphone**.
 | HSEM 0 / 1 | both | In use | `hsem.c` |
 | SysTick | both | 1 ms tick | `cube_it.c`, `main_m4.c` |
 | USART3 | M7 | Console TX 115200 8N1 | `console.c` |
-| FMC SDRAM bank 2 | M7 | 16 MB chip, 8 MB mapped, `0xD0000000` | `sdram.c` |
+| FMC SDRAM bank 2 | M7 | 16 MB, 12×9×4 16-bit, `0xD0000000` | `sdram.c` |
 | QUADSPI | M7 | Bank 1 mmap smoke; BK2 pins held | `qspi.c` |
 | LTDC layer 0 RGB565 | M7 | Polled VBR reload | `lcd.c` |
 | DMA2D | M7 | Polled fill/copy | `lcd.c` |
@@ -161,7 +161,7 @@ PH2/PH3 stay on QSPI (CRS/COL unused). UM2488 default: SB3/SB4 OFF, R38/R40 ON. 
 
 ### 4.8 FMC SDRAM bank 2 (16-bit, AF12)
 
-128 Mbit (**16 MB**) on the board. 16-bit FMC, 12 row × 8 col × 4 banks → **8 MB** at `0xD0000000`. MPU region and `memtest` walk that window only.
+IS42S32800G (or 16-bit equivalent), **16 MB** at `0xD0000000`. 16-bit FMC, 12 row × **9** col × 4 banks. Cube examples use 8 col (8 MB); that window plus an 8 MB MPU region is why a 16 MB walk hangs. MPU and `memtest` cover the full 16 MB.
 
 Port masks in `sdram.c`: PD{0,1,8,9,10,14,15}, PE{0,1,7–15}, PF{0–5,11–15}, PG{0,1,4,5,8,15}, PH{5,6,7}. CAS 3, SDCLK 100 MHz.
 
@@ -189,7 +189,7 @@ Port masks in `sdram.c`: PD{0,1,8,9,10,14,15}, PE{0,1,7–15}, PF{0–5,11–15}
 
 | Region | Use |
 | --- | --- |
-| SDRAM 16 MB chip / 8 MB mapped | `0xD0000000` |
+| SDRAM 16 MB | `0xD0000000` |
 | SDRAM `+0x000000` / `+0x040000` | LTDC FB0 / FB1 |
 | AXI `0x24010000` 96 KB | LVGL heap |
 | AXI `.dma_buf` | eMMC IDMA bounce |

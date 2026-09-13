@@ -309,6 +309,7 @@ int main(void)
     log_err("sdram", e);
     if (e == ERR_OK) {
         board_console_puts("walk\r\n");
+        log_kv("sdram_bytes", BOARD_SDRAM_BYTES);
         board_cache_d_disable();
         e = memtest_walking((volatile uint32_t *)BOARD_SDRAM_BASE, BOARD_SDRAM_BYTES / 4u,
                             &fail_off);

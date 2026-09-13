@@ -14,6 +14,7 @@ extern "C" {
 #define MPU_ENC_512K 18u
 #define MPU_ENC_2M 20u
 #define MPU_ENC_8M 22u
+#define MPU_ENC_16M 23u
 #define MPU_ENC_64M 25u
 #define MPU_ENC_4G 31u
 

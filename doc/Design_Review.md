@@ -18,7 +18,7 @@ Review of the first plan, requirements, and UI documents. The v2 specs in this f
 | Missing apps | File explorer, image viewer, text viewer, **game**, and **home automation** were not specified (v1 only named a game loop) | First-class applications: Files, Image, Text, Player, **Game**, **Home**, Settings |
 | GUI chrome | Persistent 50 px left dock on a 480×272 panel | Full-width status bar + launcher + in-app top bar. Dock wasted ~10% of an already small canvas and missed finger-target size |
 | Sprint plan | Sprints jumped 1 → 4 → 5 with no exit criteria | Sequential sprints with dependencies and done-when checks |
-| SDRAM size | Mixed 8 MB / 16 MB | Chip is **16 MB (128 Mbit)**. 16-bit FMC maps **8 MB**; do not call the part 8 Mbit. |
+| SDRAM size | Mixed 8 MB / 16 MB | Board is **16 MB**. 16-bit FMC uses 12×**9**×4. Cube 8-col is 8 MB and hangs a 16 MB walk. |
 | ESP32 Wi-Fi | Treated as on-board | Not present on STM32H745I-DISCO. Optional expansion via Arduino / STMod+ |
 | Ethernet vs QSPI | Not mentioned | Default routing multiplexes ETH MII_CRS/COL with QSPI bank 2. Dual-flash + full Ethernet needs a pin/solder-bridge policy |
 | Shared I2C | Not mentioned | I2C4 is shared by FT5336 touch and WM8994 codec. Needs a bus lock in the BSP |
@@ -65,7 +65,7 @@ Start with LVGL, not TouchGFX. Switching OS later is cheaper than rewriting ever
 
 - MCU: STM32H745XIH6, M7 480 MHz + M4 240 MHz, 2 MB flash, 1 MB SRAM.
 - Panel: RK043FN48H, 4.3", 480×272, RGB, FT5336 capacitive multi-touch.
-- SDRAM: 128 Mbit (**16 MB**) at `0xD0000000`. 16-bit FMC maps 8 MB.
+- SDRAM: **16 MB** at `0xD0000000`. 16-bit FMC, 12 row × 9 col × 4 banks.
 - QSPI: dual MT25TL01G, memory-mapped at `0x90000000` (~64 MB window).
 - eMMC: 4 GB on SDMMC1.
 - Audio: WM8994 on SAI + shared I2C4.
