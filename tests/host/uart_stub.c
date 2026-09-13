@@ -90,6 +90,10 @@ err_t uart_read(uart_id_t id, void *data, size_t n, size_t *got, uint32_t timeou
     return ERR_OK;
 }
 
+void uart_rx_pump(void)
+{
+}
+
 err_t uart_set_gpio(uart_id_t id, uint8_t pin_id, int level)
 {
     (void)pin_id;

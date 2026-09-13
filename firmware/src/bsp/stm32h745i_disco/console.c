@@ -1,4 +1,5 @@
 #include "bsp/board.h"
+#include "hal/uart.h"
 
 #include "cube.h"
 
@@ -34,7 +35,9 @@ void board_console_puts(const char *s)
         return;
     }
     while (*s != '\0') {
+        uart_rx_pump();
         while (LL_USART_IsActiveFlag_TXE(USART3) == 0u) {
+            uart_rx_pump();
         }
         LL_USART_TransmitData8(USART3, (uint8_t)*s++);
     }

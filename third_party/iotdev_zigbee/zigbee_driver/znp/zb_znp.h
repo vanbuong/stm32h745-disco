@@ -309,6 +309,7 @@ int zb_znp_set_mode_znp(uint32_t timeout_ms);
 int zb_znp_set_mode_sbl(uint32_t timeout_ms);
 
 void zb_znp_task(void);
+int zb_znp_awaiting_reply(void);
 
 #ifdef __cplusplus
 }

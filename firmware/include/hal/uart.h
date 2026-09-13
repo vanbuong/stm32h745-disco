@@ -28,6 +28,7 @@ err_t uart_open(uart_id_t id, const uart_cfg_t *cfg);
 err_t uart_write(uart_id_t id, const void *data, size_t n);
 err_t uart_read(uart_id_t id, void *data, size_t n, size_t *got, uint32_t timeout_ms);
 err_t uart_set_gpio(uart_id_t id, uint8_t pin_id, int level);
+void uart_rx_pump(void);
 
 #ifdef __cplusplus
 }

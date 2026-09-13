@@ -1069,6 +1069,12 @@ exit:
     }
 }
 
+int
+zb_znp_awaiting_reply(void)
+{
+    return (g_znp_context.znp_waiting || g_znp_context.sbl_waiting) ? 1 : 0;
+}
+
 void
 zb_znp_task(void)
 {

@@ -8,14 +8,23 @@
  * TI ZNP on CN2 STMod+: USART2 PD5/PD6 (STMOD#2 TX / #3 RX), 921600 8N1.
  * PH10 = RESET (STMOD#12, active low). PA4 = BOOT (STMOD#13): high = ZNP
  * app, low during reset = SBL. Polled only; 16-exception vector table.
+ *
+ * At 921600 the HW RDR/FIFO overruns if RX is not drained while USART3
+ * console logs (~3 ms/line) or LVGL runs. Bytes are copied into a software
+ * ring from every UART touch and from board_console_puts().
  */
 #define ZNP_USART USART2
 #define ZNP_RESET_PORT GPIOH
 #define ZNP_RESET_PIN GPIO_PIN_10
 #define ZNP_BOOT_PORT GPIOA
 #define ZNP_BOOT_PIN GPIO_PIN_4
+#define RX_RING 256u
+#define ACK_SPINS 10000u
 
 static uint8_t g_open;
+static uint8_t g_rx[RX_RING];
+static uint16_t g_rx_head;
+static uint16_t g_rx_n;
 
 static void gpio_out(GPIO_TypeDef *port, uint32_t pin, GPIO_PinState level)
 {
@@ -29,21 +38,49 @@ static void gpio_out(GPIO_TypeDef *port, uint32_t pin, GPIO_PinState level)
     HAL_GPIO_WritePin(port, pin, level);
 }
 
-static void drain_rx(uint32_t ms)
+static void rx_put(uint8_t b)
 {
-    uint32_t t0 = HAL_GetTick();
+    if (g_rx_n >= RX_RING) {
+        return;
+    }
+    g_rx[(g_rx_head + g_rx_n) % RX_RING] = b;
+    g_rx_n++;
+}
 
-    while ((HAL_GetTick() - t0) < ms) {
+void uart_rx_pump(void)
+{
+    if (g_open == 0u) {
+        return;
+    }
+    for (;;) {
         if (LL_USART_IsActiveFlag_ORE(ZNP_USART) != 0u) {
+            if (LL_USART_IsActiveFlag_RXNE(ZNP_USART) != 0u) {
+                rx_put(LL_USART_ReceiveData8(ZNP_USART));
+            }
             LL_USART_ClearFlag_ORE(ZNP_USART);
-            (void)LL_USART_ReceiveData8(ZNP_USART);
+            continue;
         }
         if (LL_USART_IsActiveFlag_FE(ZNP_USART) != 0u) {
             LL_USART_ClearFlag_FE(ZNP_USART);
         }
         if (LL_USART_IsActiveFlag_RXNE(ZNP_USART) != 0u) {
-            (void)LL_USART_ReceiveData8(ZNP_USART);
+            rx_put(LL_USART_ReceiveData8(ZNP_USART));
+            continue;
         }
+        break;
+    }
+}
+
+static void drain_rx(uint32_t ms)
+{
+    uint32_t t0 = HAL_GetTick();
+
+    g_rx_head = 0u;
+    g_rx_n = 0u;
+    while ((HAL_GetTick() - t0) < ms) {
+        uart_rx_pump();
+        g_rx_head = 0u;
+        g_rx_n = 0u;
     }
 }
 
@@ -62,6 +99,7 @@ err_t uart_open(uart_id_t id, const uart_cfg_t *cfg)
 {
     uint32_t baud = BOARD_ZNP_UART_BAUD;
     uint32_t pclk1;
+    uint32_t spins;
 
     if (id != UART_ID_ZNP) {
         return ERR_UNSUPPORTED;
@@ -93,10 +131,23 @@ err_t uart_open(uart_id_t id, const uart_cfg_t *cfg)
     LL_USART_SetStopBitsLength(ZNP_USART, LL_USART_STOPBITS_1);
     LL_USART_SetOverSampling(ZNP_USART, LL_USART_OVERSAMPLING_16);
     LL_USART_SetBaudRate(ZNP_USART, pclk1, LL_USART_PRESCALER_DIV1, LL_USART_OVERSAMPLING_16, baud);
+    LL_USART_EnableFIFO(ZNP_USART);
+    LL_USART_SetRXFIFOThreshold(ZNP_USART, LL_USART_FIFOTHRESHOLD_1_8);
+    LL_USART_SetTXFIFOThreshold(ZNP_USART, LL_USART_FIFOTHRESHOLD_1_8);
     LL_USART_Enable(ZNP_USART);
+    spins = 0u;
+    while (LL_USART_IsActiveFlag_TEACK(ZNP_USART) == 0u && spins < ACK_SPINS) {
+        spins++;
+    }
+    spins = 0u;
+    while (LL_USART_IsActiveFlag_REACK(ZNP_USART) == 0u && spins < ACK_SPINS) {
+        spins++;
+    }
 
-    znp_reset_app();
+    g_rx_head = 0u;
+    g_rx_n = 0u;
     g_open = 1u;
+    znp_reset_app();
     return ERR_OK;
 }
 
@@ -108,11 +159,18 @@ err_t uart_write(uart_id_t id, const void *data, size_t n)
     if (id != UART_ID_ZNP || g_open == 0u || (n > 0u && data == NULL)) {
         return ERR_IO;
     }
+    uart_rx_pump();
     for (i = 0u; i < n; i++) {
         while (LL_USART_IsActiveFlag_TXE(ZNP_USART) == 0u) {
+            uart_rx_pump();
         }
         LL_USART_TransmitData8(ZNP_USART, p[i]);
+        uart_rx_pump();
     }
+    while (LL_USART_IsActiveFlag_TC(ZNP_USART) == 0u) {
+        uart_rx_pump();
+    }
+    uart_rx_pump();
     return ERR_OK;
 }
 
@@ -130,15 +188,16 @@ err_t uart_read(uart_id_t id, void *data, size_t n, size_t *got, uint32_t timeou
     }
 
     t0 = HAL_GetTick();
+    uart_rx_pump();
     while (n_got < n) {
-        if (LL_USART_IsActiveFlag_ORE(ZNP_USART) != 0u) {
-            LL_USART_ClearFlag_ORE(ZNP_USART);
-        }
-        if (LL_USART_IsActiveFlag_RXNE(ZNP_USART) != 0u) {
-            p[n_got++] = LL_USART_ReceiveData8(ZNP_USART);
+        uart_rx_pump();
+        if (g_rx_n > 0u) {
+            p[n_got++] = g_rx[g_rx_head];
+            g_rx_head = (uint16_t)((g_rx_head + 1u) % RX_RING);
+            g_rx_n--;
             continue;
         }
-        if ((HAL_GetTick() - t0) >= timeout_ms) {
+        if (timeout_ms == 0u || (HAL_GetTick() - t0) >= timeout_ms) {
             break;
         }
     }

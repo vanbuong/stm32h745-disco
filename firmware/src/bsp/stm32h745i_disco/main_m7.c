@@ -14,6 +14,7 @@
 #include "ui/backend.h"
 #include "ui/shell.h"
 #include "zb_port.h"
+#include "znp/zb_znp.h"
 
 #include "cube.h"
 
@@ -30,10 +31,11 @@ static void m7_zb_yield(void)
 {
     uint32_t now = board_millis();
 
+    zb_plat_serial_poll();
     board_ipc_poll(now);
     shell_status_set_m4(board_ipc_peer_alive(now));
     wdog_kick();
-    if (g_ui_ok != 0u) {
+    if (g_ui_ok != 0u && zb_znp_awaiting_reply() == 0) {
         ui_backend_handler();
     }
 }
