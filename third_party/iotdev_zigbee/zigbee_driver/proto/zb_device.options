@@ -1,0 +1,8 @@
+zb_device_info.manufacturer     max_size:32
+zb_device_info.model    max_size:32
+zb_device_info.date_code        max_size:16
+zb_device_info.product_code     max_size:16
+zb_device_info.serial_number    max_size:32
+zb_device_info.product_label    max_size:32
+zb_device_info.sw_build_id      max_size:32
+
