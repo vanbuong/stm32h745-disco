@@ -23,6 +23,10 @@ QSPI init still muxes BK2 GPIOs (including PG9/PG14) but uses `QSPI_FLASH_ID_1` 
 
 ETH DMA descriptors, Rx/Tx bounce, and the LwIP heap live in **SRAM3** (`0x30040000`, 32 KB, MPU non-cacheable). ETH is brought up on **M7 only**.
 
+## TI ZNP (CN2 STMod+)
+
+USART2 on **PD5 TX / PD6 RX** (STMOD#2 / #3), **921600** 8N1, polled. RESET is **PH10** (STMOD#12, active low). Bootloader enable is **PA4** (STMOD#13, high = ROM SBL). `uart_open` holds BOOT low, pulses RESET, waits 250 ms, then `zb_host` SYS_PINGs. No USART2 IRQ.
+
 ## RTC
 
 LSE 32.768 kHz when the crystal starts; LSI otherwise. Status-bar clock is `time_rtc_get` (NTP is not required).

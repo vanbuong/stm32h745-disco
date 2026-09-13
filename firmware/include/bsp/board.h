@@ -15,6 +15,7 @@ extern "C" {
 #define BOARD_PCLK1_HZ 100000000u
 #define BOARD_HSI_HZ 64000000u
 #define BOARD_UART_BAUD 115200u
+#define BOARD_ZNP_UART_BAUD 921600u
 
 #define BOARD_SDRAM_BASE 0xD0000000u
 /* MB1381 IS42S32800G (or 16-bit equivalent). 16-bit FMC, 12 row × 9 col ×

@@ -27,7 +27,7 @@ Clock values, DMA engines, and the pin table live in [`Board_Map.md`](Board_Map.
 | Ethernet | LAN8740A MII; default pins collide with QSPI bank 2 |
 | USB | OTG FS (micro-AB). Later TinyUSB MSC; not used in Sprint 0–3 |
 | Wi-Fi | **Not on board.** Optional ESP32 on Arduino/STMod+ |
-| Zigbee | **Not on board.** TI ZNP module on USART1 (Arduino) |
+| Zigbee | **Not on board.** TI ZNP on CN2 STMod+ USART2 (PD5/PD6), 921600 |
 | Shared SRAM | SRAM4 64 KB at `0x38000000` (D3 domain) |
 
 ## 3. Layered design
@@ -288,7 +288,7 @@ bool input_poll(input_event_t *out);
 
 LVGL `flush_cb` and `indev_read_cb` are adapters over `disp_flush` / `input_poll`. Zephyr `display_write` / `input` subsystems replace the BSP, not the apps.
 
-UART (ZNP): `uart_open` / `uart_write` / `uart_read` / `uart_set_gpio` (RESET). Default ZNP link is **USART1** on the Arduino header (PB6/PB7), 115200 8N1. **USART3 is the console** and must not be used for ZNP. Optional RTS/CTS and a RESET GPIO live in the BSP pin map (Arduino or STMod+).
+UART (ZNP): `uart_open` / `uart_write` / `uart_read` / `uart_set_gpio` (RESET / BOOT). Default ZNP link is **USART2** on CN2 STMod+ (**PD5 TX / PD6 RX**, STMOD#2/#3), **921600** 8N1, polled. RESET is **PH10** (STMOD#12, active low). Bootloader enable is **PA4** (STMOD#13, high = SBL). `uart_open` holds BOOT low, pulses RESET, then `zb_host` sends SYS_PING. **USART3 is the console** and must not be used for ZNP.
 
 ### 7.3 VFS
 
@@ -385,7 +385,7 @@ int auto_eval(const home_device_t *changed);  /* called from zb_host reports */
 
 **Local automation** examples: occupancy → light on for N seconds; button → toggle; temperature threshold → switch. Triggers, conditions, and actions are data, not hardcoded screens. Rules persist in `/user/home/rules.bin`.
 
-**Bring-up:** M7 USART1 + DMA worker first. If UART ISR load fights LVGL, move `znp_mt` to M4 and keep `zb_host` / `home_*` on M7 over IPC endpoint `ZB`.
+**Bring-up:** M7 USART2 polled on STMod+. If UART load fights LVGL, add a worker later or move `znp_mt` to M4 and keep `zb_host` / `home_*` on M7 over IPC endpoint `ZB`. Do not add a USART2 NVIC line without a full vector table.
 
 **MQTT / Home Assistant:** P2 optional export behind `home_*`. Not the control path.
 
@@ -502,7 +502,7 @@ Inventory (clocks, DMA engines, pin table): [`Board_Map.md`](Board_Map.md). Asse
 
 - **I2C4:** FT5336 + WM8994. BSP provides a mutex; no driver talks to I2C4 directly.
 - **USART3:** ST-LINK VCP console only.
-- **USART1 (Arduino PB6/PB7):** default TI ZNP UART. Optional RESET GPIO on an Arduino pin. Do not share this UART with ESP32 AT; pick one expansion map per build.
+- **USART2 (STMod+ PD5/PD6):** TI ZNP UART at 921600. RESET PH10, BOOT PA4. Do not share this UART with ESP32 AT; pick one expansion map per build.
 - **Ethernet vs QSPI bank 2:** default solder map (SB3/SB4 OFF, R38/R40 ON) keeps PH2/PH3 on QSPI. Ethernet is MII **100 Mbit/s full-duplex** without CRS/COL.
 - **LTDC pixel clock** and SDRAM bandwidth: RGB565 double-buffer + DMA2D is the safe default at 480×272.
 - **USB OTG FS:** later TinyUSB MSC only. Do not bring up Cube USB alongside it.
@@ -552,7 +552,7 @@ sequenceDiagram
   M7->>M7: LTDC + touch + VFS mount
   M7->>M7: LVGL + launcher
   M4-->>M7: SYS READY heartbeat
-  M7->>ZNP: SYS_PING via USART1
+  M7->>ZNP: SYS_PING via USART2
   ZNP-->>M7: version
   M7->>M7: zb_host load /user/home
 ```

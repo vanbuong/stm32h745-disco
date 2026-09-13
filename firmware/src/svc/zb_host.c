@@ -371,7 +371,7 @@ static void try_sys_ping(void)
     size_t got = 0u;
 
     memset(&cfg, 0, sizeof(cfg));
-    cfg.baud = 115200u;
+    cfg.baud = UART_ZNP_BAUD;
     cfg.data_bits = 8u;
     cfg.stop_bits = 1u;
     if (uart_open(UART_ID_ZNP, &cfg) != ERR_OK) {
@@ -390,7 +390,7 @@ static void try_sys_ping(void)
         g_net.mock = 1u;
         return;
     }
-    if (uart_read(UART_ID_ZNP, rx, sizeof(rx), &got, 50u) != ERR_OK ||
+    if (uart_read(UART_ID_ZNP, rx, sizeof(rx), &got, 200u) != ERR_OK ||
         znp_mt_decode(rx, got, &cmd0, &cmd1, pl, (uint8_t)sizeof(pl), &plen) != ERR_OK ||
         cmd0 != MT_SYS_SRSP || cmd1 != MT_SYS_PING) {
         g_net.radio_ok = 0u;

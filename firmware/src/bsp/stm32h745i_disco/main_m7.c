@@ -385,6 +385,15 @@ int main(void)
     e = health_selftest();
     log_err("health", e);
     (void)home_init();
+    {
+        home_net_t hn;
+
+        home_net(&hn);
+        board_console_puts("znp ");
+        board_console_puts(hn.znp_ver[0] != '\0' ? hn.znp_ver : "?");
+        board_console_puts("\r\n");
+        log_kv("znp_radio", hn.radio_ok);
+    }
 
     e = time_init();
     log_err("rtc", e);

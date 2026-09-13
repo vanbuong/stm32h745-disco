@@ -12,6 +12,10 @@ extern "C" {
 
 typedef enum { UART_ID_CONSOLE = 0, UART_ID_ZNP = 1 } uart_id_t;
 
+#define UART_ZNP_BAUD 921600u
+#define UART_PIN_RESET 0u /* STMOD#12 PH10, 0 = assert (active low) */
+#define UART_PIN_BOOT 1u  /* STMOD#13 PA4, 1 = serial bootloader */
+
 typedef struct {
     uint32_t baud;
     uint8_t data_bits;

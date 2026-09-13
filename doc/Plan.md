@@ -308,7 +308,7 @@ Status: **done** (mock-first Home; no extra NVIC).
 
 Lock:
 
-- **Mock first:** seed ≥ 2 rooms and ≥ 4 devices (Living lamp, Hall switch, Front door, Motion stair) so Home works on the board and host-sim with no CC2652 (`REQ-HOME-02`). Firmware `uart_*` for `UART_ID_ZNP` returns `ERR_IO` (no USART1 IRQ this sprint). Host `uart_*` is a software stub that can auto-reply SYS_PING (`0x21 0x01` → `0x61 0x01`).
+- **Mock first:** seed ≥ 2 rooms and ≥ 4 devices (Living lamp, Hall switch, Front door, Motion stair) so Home works on the board and host-sim with no CC2652 (`REQ-HOME-02`). Firmware `uart_*` for `UART_ID_ZNP` is polled **USART2** on STMod+ (PD5/PD6, 921600; RESET PH10, BOOT PA4). Host `uart_*` is a software stub that can auto-reply SYS_PING (`0x21 0x01` → `0x61 0x01`).
 - **USART3 stays console.** Never steal it for ZNP. No new NVIC vector.
 - **Apps use only `home_*`.** `src/app/home.c` must not include `znp_mt.h`, `uart.h`, HAL, MQTT, or LwIP (`REQ-HOME-01`).
 - **`zb_host`** owns the device table (32), form / permit-join countdown, interview apply, and persist under `/user/home` (jail). Cluster map: OnOff+Level → LIGHT, OnOff → SWITCH, Occupancy/IAS Zone → BINARY_SENSOR, Temperature → CLIMATE.
@@ -400,7 +400,7 @@ Rationale: 40 px minimum hit targets, more room for lists and images, matches LV
 | TouchGFX samples leaking in | Ban TouchGFX in review; LVGL-only backend; no STM32CubeH7 monolith |
 | Game in LVGL widgets | Keep `game_sim` + `gfx_*`; LVGL canvas is a backend, not the model |
 | Home UI talking MT/MQTT | `home_*` only; `mock` so UI is not blocked on a dongle |
-| USART3 stolen for ZNP | Console stays USART3; ZNP on USART1 |
+| USART3 stolen for ZNP | Console stays USART3; ZNP on USART2 STMod+ |
 | Permit join left open | UI countdown; auto-close; no join while locked |
 | ZNP UART vs LVGL | DMA + worker; offload to M4 if needed |
 | Host sim only on Linux | One SDL2 backend; CI links Ubuntu and Windows |

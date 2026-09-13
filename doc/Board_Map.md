@@ -24,7 +24,7 @@ Board: MB1381, STM32H745XIH6. Analog out is **CN10 3.5 mm headphone**.
 | RTC | M7 | LSE then LSI | `rtc.c` |
 | SAI2_A | M4 | I2S master TX + MCLK | `sai_out.c` |
 | IWDG1 | M7 start, both kick | After VFS bring-up | `wdog.c` |
-| USART1 | — | Reserved for TI ZNP; `uart_*` returns `ERR_IO` | `uart.c` |
+| USART2 | M7 | TI ZNP on STMod+, polled 921600 8N1 | `uart.c` |
 | USB OTG FS | — | Later TinyUSB MSC | — |
 | JPEG / MDMA | — | Not started | — |
 | TIM PWM backlight | — | Brightness is LTDC constant alpha | `lcd.c` |
@@ -58,6 +58,7 @@ LSI ~32 kHz → IWDG1
 | M7 SYSCLK / M4 | PLL1P / HCLK | 400 / 200 MHz |
 | FMC SDCLK | HCLK / 2 | 100 MHz |
 | USART3 | PCLK1 | 100 MHz, 115200 8N1, TX only |
+| USART2 ZNP | PCLK1 | 100 MHz, 921600 8N1, polled TX/RX |
 | I2C4 | D3PCLK1 | 100 MHz kernel, 100 kHz bus (`0x10B017DB`) |
 | SDMMC1 | PLL1Q / (2 × ClockDiv) | ClockDiv 8 → 12.5 MHz; fallback 16 → 6.25 MHz |
 | QSPI | prescaler 3 | kernel / 4 (typically 50 MHz from HCLK) |
@@ -165,11 +166,21 @@ IS42S32800G (or 16-bit equivalent), **16 MB** at `0xD0000000`. 16-bit FMC, 12 ro
 
 Port masks in `sdram.c`: PD{0,1,8,9,10,14,15}, PE{0,1,7–15}, PF{0–5,11–15}, PG{0,1,4,5,8,15}, PH{5,6,7}. CAS 3, SDCLK 100 MHz.
 
-### 4.9 Reserved, not muxed
+### 4.9 TI ZNP (CN2 STMod+, USART2)
+
+| Signal | Pin | Mode | Notes |
+| --- | --- | --- | --- |
+| USART2_TX | PD5 AF7 | STMOD#2 | 921600 8N1, polled. Not Arduino PB6. |
+| USART2_RX | PD6 AF7 | STMOD#3 | Pull-up |
+| RESET | PH10 GPIO | STMOD#12 | Active low. `uart_open` holds BOOT low, pulses RESET, waits 250 ms, drains `SYS_RESET_IND` |
+| BOOT | PA4 GPIO | STMOD#13 | High = ROM serial bootloader. Held low so ZNP runs the app |
+
+No USART2 NVIC. `uart_set_gpio` can retake RESET/BOOT.
+
+### 4.10 Reserved, not muxed
 
 | Signal | Intended pin | Status |
 | --- | --- | --- |
-| USART1 ZNP | Arduino PB6/PB7 | `uart_open(UART_ID_ZNP)` → `ERR_IO` |
 | USB OTG FS | micro-AB | Later TinyUSB exclusive MSC |
 | Speaker | — | Board has none; headphone only |
 

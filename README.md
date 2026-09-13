@@ -26,7 +26,7 @@ The first implementation is **FreeRTOS + LVGL + STM32Cube HAL/LL**. The board BS
 - 4 GB eMMC (user files)
 - WM8994 audio, LAN8740A Ethernet
 - Wi-Fi only if an ESP32 is added on Arduino / STMod+
-- Zigbee via a **TI ZNP** module on USART1 (Arduino); STM32 is the host/coordinator
+- Zigbee via a **TI ZNP** module on CN2 STMod+ (USART2 PD5/PD6, 921600); STM32 is the host/coordinator
 
 ## Design rules (short)
 
@@ -34,7 +34,7 @@ The first implementation is **FreeRTOS + LVGL + STM32Cube HAL/LL**. The board BS
 2. M7 owns UI, VFS, image decode, game sim, Zigbee host, and local automations. M4 owns SAI audio (and optional net or ZNP UART).
 3. IPC is versioned messages in SRAM4, not shared C pointers.
 4. Explorer is jailed to `/user`. Home UI talks only to `home_*`. Game logic talks only to `game_module_t` / `gfx_*`.
-5. TI ZNP is an expansion on USART1; USART3 stays the console.
+5. TI ZNP is an expansion on STMod+ USART2; USART3 stays the console.
 
 # Build
 

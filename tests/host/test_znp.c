@@ -60,11 +60,14 @@ static void test_sys_ping_stub(void)
     size_t got = 0u;
 
     memset(&cfg, 0, sizeof(cfg));
-    cfg.baud = 115200u;
+    cfg.baud = UART_ZNP_BAUD;
     cfg.data_bits = 8u;
     cfg.stop_bits = 1u;
+    TEST_ASSERT_EQUAL_UINT32(921600u, UART_ZNP_BAUD);
     TEST_ASSERT_EQUAL_INT(ERR_OK, uart_open(UART_ID_ZNP, &cfg));
     TEST_ASSERT_EQUAL_INT(ERR_UNSUPPORTED, uart_open(UART_ID_CONSOLE, &cfg));
+    TEST_ASSERT_EQUAL_INT(ERR_OK, uart_set_gpio(UART_ID_ZNP, UART_PIN_BOOT, 0));
+    TEST_ASSERT_EQUAL_INT(ERR_OK, uart_set_gpio(UART_ID_ZNP, UART_PIN_RESET, 1));
     TEST_ASSERT_EQUAL_INT(ERR_OK, znp_mt_encode(0x21u, 0x01u, NULL, 0u, tx, sizeof(tx), &n));
     TEST_ASSERT_EQUAL_INT(ERR_OK, uart_write(UART_ID_ZNP, tx, n));
     TEST_ASSERT_EQUAL_INT(ERR_OK, uart_read(UART_ID_ZNP, rx, sizeof(rx), &got, 10u));

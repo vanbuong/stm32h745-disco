@@ -339,7 +339,7 @@ Copy a `.ch8` onto eMMC; it shows in Game; tap runs it; Back returns to the libr
 | REQ-HOME-04 | S | `home_cmd` on/off (OnOff cluster) shall update the model; UI is optimistic and reverts on failure. | UT, HIL |
 | REQ-HOME-05 | S | If ZNP UART is down, the UI shall show “Radio not ready” and the last-known list without crashing. | HIL |
 | REQ-HOME-06 | S | The service shall support at least 8 rooms and 32 devices in RAM. | UT |
-| REQ-HOME-07 | S | The host shall talk to a TI ZNP over `uart_*` (default USART1). USART3 shall remain the console. | INSP, HIL |
+| REQ-HOME-07 | S | The host shall talk to a TI ZNP over `uart_*` (USART2 on STMod+, 921600). USART3 shall remain the console. | INSP, HIL |
 | REQ-HOME-08 | S | After ZDO end-device announce, the host shall interview endpoints/simple descriptors and map clusters to `home_kind_t`. | UT, HIL |
 | REQ-HOME-09 | C | Climate setpoint and scene buttons (Good night / Away). | HIL |
 | REQ-HOME-10 | S | MT UART, interview, and `home_cmd` shall not run on the UI thread. | UT, INSP |
@@ -366,7 +366,7 @@ CI scan: `src/app/home` does not include STM32 UART HAL, MT headers, MQTT, or lw
 No dongle: Home opens, mock or last-known list, “Radio not ready” if `zb_host` has no SYS ping, no crash.
 
 **TC-HOME-05 (HIL)**  
-ZNP on USART1: SYS version; form coordinator; permit join; a test OnOff device appears on the Devices screen; toggle matches the bulb; reboot keeps the name.
+ZNP on USART2 (STMod+ 921600): SYS_PING; form coordinator; permit join; a test OnOff device appears on the Devices screen; toggle matches the bulb; reboot keeps the name.
 
 **TC-HOME-06 (HIL)**  
 Device name and room persist in `/user/home` across reset.

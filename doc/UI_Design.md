@@ -480,7 +480,7 @@ Copy:
 
 | Situation | Title | Body | Actions |
 | --- | --- | --- | --- |
-| Radio down | Radio not ready | Check the Zigbee module on USART1. | Retry, Close |
+| Radio down | Radio not ready | Check the Zigbee module on STMod+ USART2. | Retry, Close |
 | Join closed | Join closed | Open the network to add a device. | Open 60 s, Close |
 | Remove device | Remove device? | It must be paired again later. | Cancel, Remove |
 | Form network | Form network? | This creates a new Zigbee network. | Cancel, Form |
