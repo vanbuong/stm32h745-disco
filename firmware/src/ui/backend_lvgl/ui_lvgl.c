@@ -369,7 +369,10 @@ static lv_obj_t *make_bar(const char *title)
     lv_obj_set_style_text_color(lab, lv_color_hex(THEME_TEXT), 0);
     lv_obj_center(lab);
 
-    add_label(bar, (title != NULL) ? title : "", 48, 10, 360, 24, THEME_TEXT, LV_FONT_DEFAULT);
+    if (title != NULL && title[0] != '\0') {
+        lv_obj_t *t = add_label(bar, title, 48, 10, 360, 24, THEME_TEXT, LV_FONT_DEFAULT);
+        lv_label_set_long_mode(t, LV_LABEL_LONG_DOT);
+    }
     return bar;
 }
 
@@ -1578,16 +1581,21 @@ static void build_game(void)
     game_resize(THEME_PANEL_W, field_h);
     phase = game_phase();
     title = game_title();
-    bar = make_bar((title != NULL && title[0] != '\0') ? title : "Game");
-    add_label(bar, "SCORE", 96, 4, 56, 14, THEME_MUTED, &lv_font_montserrat_12);
-    s_game_score =
-        add_label(bar, game_score_str(), 96, 18, 56, 18, THEME_TEXT, &lv_font_montserrat_12);
-    add_label(bar, "LIVES", 168, 4, 48, 14, THEME_MUTED, &lv_font_montserrat_12);
-    s_game_lives =
-        add_label(bar, game_lives_str(), 168, 18, 48, 18, THEME_TEXT, &lv_font_montserrat_12);
-    add_label(bar, "HIGH", 228, 4, 56, 14, THEME_MUTED, &lv_font_montserrat_12);
-    s_game_high =
-        add_label(bar, game_high_str(), 228, 18, 80, 18, THEME_TILE_GAME, &lv_font_montserrat_12);
+    if (game_module() != NULL && game_module()->id != NULL &&
+        strcmp(game_module()->id, "chip8") == 0) {
+        bar = make_bar((title != NULL && title[0] != '\0') ? title : "CHIP-8");
+    } else {
+        bar = make_bar("");
+        add_label(bar, "SCORE", 48, 4, 64, 14, THEME_MUTED, &lv_font_montserrat_12);
+        s_game_score =
+            add_label(bar, game_score_str(), 48, 18, 64, 18, THEME_TEXT, &lv_font_montserrat_12);
+        add_label(bar, "LIVES", 160, 4, 56, 14, THEME_MUTED, &lv_font_montserrat_12);
+        s_game_lives =
+            add_label(bar, game_lives_str(), 160, 18, 56, 18, THEME_TEXT, &lv_font_montserrat_12);
+        add_label(bar, "HIGH", 280, 4, 72, 14, THEME_MUTED, &lv_font_montserrat_12);
+        s_game_high = add_label(bar, game_high_str(), 280, 18, 80, 18, THEME_TILE_GAME,
+                                &lv_font_montserrat_12);
+    }
     add_nav_btn(bar, THEME_PANEL_W - THEME_HIT_MIN_PX,
                 (phase == GAME_PHASE_PLAY) ? LV_SYMBOL_PAUSE : LV_SYMBOL_PLAY, game_pause_cb, 0);
 

@@ -343,7 +343,15 @@ static void test_library_and_chip8(void)
     TEST_ASSERT_EQUAL_INT(ERR_OK, c8->load(&g, rom, n));
     c8->reset(&g, 480, 160);
     c8->tick(&g, 16u);
-    TEST_ASSERT_EQUAL_UINT8(1u, chip8_pixel(10u, 8u));
+    TEST_ASSERT_EQUAL_UINT8(1u, chip8_pixel(28u, 12u));
+    {
+        unsigned step;
+        for (step = 0u; step < 4u; step++) {
+            c8->tick(&g, 16u);
+        }
+    }
+    TEST_ASSERT_EQUAL_UINT8(0u, chip8_pixel(28u, 12u));
+    TEST_ASSERT_EQUAL_UINT8(1u, chip8_pixel(29u, 13u));
 
     TEST_ASSERT_EQUAL_INT(ERR_OK, vfs_mount());
     write_demo_cart();
@@ -366,6 +374,7 @@ static void test_library_and_chip8(void)
     TEST_ASSERT_EQUAL_INT(ERR_UNSUPPORTED, game_load_path("/user/game/brick.sav"));
     game_pick(1u);
     TEST_ASSERT_EQUAL_STRING("chip8", game_module()->id);
+    TEST_ASSERT_EQUAL_UINT8(1u, chip8_pixel(28u, 12u));
     game_to_library();
     TEST_ASSERT_EQUAL_UINT8(1u, game_in_library());
     game_close();

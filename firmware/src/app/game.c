@@ -331,6 +331,9 @@ static void start_core(const char *core, const uint8_t *rom, uint32_t n)
     g_open = 1u;
     strncpy(g_title, (g_mod->id != NULL && strcmp(g_mod->id, "chip8") == 0) ? "CHIP-8" : "Brick",
             sizeof(g_title) - 1u);
+    if (g_mod->id != NULL && strcmp(g_mod->id, "chip8") == 0 && g_mod->tick != NULL) {
+        g_mod->tick(&g_game, 16u);
+    }
     present();
     bump();
 }
@@ -440,6 +443,9 @@ void game_new(void)
     high = g_game.high;
     g_mod->reset(&g_game, g_w, g_h);
     g_game.high = high;
+    if (g_mod->id != NULL && strcmp(g_mod->id, "chip8") == 0 && g_mod->tick != NULL) {
+        g_mod->tick(&g_game, 16u);
+    }
     present();
     bump();
 }

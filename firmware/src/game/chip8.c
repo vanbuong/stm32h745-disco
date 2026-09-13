@@ -39,9 +39,14 @@ static const uint8_t k_font[80] = {
     0xF0u, 0x80u, 0xF0u, 0xF0u, 0x80u, 0xF0u, 0x80u, 0x80u,
 };
 
-/* Original 17-byte demo: CLS, place a 5-row glyph, sit on DRW. */
-static const uint8_t k_demo[] = {0x00u, 0xE0u, 0x60u, 0x0Au, 0x61u, 0x08u, 0xA2u, 0x0Cu, 0xD0u,
-                                 0x15u, 0x12u, 0x0Au, 0xF8u, 0x88u, 0x88u, 0x88u, 0xF8u};
+/* Original bouncing glyph: draw, wait DT, xor-erase, step, bounce. */
+static const uint8_t k_demo[] = {
+    0x00u, 0xE0u, 0x60u, 0x1Cu, 0x61u, 0x0Cu, 0x62u, 0x01u, 0x63u, 0x01u, 0xA2u, 0x3Cu, 0xD0u,
+    0x15u, 0x64u, 0x03u, 0xF4u, 0x15u, 0xF4u, 0x07u, 0x34u, 0x00u, 0x12u, 0x12u, 0xD0u, 0x15u,
+    0x80u, 0x24u, 0x81u, 0x34u, 0x30u, 0x00u, 0x12u, 0x26u, 0x65u, 0x00u, 0x82u, 0x57u, 0x40u,
+    0x38u, 0x12u, 0x22u, 0x31u, 0x00u, 0x12u, 0x34u, 0x65u, 0x00u, 0x83u, 0x57u, 0x12u, 0x3Au,
+    0x41u, 0x1Bu, 0x12u, 0x2Eu, 0x12u, 0x3Au, 0x12u, 0x0Cu, 0xF8u, 0x88u, 0x88u, 0x88u, 0xF8u,
+};
 
 static const uint8_t k_hex[16] = {0x1u, 0x2u, 0x3u, 0xCu, 0x4u, 0x5u, 0x6u, 0xDu,
                                   0x7u, 0x8u, 0x9u, 0xEu, 0xAu, 0x0u, 0xBu, 0xFu};
@@ -407,12 +412,36 @@ static void chip8_input(game_t *g, const input_event_t *e)
     }
 }
 
+static void draw_glyph(struct gfx *fx, int x, int y, uint8_t hex, int scale, uint16_t color)
+{
+    const uint8_t *rows = k_font + (unsigned)(hex & 0x0Fu) * 5u;
+    unsigned r;
+    unsigned c;
+    gfx_rect_t rr;
+
+    for (r = 0u; r < 5u; r++) {
+        for (c = 0u; c < 4u; c++) {
+            if ((rows[r] & (uint8_t)(0x80u >> c)) == 0u) {
+                continue;
+            }
+            rr.x = (int16_t)(x + (int)c * scale);
+            rr.y = (int16_t)(y + (int)r * scale);
+            rr.w = (uint16_t)scale;
+            rr.h = (uint16_t)scale;
+            gfx_fill(fx, rr, color);
+        }
+    }
+}
+
 static void chip8_draw(const game_t *g, struct gfx *fx)
 {
     int scale;
     int ox;
     int oy;
-    int pad;
+    int pad_side;
+    int pad_bot;
+    int fw;
+    int fh;
     unsigned x;
     unsigned y;
     gfx_rect_t r;
@@ -421,24 +450,42 @@ static void chip8_draw(const game_t *g, struct gfx *fx)
         return;
     }
     gfx_clear(fx, rgb565(0xF4F6FAu));
-    pad = 0;
-    scale = (int)g->h / (int)FB_H;
-    if (g->w >= 480u && g->h >= 140u) {
-        pad = 1;
-        if (scale > ((int)g->w - 176) / (int)FB_W) {
-            scale = ((int)g->w - 176) / (int)FB_W;
-        }
-    } else if (scale > (int)g->w / (int)FB_W) {
-        scale = (int)g->w / (int)FB_W;
+    pad_side = (g->w >= 400u && g->h >= 140u) ? 1 : 0;
+    pad_bot = 0;
+    if (pad_side == 0 && g->h >= 148u) {
+        pad_bot = 1;
+    }
+    fw = (int)g->w;
+    fh = (int)g->h;
+    if (pad_side != 0) {
+        fw -= 176;
+    }
+    if (pad_bot != 0) {
+        fh -= 120;
+    }
+    if (fw < (int)FB_W) {
+        fw = (int)FB_W;
+    }
+    if (fh < (int)FB_H) {
+        fh = (int)FB_H;
+    }
+    scale = fh / (int)FB_H;
+    if (scale > fw / (int)FB_W) {
+        scale = fw / (int)FB_W;
     }
     if (scale < 1) {
         scale = 1;
     }
     ox = 8;
-    oy = ((int)g->h - (int)FB_H * scale) / 2;
-    if (oy < 0) {
-        oy = 0;
+    oy = ((pad_bot != 0 ? fh : (int)g->h) - (int)FB_H * scale) / 2;
+    if (oy < 4) {
+        oy = 4;
     }
+    r.x = (int16_t)ox;
+    r.y = (int16_t)oy;
+    r.w = (uint16_t)(FB_W * (unsigned)scale);
+    r.h = (uint16_t)(FB_H * (unsigned)scale);
+    gfx_fill(fx, r, rgb565(0x12141Au));
     for (y = 0u; y < FB_H; y++) {
         for (x = 0u; x < FB_W; x++) {
             if (s_fb[y * FB_W + x] == 0u) {
@@ -448,11 +495,18 @@ static void chip8_draw(const game_t *g, struct gfx *fx)
             r.y = (int16_t)(oy + (int)y * scale);
             r.w = (uint16_t)scale;
             r.h = (uint16_t)scale;
-            gfx_fill(fx, r, rgb565(0x1A2030u));
+            gfx_fill(fx, r, rgb565(0xE8ECF1u));
         }
     }
-    if (pad != 0) {
+    if (pad_side != 0 || pad_bot != 0) {
         uint16_t cell = 40u;
+        int gs;
+        uint16_t ink;
+        uint16_t paper;
+
+        if (pad_bot != 0) {
+            cell = (uint16_t)((g->w - 16u) / 4u);
+        }
         if ((uint16_t)(4u * cell) > g->h) {
             cell = (uint16_t)(g->h / 4u);
         }
@@ -460,19 +514,38 @@ static void chip8_draw(const game_t *g, struct gfx *fx)
             cell = 28u;
         }
         s_pad_s = cell;
-        s_pad_x = (int16_t)(g->w - (int16_t)(4u * cell) - 8);
-        s_pad_y = (int16_t)(((int)g->h - (int)(4u * cell)) / 2);
+        if (pad_side != 0) {
+            s_pad_x = (int16_t)(g->w - (int16_t)(4u * cell) - 8);
+            s_pad_y = (int16_t)(((int)g->h - (int)(4u * cell)) / 2);
+        } else {
+            s_pad_x = (int16_t)((g->w - (int16_t)(4u * cell)) / 2);
+            s_pad_y = (int16_t)(g->h - (int16_t)(4u * cell) - 4);
+        }
         if (s_pad_y < 0) {
             s_pad_y = 0;
         }
+        gs = (cell >= 36u) ? 2 : 1;
         for (y = 0u; y < 4u; y++) {
             for (x = 0u; x < 4u; x++) {
                 uint8_t hex = k_hex[y * 4u + x];
+                int gx;
+                int gy;
+
                 r.x = (int16_t)(s_pad_x + (int)x * (int)cell + 2);
                 r.y = (int16_t)(s_pad_y + (int)y * (int)cell + 2);
                 r.w = (uint16_t)(cell - 4u);
                 r.h = (uint16_t)(cell - 4u);
-                gfx_fill(fx, r, (s_key[hex] != 0u) ? rgb565(0xFF9F0Au) : rgb565(0xEEF1F6u));
+                if (s_key[hex] != 0u) {
+                    paper = rgb565(0xFF9F0Au);
+                    ink = rgb565(0x1A2030u);
+                } else {
+                    paper = rgb565(0xEEF1F6u);
+                    ink = rgb565(0x1A2030u);
+                }
+                gfx_fill(fx, r, paper);
+                gx = (int)r.x + ((int)r.w - 4 * gs) / 2;
+                gy = (int)r.y + ((int)r.h - 5 * gs) / 2;
+                draw_glyph(fx, gx, gy, hex, gs, ink);
             }
         }
     } else {
