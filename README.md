@@ -21,7 +21,7 @@ The first implementation is **FreeRTOS + LVGL + STM32Cube HAL/LL**. The board BS
 
 - STM32H745XIH6 — Cortex-M7 480 MHz + Cortex-M4 240 MHz
 - 4.3" 480×272 RGB panel, FT5336 touch
-- 8 MB usable SDRAM at `0xD0000000` (16-bit FMC)
+- 16 MB (128 Mbit) SDRAM at `0xD0000000`; 8 MB mapped on the 16-bit FMC
 - Dual QSPI NOR (memory-mapped assets)
 - 4 GB eMMC (user files)
 - WM8994 audio, LAN8740A Ethernet

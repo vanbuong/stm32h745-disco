@@ -17,6 +17,9 @@ extern "C" {
 #define BOARD_UART_BAUD 115200u
 
 #define BOARD_SDRAM_BASE 0xD0000000u
+/* MB1381: 128 Mbit (16 MB) SDRAM. 16-bit FMC, 12 row × 8 col × 4 banks
+ * addresses the first 8 MB. Do not walk past BOARD_SDRAM_BYTES. */
+#define BOARD_SDRAM_CHIP_BYTES (16u * 1024u * 1024u)
 #define BOARD_SDRAM_BYTES (8u * 1024u * 1024u)
 #define BOARD_QSPI_BASE 0x90000000u
 #define BOARD_SRAM4_BASE 0x38000000u

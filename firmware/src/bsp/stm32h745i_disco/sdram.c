@@ -57,6 +57,7 @@ err_t board_sdram_init(void)
 
     g_sdram.Instance = FMC_SDRAM_DEVICE;
     g_sdram.Init.SDBank = FMC_SDRAM_BANK2;
+    /* 128 Mbit part (16 MB). 16-bit bus × 12 × 8 × 4 = 8 MB window. */
     g_sdram.Init.ColumnBitsNumber = FMC_SDRAM_COLUMN_BITS_NUM_8;
     g_sdram.Init.RowBitsNumber = FMC_SDRAM_ROW_BITS_NUM_12;
     g_sdram.Init.MemoryDataWidth = FMC_SDRAM_MEM_BUS_WIDTH_16;

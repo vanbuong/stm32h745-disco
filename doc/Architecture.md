@@ -20,7 +20,7 @@ Clock values, DMA engines, and the pin table live in [`Board_Map.md`](Board_Map.
 | MCU | STM32H745XIH6 (M7 480 MHz, M4 240 MHz) |
 | Display | 4.3" 480×272 RGB (RK043FN48H), FT5336 touch on I2C4 |
 | Graphics | LTDC + DMA2D (Chrom-ART) + JPEG codec |
-| SDRAM | `0xD0000000`, 8 MB usable (16-bit FMC) |
+| SDRAM | `0xD0000000`, 16 MB (128 Mbit); 8 MB mapped (16-bit FMC) |
 | QSPI NOR | `0x90000000`, dual 512 Mbit, memory-mapped XiP |
 | eMMC | 4 GB, SDMMC1 |
 | Audio | WM8994 on SAI, I2C4 shared with touch |
@@ -234,9 +234,9 @@ flowchart LR
 | SRAM4 | `0x38000000` | 64 KB | Shared | IPC only, non-cacheable |
 | Backup SRAM | `0x38800000` | 4 KB | Shared | Boot reason, net config flags |
 
-### 6.2 External SDRAM (`0xD0000000`, 8 MB)
+### 6.2 External SDRAM (`0xD0000000`, 16 MB chip / 8 MB mapped)
 
-RGB565 is the default pixel format (480×272×2 = 261 120 bytes per full buffer).
+The part is 128 Mbit (**16 MB**). The board wires a 16-bit FMC (12 row × 8 col × 4 banks), so this firmware maps **8 MB**. Framebuffers and viewers stay in that window. RGB565 is the default pixel format (480×272×2 = 261 120 bytes per full buffer).
 
 | Offset | Size | Use |
 | --- | --- | --- |
