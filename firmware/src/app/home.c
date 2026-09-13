@@ -87,6 +87,10 @@ static void refresh_banner(void)
         copy_str(g_banner, sizeof(g_banner), "Radio not ready");
         return;
     }
+    if (n.formed == 0u) {
+        copy_str(g_banner, sizeof(g_banner), "Network not formed");
+        return;
+    }
     append(g_banner, sizeof(g_banner), "Zigbee  ch ", &o);
     put_u16(g_banner, sizeof(g_banner), n.channel, &o);
     append(g_banner, sizeof(g_banner), "   ", &o);
@@ -211,7 +215,22 @@ uint8_t home_app_on_back(void)
 
 void home_app_pair(void)
 {
+    home_net_t n;
+
+    home_net(&n);
+    if (n.formed == 0u && n.radio_ok != 0u) {
+        (void)home_form(cfg_zb_channel(), n.pan);
+    }
     (void)home_permit_join(cfg_join_s());
+    refresh_banner();
+}
+
+void home_app_form(void)
+{
+    home_net_t n;
+
+    home_net(&n);
+    (void)home_form(cfg_zb_channel(), n.pan);
     refresh_banner();
 }
 

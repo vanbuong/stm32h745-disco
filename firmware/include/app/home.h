@@ -22,6 +22,7 @@ void home_app_close(void);
 void home_app_tick(uint32_t dt_ms);
 uint8_t home_app_on_back(void);
 void home_app_pair(void);
+void home_app_form(void);
 void home_app_open_device(unsigned index);
 void home_app_open_network(void);
 void home_app_open_autos(void);

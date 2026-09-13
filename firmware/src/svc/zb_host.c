@@ -30,12 +30,15 @@ static size_t g_n;
 static zb_net_info_t g_net;
 static uint8_t g_ready;
 static uint8_t g_dirty;
+static uint32_t g_view_gen;
 static uint32_t g_permit_acc;
 static uint32_t g_now_ms;
+static uint8_t s_dev_file[DEV_HDR + (DEV_REC * HOME_DEV_MAX)];
 #ifdef ZB_IOTDEV_DRIVER
 static uint8_t g_drv;
 static uint8_t g_drv_inited;
 static uint8_t g_znp_busy;
+static uint32_t g_sync_acc;
 #endif
 
 static err_t forget_local(const uint8_t ieee[8]);
@@ -74,9 +77,15 @@ static uint16_t get_le16(const uint8_t *p)
     return (uint16_t)((uint16_t)p[0] | ((uint16_t)p[1] << 8));
 }
 
+static void mark_view(void)
+{
+    g_view_gen++;
+}
+
 static void mark_dirty(void)
 {
     g_dirty = 1u;
+    mark_view();
 }
 
 static size_t room_count(const char *extra)
@@ -255,26 +264,25 @@ static void unpack_dev(zb_dev_t *d, const uint8_t *p)
 
 static void persist_save(void)
 {
-    uint8_t buf[DEV_HDR + (DEV_REC * 4u)];
     uint8_t net[NET_LEN];
     size_t nwrite;
     size_t i;
     size_t count;
 
     count = g_n;
-    if (count > 4u) {
-        count = 4u;
+    if (count > HOME_DEV_MAX) {
+        count = HOME_DEV_MAX;
     }
     nwrite = DEV_HDR + (count * DEV_REC);
-    memset(buf, 0, sizeof(buf));
-    buf[0] = (uint8_t)'H';
-    buf[1] = (uint8_t)'D';
-    buf[2] = (uint8_t)'E';
-    buf[3] = (uint8_t)'V';
-    buf[4] = 1u;
-    buf[5] = (uint8_t)count;
+    memset(s_dev_file, 0, nwrite);
+    s_dev_file[0] = (uint8_t)'H';
+    s_dev_file[1] = (uint8_t)'D';
+    s_dev_file[2] = (uint8_t)'E';
+    s_dev_file[3] = (uint8_t)'V';
+    s_dev_file[4] = 1u;
+    s_dev_file[5] = (uint8_t)count;
     for (i = 0u; i < count; i++) {
-        pack_dev(buf + DEV_HDR + (i * DEV_REC), &g_dev[i]);
+        pack_dev(s_dev_file + DEV_HDR + (i * DEV_REC), &g_dev[i]);
     }
     memset(net, 0, sizeof(net));
     net[0] = (uint8_t)'Z';
@@ -286,7 +294,7 @@ static void persist_save(void)
     net[6] = g_net.channel;
     put_le16(net + 7u, g_net.pan);
     memcpy(net + 9u, g_net.ext_pan, 8u);
-    if (write_file(ZB_DEV_PATH, buf, nwrite) == ERR_OK &&
+    if (write_file(ZB_DEV_PATH, s_dev_file, nwrite) == ERR_OK &&
         write_file(ZB_NET_PATH, net, NET_LEN) == ERR_OK) {
         g_net.persist_ok = 1u;
         g_dirty = 0u;
@@ -297,27 +305,26 @@ static void persist_save(void)
 
 static uint8_t persist_load(void)
 {
-    uint8_t buf[DEV_HDR + (DEV_REC * 4u)];
     uint8_t net[NET_LEN];
     size_t got = 0u;
     size_t ngot = 0u;
     size_t i;
     uint8_t count;
 
-    if (read_file(ZB_DEV_PATH, buf, sizeof(buf), &got) != ERR_OK || got < DEV_HDR) {
+    if (read_file(ZB_DEV_PATH, s_dev_file, sizeof(s_dev_file), &got) != ERR_OK || got < DEV_HDR) {
         return 0u;
     }
-    if (buf[0] != (uint8_t)'H' || buf[1] != (uint8_t)'D' || buf[2] != (uint8_t)'E' ||
-        buf[3] != (uint8_t)'V' || buf[4] != 1u) {
+    if (s_dev_file[0] != (uint8_t)'H' || s_dev_file[1] != (uint8_t)'D' ||
+        s_dev_file[2] != (uint8_t)'E' || s_dev_file[3] != (uint8_t)'V' || s_dev_file[4] != 1u) {
         return 0u;
     }
-    count = buf[5];
-    if (count > 4u || DEV_HDR + ((size_t)count * DEV_REC) > got) {
+    count = s_dev_file[5];
+    if (count > HOME_DEV_MAX || DEV_HDR + ((size_t)count * DEV_REC) > got) {
         return 0u;
     }
     g_n = 0u;
     for (i = 0u; i < (size_t)count; i++) {
-        unpack_dev(&g_dev[i], buf + DEV_HDR + (i * DEV_REC));
+        unpack_dev(&g_dev[i], s_dev_file + DEV_HDR + (i * DEV_REC));
         g_n++;
     }
     if (read_file(ZB_NET_PATH, net, sizeof(net), &ngot) == ERR_OK && ngot >= NET_LEN &&
@@ -509,6 +516,73 @@ static home_kind_t kind_from_joined(const s_zb_device_joined_info_t *info)
     return HOME_SWITCH;
 }
 
+static home_kind_t kind_from_device(const s_zb_device_t *dev)
+{
+    s_zb_device_joined_info_t info;
+    uint8_t i;
+    uint8_t n;
+
+    memset(&info, 0, sizeof(info));
+    if (dev == NULL) {
+        return HOME_SWITCH;
+    }
+    n = dev->function_count;
+    if (n > ZB_MAX_FUNCTIONS) {
+        n = ZB_MAX_FUNCTIONS;
+    }
+    info.function_count = n;
+    for (i = 0u; i < n; i++) {
+        info.functions[i].type = dev->functions[i].type;
+    }
+    return kind_from_joined(&info);
+}
+
+static void upsert_driver_dev(s_zb_device_t *dev)
+{
+    uint8_t ieee[8];
+    size_t idx;
+    const char *name;
+    home_kind_t kind;
+
+    if (dev == NULL) {
+        return;
+    }
+    ieee_bytes(ieee, dev->ieee_addr);
+    name = (dev->model[0] != '\0') ? dev->model : "New device";
+    kind = kind_from_device(dev);
+    if (zb_host_find(ieee, &idx) != ERR_OK) {
+        (void)zb_host_add(ieee, dev->nwk_addr, kind, name, "Home");
+        return;
+    }
+    if (g_dev[idx].nwk != dev->nwk_addr) {
+        g_dev[idx].nwk = dev->nwk_addr;
+        mark_dirty();
+    }
+    if (dev->model[0] != '\0' && strcmp(g_dev[idx].name, name) != 0) {
+        copy_str(g_dev[idx].name, HOME_NAME_MAX, name);
+        mark_dirty();
+    }
+    if (dev->function_count > 0u && g_dev[idx].kind != kind) {
+        g_dev[idx].kind = kind;
+        mark_dirty();
+    }
+    if (dev->lqi != 0u && g_dev[idx].lqi != dev->lqi) {
+        g_dev[idx].lqi = dev->lqi;
+        mark_view();
+    }
+}
+
+static void import_driver_devices(void)
+{
+    uint16_t idx = 0u;
+    s_zb_device_t *dev;
+
+    while ((dev = zb_device_manager_find_device_from_start_index(&idx)) != NULL) {
+        upsert_driver_dev(dev);
+        idx++;
+    }
+}
+
 static void driver_idle(void)
 {
     zb_plat_serial_poll();
@@ -553,7 +627,20 @@ static void on_driver_event(const s_zb_event_t *ev)
             (void)zb_host_add(ieee, nwk, kind_from_joined(&ev->device_info),
                               (name[0] != '\0') ? name : "New device", "Home");
         } else {
+            size_t idx = 0u;
             (void)zb_host_apply_announce(nwk, ieee);
+            if (zb_host_find(ieee, &idx) == ERR_OK) {
+                if (ev->device_info.function_count > 0u) {
+                    g_dev[idx].kind = kind_from_joined(&ev->device_info);
+                }
+                if (name[0] != '\0') {
+                    copy_str(g_dev[idx].name, HOME_NAME_MAX, name);
+                }
+                if (dev != NULL && dev->lqi != 0u) {
+                    g_dev[idx].lqi = dev->lqi;
+                }
+                mark_dirty();
+            }
         }
         break;
     case ZB_EVENT_DEVICE_LEFT:
@@ -601,6 +688,7 @@ static void driver_init(void)
     zb_core_apply_default_network_config(cfg_zb_channel(), 0u, 5);
     zb_core_set_event_callback(on_driver_event);
     zb_device_manager_register_event_notify_callback(on_driver_event);
+    (void)zb_core_request_start();
 }
 #endif
 
@@ -611,10 +699,12 @@ void zb_host_reset(void)
     g_n = 0u;
     g_ready = 0u;
     g_dirty = 0u;
+    g_view_gen = 0u;
     g_permit_acc = 0u;
     g_now_ms = 0u;
 #ifdef ZB_IOTDEV_DRIVER
     g_drv = 0u;
+    g_sync_acc = 0u;
 #endif
 }
 
@@ -627,6 +717,7 @@ err_t zb_host_init(void)
     memset(&g_net, 0, sizeof(g_net));
     g_n = 0u;
     g_dirty = 0u;
+    g_view_gen = 0u;
     g_permit_acc = 0u;
     g_now_ms = 1u;
 #ifdef ZB_IOTDEV_DRIVER
@@ -670,6 +761,9 @@ void zb_host_poll(uint32_t dt_ms)
         while (g_permit_acc >= 1000u && g_net.permit_left > 0u) {
             g_permit_acc -= 1000u;
             g_net.permit_left--;
+            if (g_net.permit_left == 0u) {
+                mark_view();
+            }
         }
     } else {
         g_permit_acc = 0u;
@@ -678,6 +772,11 @@ void zb_host_poll(uint32_t dt_ms)
     if (g_drv != 0u) {
         driver_idle();
         zb_core_task();
+        g_sync_acc += dt_ms;
+        if (g_sync_acc >= 1000u) {
+            g_sync_acc = 0u;
+            import_driver_devices();
+        }
     }
 #endif
     if (g_dirty != 0u) {
@@ -693,9 +792,7 @@ err_t zb_form(const zb_net_cfg_t *cfg)
 #ifdef ZB_IOTDEV_DRIVER
     if (g_drv != 0u) {
         zb_core_apply_default_network_config(cfg->channel, 0u, 5);
-        if (zb_core_get_running_status()) {
-            (void)zb_core_request_factory_reset();
-        } else {
+        if (zb_core_get_running_status() == false) {
             (void)zb_core_request_start();
         }
     }
@@ -716,6 +813,7 @@ err_t zb_permit_join(uint8_t seconds)
 #endif
     g_net.permit_left = seconds;
     g_permit_acc = 0u;
+    mark_view();
     return ERR_OK;
 }
 
@@ -797,6 +895,11 @@ uint8_t zb_host_dirty(void)
     return g_dirty;
 }
 
+uint32_t zb_host_gen(void)
+{
+    return g_view_gen;
+}
+
 err_t zb_host_add(const uint8_t ieee[8], uint16_t nwk, home_kind_t kind, const char *name,
                   const char *room)
 {
@@ -850,7 +953,10 @@ err_t zb_host_apply_announce(uint16_t nwk, const uint8_t ieee[8])
         return ERR_INVAL;
     }
     if (zb_host_find(ieee, &idx) == ERR_OK) {
-        g_dev[idx].nwk = nwk;
+        if (g_dev[idx].nwk != nwk) {
+            g_dev[idx].nwk = nwk;
+            mark_view();
+        }
         g_dev[idx].interviewing = 1u;
         return ERR_OK;
     }

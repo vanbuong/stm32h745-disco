@@ -71,6 +71,7 @@ err_t zb_host_find(const uint8_t ieee[8], size_t *idx);
 void zb_host_net(zb_net_info_t *out);
 uint8_t zb_host_cmd_allowed(void);
 uint8_t zb_host_dirty(void);
+uint32_t zb_host_gen(void);
 
 err_t zb_host_add(const uint8_t ieee[8], uint16_t nwk, home_kind_t kind, const char *name,
                   const char *room);

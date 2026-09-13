@@ -1029,6 +1029,15 @@ static void home_pair_cb(lv_event_t *e)
     log_nav("home", "pair");
 }
 
+static void home_form_cb(lv_event_t *e)
+{
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
+        return;
+    }
+    home_app_form();
+    log_nav("home", "form");
+}
+
 static void home_net_cb(lv_event_t *e)
 {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
@@ -1195,8 +1204,15 @@ static void build_home_list(lv_obj_t *bar)
     }
     n = home_devices(NULL, d, HOME_DEV_MAX);
     if (n == 0u) {
-        add_message_card(THEME_APPBAR_H + 50, "No devices", THEME_TEXT,
-                         "Tap Pair to open the network.");
+        const char *hint = "Tap Pair to open the network.";
+        if (net.radio_ok == 0u) {
+            hint = "Radio not ready.";
+        } else if (net.formed == 0u) {
+            hint = "Tap Pair to start the network.";
+        } else if (net.permit_left > 0u) {
+            hint = "Waiting for a device to join.";
+        }
+        add_message_card(THEME_APPBAR_H + 50, "No devices", THEME_TEXT, hint);
         return;
     }
     y = THEME_APPBAR_H + 48;
@@ -1273,9 +1289,14 @@ static void build_home_network(lv_obj_t *bar)
 
     add_pill_btn(bar, THEME_PANEL_W - 164, 4, 72, 32, "Rules", THEME_SURFACE_2, THEME_TEXT,
                  home_autos_cb);
-    add_pill_btn(bar, THEME_PANEL_W - 84, 4, 72, 32, "Pair", THEME_TILE_HOME, 0xFFFFFFu,
-                 home_pair_cb);
     home_net(&n);
+    if (n.formed == 0u) {
+        add_pill_btn(bar, THEME_PANEL_W - 84, 4, 72, 32, "Form", THEME_TILE_HOME, 0xFFFFFFu,
+                     home_form_cb);
+    } else {
+        add_pill_btn(bar, THEME_PANEL_W - 84, 4, 72, 32, "Pair", THEME_TILE_HOME, 0xFFFFFFu,
+                     home_pair_cb);
+    }
     home_u16_text(ch, sizeof(ch), "ch ", n.channel);
     home_u16_text(pan, sizeof(pan), "PAN ", n.pan);
     home_u16_text(cnt, sizeof(cnt), "", (uint16_t)home_device_count());

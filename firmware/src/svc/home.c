@@ -7,6 +7,7 @@
 
 static void (*g_cb)(const home_device_t *);
 static uint32_t g_gen;
+static uint32_t g_zb_seen;
 static uint8_t g_auto_apply;
 
 static void bump(void)
@@ -160,6 +161,7 @@ err_t home_init(void)
     }
     e = auto_init();
     if (e == ERR_OK) {
+        g_zb_seen = zb_host_gen();
         bump();
     }
     return e;
@@ -171,14 +173,22 @@ void home_reset(void)
     auto_reset();
     g_cb = NULL;
     g_gen = 0u;
+    g_zb_seen = 0u;
     g_auto_apply = 0u;
 }
 
 void home_poll(uint32_t dt_ms)
 {
+    uint32_t zb_gen;
+
     zb_host_poll(dt_ms);
     auto_poll(dt_ms);
     apply_due();
+    zb_gen = zb_host_gen();
+    if (zb_gen != g_zb_seen) {
+        g_zb_seen = zb_gen;
+        bump();
+    }
 }
 
 size_t home_devices(const char *room_id, home_device_t *out, size_t max)
@@ -354,7 +364,11 @@ err_t home_form(uint8_t channel, uint16_t pan)
 
 err_t home_permit_join(uint8_t seconds)
 {
-    return zb_permit_join(seconds);
+    err_t e = zb_permit_join(seconds);
+    if (e == ERR_OK) {
+        bump();
+    }
+    return e;
 }
 
 err_t home_remove(const char *device_id)

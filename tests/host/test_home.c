@@ -336,6 +336,40 @@ static void test_form_leave_rooms(void)
     (void)i;
 }
 
+static void test_live_list_and_form(void)
+{
+    const uint8_t ieee[8] = {0xAAu, 0, 0, 0, 0, 0, 0, 0x55u};
+    const uint8_t extra[8] = {0xAAu, 0, 0, 0, 0, 0, 0, 0x56u};
+    home_device_t d;
+    home_net_t n;
+    uint32_t gen;
+    uint32_t agen;
+
+    boot_home();
+    gen = home_gen();
+    TEST_ASSERT_EQUAL_INT(ERR_OK,
+                          zb_host_add(ieee, 0x0055u, HOME_LIGHT, "Kitchen lamp", "Kitchen"));
+    home_poll(0u);
+    TEST_ASSERT_TRUE(home_gen() > gen);
+    TEST_ASSERT_EQUAL_INT(ERR_OK, home_device("Kitchen lamp", &d));
+    TEST_ASSERT_EQUAL_INT(HOME_LIGHT, d.kind);
+
+    TEST_ASSERT_EQUAL_INT(ERR_OK, zb_host_add(extra, 0x0056u, HOME_SWITCH, "Porch", "Entrance"));
+    home_poll(0u);
+    TEST_ASSERT_EQUAL_UINT(6u, home_device_count());
+    home_reset();
+    TEST_ASSERT_EQUAL_INT(ERR_OK, home_init());
+    TEST_ASSERT_EQUAL_UINT(6u, home_device_count());
+    TEST_ASSERT_EQUAL_INT(ERR_OK, home_device("Porch", &d));
+
+    home_app_open();
+    agen = home_app_gen();
+    home_app_form();
+    home_net(&n);
+    TEST_ASSERT_EQUAL_UINT8(1u, n.formed);
+    TEST_ASSERT_TRUE(home_app_gen() > agen);
+}
+
 void test_home_run(void)
 {
     UnitySetTestFile(__FILE__);
@@ -348,4 +382,5 @@ void test_home_run(void)
     RUN_TEST(test_occupancy_rule);
     RUN_TEST(test_rule_cap_and_kinds);
     RUN_TEST(test_form_leave_rooms);
+    RUN_TEST(test_live_list_and_form);
 }
