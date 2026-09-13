@@ -6,15 +6,16 @@
 #include "zb_osal.h"
 #endif
 #include "iotdev_utils/iotdev_datetime/iotdev_datetime.h"
+#include "svc/log.h"
 
-#define ZB_LOGS(TAG, fmt, ...)                  do { } while (0)
-#define ZB_LOGS_BUFFER_HEX(TAG, data, len)      do { } while (0)
-#define ZB_LOG_BUFFER_HEX(TAG, data, len)       do { } while (0)
-#define ZB_LOGW(TAG, fmt, ...)                  do { } while (0)
-#define ZB_LOGI(TAG, fmt, ...)                  do { } while (0)
-#define ZB_LOGXI(TAG, fmt, ...)                 do { } while (0)
-#define ZB_LOGD(TAG, fmt, ...)                  do { } while (0)
-#define ZB_LOGE(TAG, fmt, ...)                  do { } while (0)
+#define ZB_LOGS(TAG, fmt, ...)                  log_write(LOG_INFO, (TAG), fmt, ##__VA_ARGS__)
+#define ZB_LOGS_BUFFER_HEX(TAG, data, len)      log_hex(LOG_INFO, (TAG), (data), (size_t)(len))
+#define ZB_LOG_BUFFER_HEX(TAG, data, len)       log_hex(LOG_INFO, (TAG), (data), (size_t)(len))
+#define ZB_LOGW(TAG, fmt, ...)                  log_write(LOG_WARN, (TAG), fmt, ##__VA_ARGS__)
+#define ZB_LOGI(TAG, fmt, ...)                  log_write(LOG_INFO, (TAG), fmt, ##__VA_ARGS__)
+#define ZB_LOGXI(TAG, fmt, ...)                 log_write(LOG_INFO, (TAG), fmt, ##__VA_ARGS__)
+#define ZB_LOGD(TAG, fmt, ...)                  log_write(LOG_DEBUG, (TAG), fmt, ##__VA_ARGS__)
+#define ZB_LOGE(TAG, fmt, ...)                  log_write(LOG_ERROR, (TAG), fmt, ##__VA_ARGS__)
 
 #define ZB_MEM_MALLOC                           malloc
 #define ZB_MEM_CALLOC                           calloc

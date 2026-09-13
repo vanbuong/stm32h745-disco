@@ -6,6 +6,7 @@
 #include "svc/cfg.h"
 #include "svc/health.h"
 #include "svc/home.h"
+#include "svc/log.h"
 #include "svc/memtest.h"
 #include "svc/net.h"
 #include "svc/time.h"
@@ -281,6 +282,7 @@ int main(void)
     HAL_Init();
     led_init();
     board_console_init(0);
+    log_init();
 
     e = board_clock_init();
     board_console_init(0);

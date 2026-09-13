@@ -121,6 +121,7 @@ function(stm32_add_firmware CORE_ID)
             ${H745_ROOT}/firmware/src/svc/auto.c
             ${H745_ROOT}/firmware/src/svc/cfg.c
             ${H745_ROOT}/firmware/src/svc/health.c
+            ${H745_ROOT}/firmware/src/svc/log.c
             ${H745_ROOT}/firmware/src/hal/uart.c
             ${H745_ROOT}/firmware/src/hal/wdog.c
             ${BSP}/m7_heap.c

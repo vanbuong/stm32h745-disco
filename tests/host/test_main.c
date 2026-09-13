@@ -23,6 +23,7 @@ void test_net_run(void);
 void test_game_run(void);
 void test_home_run(void);
 void test_health_run(void);
+void test_log_run(void);
 
 int main(void)
 {
@@ -42,5 +43,6 @@ int main(void)
     test_game_run();
     test_home_run();
     test_health_run();
+    test_log_run();
     return UNITY_END();
 }

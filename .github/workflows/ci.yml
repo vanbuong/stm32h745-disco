@@ -96,6 +96,7 @@ jobs:
             firmware/src/svc/auto.c \
             firmware/src/svc/cfg.c \
             firmware/src/svc/health.c \
+            firmware/src/svc/log.c \
             firmware/src/svc/memtest.c \
             firmware/src/bsp/mpu_map.c \
             firmware/src/shell/nav.c \

@@ -85,6 +85,7 @@ set(SIM_SRC
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/auto.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/cfg.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/health.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/log.c
     ${CMAKE_SOURCE_DIR}/tests/host/wdog_stub.c
     ${CMAKE_SOURCE_DIR}/tests/host/uart_stub.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/vendor/tjpgd/tjpgd.c

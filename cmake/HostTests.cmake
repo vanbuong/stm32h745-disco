@@ -36,6 +36,7 @@ set(HOST_SRC
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/auto.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/cfg.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/health.c
+    ${CMAKE_SOURCE_DIR}/firmware/src/svc/log.c
     ${CMAKE_SOURCE_DIR}/tests/host/wdog_stub.c
     ${CMAKE_SOURCE_DIR}/firmware/src/svc/memtest.c
     ${CMAKE_SOURCE_DIR}/firmware/src/bsp/mpu_map.c
@@ -74,6 +75,7 @@ set(HOST_SRC
     ${CMAKE_SOURCE_DIR}/tests/host/test_game.c
     ${CMAKE_SOURCE_DIR}/tests/host/test_home.c
     ${CMAKE_SOURCE_DIR}/tests/host/test_health.c
+    ${CMAKE_SOURCE_DIR}/tests/host/test_log.c
     ${CMAKE_SOURCE_DIR}/tests/host/vfs_ram.c
 )
 

@@ -2,6 +2,7 @@
 
 #include "hal/uart.h"
 #include "hal/wdog.h"
+#include "svc/log.h"
 #include "svc/vfs.h"
 #include "svc/znp_mt.h"
 
@@ -747,6 +748,8 @@ err_t zb_host_init(void)
     if (g_dirty != 0u) {
         persist_save();
     }
+    log_write((g_net.radio_ok != 0u) ? LOG_INFO : LOG_WARN, "zb", "znp %s",
+              g_net.znp_ver[0] != '\0' ? g_net.znp_ver : "?");
     return ERR_OK;
 }
 

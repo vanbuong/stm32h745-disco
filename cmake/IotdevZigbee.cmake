@@ -96,6 +96,7 @@ function(stm32_add_iotdev_zigbee TGT)
         ${IOTDEV_ZB_DRV}/proto
         ${IOTDEV_ZB_PORT}
         ${IOTDEV_ZB_NANOPB}
+        ${H745_ROOT}/firmware/include
     )
     target_compile_definitions(${TGT} PRIVATE
         ZB_IOTDEV_DRIVER
