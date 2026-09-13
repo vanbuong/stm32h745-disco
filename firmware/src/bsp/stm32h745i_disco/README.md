@@ -2,6 +2,8 @@
 
 Board: MB1381 with STM32H745XIH6. Pin mux and clocks live here; apps never include HAL.
 
+Full inventory (clocks, DMA, pins): [`doc/Board_Map.md`](../../../../doc/Board_Map.md).
+
 ## Ethernet vs QSPI bank 2
 
 The LAN8740Ai PHY is **hardwired MII** (not RMII). PH2 and PH3 are muxed:

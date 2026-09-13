@@ -10,6 +10,7 @@ The first implementation is **FreeRTOS + LVGL + STM32Cube HAL/LL**. The board BS
 | --- | --- |
 | [doc/Design_Review.md](doc/Design_Review.md) | Review of the v1 drafts and why v2 changed |
 | [doc/Architecture.md](doc/Architecture.md) | Layers, core split, memory, boot/thread/Zigbee flows |
+| [doc/Board_Map.md](doc/Board_Map.md) | Peripherals, clocks, DMA engines, pin map |
 | [doc/Plan.md](doc/Plan.md) | Sprints, dependencies, risks |
 | [doc/UI_Design.md](doc/UI_Design.md) | Shell, screens, navigation and pairing flows |
 | [doc/Requirements_and_Test_Cases.md](doc/Requirements_and_Test_Cases.md) | Shall statements, tests, traceability, CI reqs |

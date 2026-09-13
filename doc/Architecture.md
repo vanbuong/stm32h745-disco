@@ -4,6 +4,8 @@ Portable HMI architecture for the STM32H745I-DISCO. Application code must not ca
 
 **Contents:** 1 Goals · 2 Hardware · 3 Layers · 3.1 Vendor · 4 Tree · 5 Cores · 6 Memory · 7 Interfaces · 8 UI · 9 Services · 10 Pins · 11 Build/CI · 12 Zephyr · 13 Boot · 14 Threads · 15 OSAL · 16 VFS · 16.1 USB MSC · 17 Zigbee · 18 Automation · 19 Audio · 20 Log · 21 Errors · 22 Migration
 
+Clock values, DMA engines, and the pin table live in [`Board_Map.md`](Board_Map.md).
+
 ## 1. Goals
 
 - Ship a usable dual-core HMI: launcher, files, image/text viewers, audio, **game**, **home automation**, and network status.
@@ -496,10 +498,12 @@ Network ownership: **M7** runs ETH + LwIP (no RTOS; M4 owns SAI). Never initiali
 
 ## 10. Pin and bus constraints
 
+Inventory (clocks, DMA engines, pin table): [`Board_Map.md`](Board_Map.md). Assembly notes for ETH vs QSPI: `firmware/src/bsp/stm32h745i_disco/README.md`.
+
 - **I2C4:** FT5336 + WM8994. BSP provides a mutex; no driver talks to I2C4 directly.
 - **USART3:** ST-LINK VCP console only.
 - **USART1 (Arduino PB6/PB7):** default TI ZNP UART. Optional RESET GPIO on an Arduino pin. Do not share this UART with ESP32 AT; pick one expansion map per build.
-- **Ethernet vs QSPI bank 2:** default solder map (SB3/SB4 OFF, R38/R40 ON) keeps PH2/PH3 on QSPI. Ethernet is MII **100 Mbit/s full-duplex** without CRS/COL. Documented in `firmware/src/bsp/stm32h745i_disco/README.md`.
+- **Ethernet vs QSPI bank 2:** default solder map (SB3/SB4 OFF, R38/R40 ON) keeps PH2/PH3 on QSPI. Ethernet is MII **100 Mbit/s full-duplex** without CRS/COL.
 - **LTDC pixel clock** and SDRAM bandwidth: RGB565 double-buffer + DMA2D is the safe default at 480×272.
 - **USB OTG FS:** later TinyUSB MSC only. Do not bring up Cube USB alongside it.
 
