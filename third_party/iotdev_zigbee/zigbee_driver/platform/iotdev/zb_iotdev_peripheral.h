@@ -51,10 +51,22 @@ zb_plat_delay_us(uint32_t us)
     esp_rom_delay_us(us);
 }
 
-#else /* !ZB_PLATFORM_IOTDEV — host / test build */
+#else /* !ZB_PLATFORM_IOTDEV — H7 port / host tests */
 
 static inline void zb_plat_uart_rx_pullup_en(int rx_gpio) { (void)rx_gpio; }
-static inline void zb_plat_delay_us(uint32_t us) { (void)us; }
+
+/**
+ * @brief Busy-wait or yield for at least @p us. Provided by the board port.
+ *
+ * A no-op here made the CC26xx RESET pulse nanoseconds wide, so SYS_RESET_IND
+ * never arrived and the ZNP task could spin draining UART noise.
+ */
+void zb_plat_busy_wait_us(uint32_t us);
+
+static inline void zb_plat_delay_us(uint32_t us)
+{
+    zb_plat_busy_wait_us(us);
+}
 
 #endif /* ZB_PLATFORM_IOTDEV */
 

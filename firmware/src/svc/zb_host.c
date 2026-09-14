@@ -628,15 +628,19 @@ static void start_driver(void)
 static void znp_loop(void *arg)
 {
     (void)arg;
+    log_write(LOG_INFO, "znp", "task on");
     for (;;) {
         zb_plat_serial_poll();
         zb_znp_task();
+        /* Always yield: a noisy USART2 must not starve UI/touch at prio 5. */
+        zb_os_delay_ms(1u);
     }
 }
 
 static void core_loop(void *arg)
 {
     (void)arg;
+    log_write(LOG_INFO, "zb", "task on");
     start_driver();
     for (;;) {
         zb_core_task();

@@ -1,19 +1,33 @@
+#include "platform/iotdev/zb_iotdev_peripheral.h"
 #include "platform/iotdev/zb_plat_serial.h"
 
+#include "zb_osal.h"
 #include "zb_port.h"
 
 #include "bsp/board.h"
 #include "hal/uart.h"
-#include "hal/wdog.h"
 
 #include <string.h>
 
 #define ZNP_SREQ_TYPE 0x20u
 #define ZNP_SREQ_COLLECT_MS 40u
 #define ZNP_SREQ_GAP_MS 2u
+#define ZNP_RX_BURST 256u
+#define ZNP_FLUSH_MS 8u
 
 static zb_serial_rx_cb_t g_rx;
 static uint8_t g_open;
+
+void zb_plat_busy_wait_us(uint32_t us)
+{
+    uint32_t ms;
+
+    if (us == 0u) {
+        return;
+    }
+    ms = (us + 999u) / 1000u;
+    zb_os_delay_ms(ms);
+}
 
 void zb_plat_serial_open(const s_zb_serial_cfg_t *cfg, zb_serial_rx_cb_t on_rx)
 {
@@ -38,12 +52,15 @@ static void rx_to_cb(void)
 {
     uint8_t buf[64];
     size_t got = 0u;
+    uint32_t n = 0u;
 
     if (g_open == 0u || g_rx == NULL) {
         return;
     }
-    while (uart_read(UART_ID_ZNP, buf, sizeof(buf), &got, 0u) == ERR_OK && got > 0u) {
+    while (n < ZNP_RX_BURST && uart_read(UART_ID_ZNP, buf, sizeof(buf), &got, 0u) == ERR_OK &&
+           got > 0u) {
         g_rx(buf, (uint16_t)got);
+        n += (uint32_t)got;
         got = 0u;
     }
 }
@@ -72,13 +89,15 @@ static void collect_sreq_reply(const uint8_t *data, uint16_t len)
             g_rx(buf, (uint16_t)got);
             any = 1u;
             last = now;
-        } else if (any != 0u && (uint32_t)(now - last) >= ZNP_SREQ_GAP_MS) {
+            continue;
+        }
+        if (any != 0u && (uint32_t)(now - last) >= ZNP_SREQ_GAP_MS) {
             break;
         }
         if ((uint32_t)(now - t0) >= ZNP_SREQ_COLLECT_MS) {
             break;
         }
-        wdog_kick();
+        zb_os_delay_ms(1u);
     }
 }
 
@@ -98,12 +117,19 @@ void zb_plat_serial_flush_rx(void)
 {
     uint8_t buf[32];
     size_t got = 0u;
+    uint32_t t0;
+    uint32_t n = 0u;
 
     if (g_open == 0u) {
         return;
     }
+    t0 = board_millis();
     while (uart_read(UART_ID_ZNP, buf, sizeof(buf), &got, 0u) == ERR_OK && got > 0u) {
+        n += (uint32_t)got;
         got = 0u;
+        if (n >= ZNP_RX_BURST || (uint32_t)(board_millis() - t0) >= ZNP_FLUSH_MS) {
+            break;
+        }
     }
 }
 

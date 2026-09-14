@@ -36,6 +36,7 @@ static void ui_task(void *arg)
     uint8_t led_on = 0u;
 
     (void)arg;
+    log_write(LOG_INFO, "ui", "task on");
     for (;;) {
         uint32_t now = board_millis();
         uint32_t dt = now - last_ms;

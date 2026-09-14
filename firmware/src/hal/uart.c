@@ -71,30 +71,6 @@ void uart_rx_pump(void)
     }
 }
 
-static void drain_rx(uint32_t ms)
-{
-    uint32_t t0 = HAL_GetTick();
-
-    g_rx_head = 0u;
-    g_rx_n = 0u;
-    while ((HAL_GetTick() - t0) < ms) {
-        uart_rx_pump();
-        g_rx_head = 0u;
-        g_rx_n = 0u;
-    }
-}
-
-static void znp_reset_app(void)
-{
-    /* BOOT high during reset runs the ZNP image; low enters the SBL. */
-    HAL_GPIO_WritePin(ZNP_BOOT_PORT, ZNP_BOOT_PIN, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(ZNP_RESET_PORT, ZNP_RESET_PIN, GPIO_PIN_RESET);
-    HAL_Delay(10u);
-    HAL_GPIO_WritePin(ZNP_RESET_PORT, ZNP_RESET_PIN, GPIO_PIN_SET);
-    /* App start can take up to UART_ZNP_RESET_MS; zb_host retries SYS_PING. */
-    drain_rx(50u);
-}
-
 err_t uart_open(uart_id_t id, const uart_cfg_t *cfg)
 {
     uint32_t baud = BOARD_ZNP_UART_BAUD;
@@ -147,7 +123,8 @@ err_t uart_open(uart_id_t id, const uart_cfg_t *cfg)
     g_rx_head = 0u;
     g_rx_n = 0u;
     g_open = 1u;
-    znp_reset_app();
+    /* Keep RESET asserted. zb_znp set-mode owns the pulse (needs a real
+     * delay_us) so SYS_RESET_IND lands in the parser instead of drain_rx. */
     return ERR_OK;
 }
 

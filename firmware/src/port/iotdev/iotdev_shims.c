@@ -3,6 +3,7 @@
 
 #include "hal/uart.h"
 #include "svc/cfg.h"
+#include "svc/log.h"
 
 static int32_t g_mask;
 static int32_t g_tx = 5;
@@ -50,10 +51,12 @@ int iotdev_config_save(void)
 
 int iotdev_gpio_set_coprocessor_reset_pin(bool level)
 {
+    log_write(LOG_INFO, "znp", "reset %u", level ? 1u : 0u);
     return (uart_set_gpio(UART_ID_ZNP, UART_PIN_RESET, level ? 1 : 0) == ERR_OK) ? 0 : -1;
 }
 
 int iotdev_gpio_set_coprocessor_boot_pin(bool level)
 {
+    log_write(LOG_INFO, "znp", "boot %u", level ? 1u : 0u);
     return (uart_set_gpio(UART_ID_ZNP, UART_PIN_BOOT, level ? 1 : 0) == ERR_OK) ? 0 : -1;
 }
