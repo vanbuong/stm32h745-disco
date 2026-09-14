@@ -85,17 +85,25 @@ static char lvl_ch(log_lvl_t lvl)
 #if defined(CORE_CM7)
 static void board_sink(const char *line, size_t n)
 {
-    (void)n;
-    board_console_puts(line);
-    board_console_puts("\r\n");
+    char buf[LOG_LINE_MAX + 3u];
+
+    if (n >= LOG_LINE_MAX) {
+        n = LOG_LINE_MAX - 1u;
+    }
+    memcpy(buf, line, n);
+    buf[n] = '\r';
+    buf[n + 1u] = '\n';
+    buf[n + 2u] = '\0';
+    board_console_puts(buf);
 }
 #endif
 
-static void emit(void)
+static void emit(const char *line, size_t n)
 {
     g_count++;
+    copy_str(g_last, sizeof(g_last), line);
     if (g_sink != NULL) {
-        g_sink(g_last, strlen(g_last));
+        g_sink(line, n);
     }
 }
 
@@ -339,6 +347,7 @@ void log_write(log_lvl_t lvl, const char *mod, const char *fmt, ...)
     va_list ap;
     size_t o = 0u;
     char tag[MOD_MAX];
+    char line[LOG_LINE_MAX];
 
     if (g_ready == 0u) {
         log_init();
@@ -347,19 +356,19 @@ void log_write(log_lvl_t lvl, const char *mod, const char *fmt, ...)
         return;
     }
     copy_str(tag, sizeof(tag), (mod != NULL && mod[0] != '\0') ? mod : "app");
-    put_str(g_last, sizeof(g_last), &o, g_core[0] != '\0' ? g_core : default_core());
-    put_ch(g_last, sizeof(g_last), &o, ',');
-    put_u64(g_last, sizeof(g_last), &o, (uint64_t)now_ms(), 10u, 0, 0, 0);
-    put_ch(g_last, sizeof(g_last), &o, ',');
-    put_ch(g_last, sizeof(g_last), &o, lvl_ch(lvl));
-    put_ch(g_last, sizeof(g_last), &o, ',');
-    put_str(g_last, sizeof(g_last), &o, tag);
-    put_ch(g_last, sizeof(g_last), &o, ',');
+    put_str(line, sizeof(line), &o, g_core[0] != '\0' ? g_core : default_core());
+    put_ch(line, sizeof(line), &o, ',');
+    put_u64(line, sizeof(line), &o, (uint64_t)now_ms(), 10u, 0, 0, 0);
+    put_ch(line, sizeof(line), &o, ',');
+    put_ch(line, sizeof(line), &o, lvl_ch(lvl));
+    put_ch(line, sizeof(line), &o, ',');
+    put_str(line, sizeof(line), &o, tag);
+    put_ch(line, sizeof(line), &o, ',');
     va_start(ap, fmt);
-    format_msg(g_last, sizeof(g_last), &o, fmt, ap);
+    format_msg(line, sizeof(line), &o, fmt, ap);
     va_end(ap);
-    g_last[o] = '\0';
-    emit();
+    line[o] = '\0';
+    emit(line, o);
 }
 
 void log_hex(log_lvl_t lvl, const char *mod, const void *data, size_t n)

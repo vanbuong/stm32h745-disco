@@ -1,7 +1,29 @@
 #include "bsp/board.h"
 #include "hal/uart.h"
+#include "osal/osal.h"
 
 #include "cube.h"
+
+static osal_mutex_t *g_lock;
+
+static void console_lock(void)
+{
+    if (osal_scheduler_running() == 0u) {
+        return;
+    }
+    if (osal_mutex_ensure(&g_lock) != ERR_OK || g_lock == NULL) {
+        return;
+    }
+    (void)osal_mutex_lock(g_lock, OSAL_WAIT_FOREVER);
+}
+
+static void console_unlock(void)
+{
+    if (g_lock == NULL) {
+        return;
+    }
+    (void)osal_mutex_unlock(g_lock);
+}
 
 void board_console_init(uint32_t pclk1_hz)
 {
@@ -34,6 +56,7 @@ void board_console_puts(const char *s)
     if (s == NULL) {
         return;
     }
+    console_lock();
     while (*s != '\0') {
         uart_rx_pump();
         while (LL_USART_IsActiveFlag_TXE(USART3) == 0u) {
@@ -41,6 +64,7 @@ void board_console_puts(const char *s)
         }
         LL_USART_TransmitData8(USART3, (uint8_t)*s++);
     }
+    console_unlock();
 }
 
 void board_console_put_hex32(uint32_t v)
