@@ -348,7 +348,7 @@ The STM32 is the **Zigbee host**. A TI **ZNP** (Z-Stack Network Processor, e.g. 
                  auto_*  (rules on M7, host-testable)
 ```
 
-`third_party/iotdev_zigbee` is the ESP32 coordinator driver. M7 does **not** define `ZB_PLATFORM_IOTDEV` and does not compile the ESP-IDF `zb_osal_freertos.c` or `source/iotdev_zigbee.c`. The vanilla FreeRTOS OSAL (`firmware/src/port/iotdev/zb_osal_freertos.c`) runs `zb_znp_task` and `zb_core_task` on their own tasks. `zb_host_poll` only updates permit/persist. Local shims replace `iotdev_config` / `iotdev_uart` / `iotdev_gpio` / nanopb / filesystem with `cfg_*`, `uart_*`, and jailed `vfs_*` under `/user/home/zb`. Host tests keep the mock `zb_host` path and do not start the driver.
+`third_party/iotdev_zigbee` is the ESP32 coordinator driver. M7 does **not** define `ZB_PLATFORM_IOTDEV` and does not compile the ESP-IDF `zb_osal_freertos.c` or `source/iotdev_zigbee.c`. The vanilla FreeRTOS OSAL (`firmware/src/port/iotdev/zb_osal_freertos.c`) runs `zb_znp_task` and `zb_core_task` on their own tasks. `zb_host_init` only loads the persisted table; `zb_host_start` creates the tasks, and `zb_core_init` / UART open run on the `zb` task after the scheduler is up. Creating FreeRTOS objects on `main` before `vTaskStartScheduler()` masks SysTick on Cortex-M and turns `HAL_Delay` into a hang. `zb_host_poll` only updates permit/persist. Local shims replace `iotdev_config` / `iotdev_uart` / `iotdev_gpio` / nanopb / filesystem with `cfg_*`, `uart_*`, and jailed `vfs_*` under `/user/home/zb`. Host tests keep the mock `zb_host` path and do not start the driver.
 
 `src/app/home` never includes MT command IDs, UART HAL, or MQTT.
 
@@ -566,7 +566,7 @@ M7 does not wait forever for ZNP. If SYS_PING fails, Home shows “Radio not rea
 | Thread | Prio (FreeRTOS, high=more urgent) | Period | Notes |
 | --- | --- | --- | --- |
 | `ui` | 3 | 5 ms | LVGL, `shell_tick` (VFS/net/home poll), IPC, IWDG |
-| `zb` | 4 | 10 ms | `zb_core_task` |
+| `zb` | 4 | 10 ms | `zb_core_init` once, then `zb_core_task` |
 | `znp` | 5 | UART/SREQ | `zb_plat_serial_poll` + `zb_znp_task` |
 | timer | 2 | — | FreeRTOS timer daemon |
 | idle | 0 | — | WFI |

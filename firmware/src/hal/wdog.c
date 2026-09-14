@@ -16,16 +16,27 @@ static uint8_t g_on;
 err_t wdog_start(void)
 {
 #if defined(CORE_CM7)
+    uint32_t t0;
+
     /*
      * LSI ~32 kHz / 256, reload 2047 ≈ 16 s. Start only after bring-up so
      * vfs_bench / memtest cannot trip it. Window disabled (no IRQ).
      */
+    __HAL_RCC_LSI_ENABLE();
+    t0 = HAL_GetTick();
+    while (__HAL_RCC_GET_FLAG(RCC_FLAG_LSIRDY) == 0u) {
+        if ((HAL_GetTick() - t0) > 20u) {
+            break;
+        }
+    }
     g_iwdg.Instance = IWDG1;
     g_iwdg.Init.Prescaler = IWDG_PRESCALER_256;
     g_iwdg.Init.Reload = 2047u;
     g_iwdg.Init.Window = IWDG_WINDOW_DISABLE;
     if (HAL_IWDG_Init(&g_iwdg) != HAL_OK) {
-        g_on = 0u;
+        /* HAL starts the counter before waiting on SR. Keep kicking. */
+        g_on = 1u;
+        (void)HAL_IWDG_Refresh(&g_iwdg);
         return ERR_IO;
     }
     g_on = 1u;

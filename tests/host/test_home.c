@@ -33,6 +33,7 @@ static void boot_home(void)
     home_reset();
     TEST_ASSERT_EQUAL_INT(ERR_OK, vfs_mount());
     TEST_ASSERT_EQUAL_INT(ERR_OK, home_init());
+    zb_host_start();
 }
 
 static void test_mock_seed(void)

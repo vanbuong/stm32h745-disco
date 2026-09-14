@@ -55,6 +55,7 @@ typedef struct {
 } zb_dev_t;
 
 err_t zb_host_init(void);
+void zb_host_start(void);
 void zb_host_reset(void);
 void zb_host_poll(uint32_t dt_ms);
 

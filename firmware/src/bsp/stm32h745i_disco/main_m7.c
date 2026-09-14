@@ -12,6 +12,7 @@
 #include "svc/net.h"
 #include "svc/time.h"
 #include "svc/vfs.h"
+#include "svc/zb_host.h"
 #include "ui/backend.h"
 #include "ui/shell.h"
 
@@ -418,6 +419,9 @@ int main(void)
 
     vfs_ok = vfs_bringup();
     shell_status_set_storage(vfs_ok);
+    if (g_ui_ok != 0u) {
+        ui_backend_handler();
+    }
     (void)cfg_init();
     (void)audio_set_volume(cfg_volume());
     (void)disp_set_brightness(cfg_brightness());
@@ -426,6 +430,11 @@ int main(void)
     log_err("wdog", e);
     e = health_selftest();
     log_err("health", e);
+    e = time_init();
+    log_err("rtc", e);
+    e = net_service_init();
+    log_err("net", e);
+
     (void)home_init();
     {
         home_net_t hn;
@@ -437,11 +446,9 @@ int main(void)
         log_kv("znp_radio", hn.radio_ok);
     }
 
-    e = time_init();
-    log_err("rtc", e);
-    e = net_service_init();
-    log_err("net", e);
-
+    /* Create tasks, then start the scheduler immediately. Any FreeRTOS
+     * API before vTaskStartScheduler() leaves SysTick masked on Cortex-M. */
+    zb_host_start();
     attr.name = "ui";
     attr.stack_bytes = 4096u;
     attr.priority = 3u;

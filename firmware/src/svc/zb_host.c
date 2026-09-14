@@ -18,11 +18,6 @@
 
 #include <string.h>
 
-#define MT_SYS_SREQ 0x21u
-#define MT_SYS_SRSP 0x61u
-#define MT_SYS_PING 0x01u
-#define ZNP_PING_WAIT_MS 200u
-#define ZNP_PING_TRIES (UART_ZNP_RESET_MS / ZNP_PING_WAIT_MS)
 #define DEV_REC 54u
 #define DEV_HDR 6u
 #define NET_LEN 18u
@@ -46,6 +41,8 @@ static uint8_t g_drv;
 static uint8_t g_drv_inited;
 static uint8_t g_tasks;
 static uint32_t g_sync_acc;
+
+static void on_driver_event(const s_zb_event_t *ev);
 #endif
 
 static err_t forget_local(const uint8_t ieee[8]);
@@ -391,6 +388,13 @@ static void seed_mock(void)
     mark_dirty();
 }
 
+#ifndef ZB_IOTDEV_DRIVER
+#define MT_SYS_SREQ 0x21u
+#define MT_SYS_SRSP 0x61u
+#define MT_SYS_PING 0x01u
+#define ZNP_PING_WAIT_MS 200u
+#define ZNP_PING_TRIES (UART_ZNP_RESET_MS / ZNP_PING_WAIT_MS)
+
 static void try_sys_ping(void)
 {
     uart_cfg_t cfg;
@@ -437,6 +441,7 @@ static void try_sys_ping(void)
     g_net.mock = 1u;
     copy_str(g_net.znp_ver, sizeof(g_net.znp_ver), "down");
 }
+#endif
 
 #ifdef ZB_IOTDEV_DRIVER
 static void ieee_bytes(uint8_t out[8], uint64_t v)
@@ -590,6 +595,36 @@ static void import_driver_devices(void)
     }
 }
 
+static void start_driver(void)
+{
+    if (g_drv_inited == 0u) {
+        zb_core_init();
+        g_drv_inited = 1u;
+    }
+    if (zb_plat_serial_ok() == 0) {
+        g_drv = 0u;
+        g_net.radio_ok = 0u;
+        g_net.mock = 1u;
+        copy_str(g_net.znp_ver, sizeof(g_net.znp_ver), "none");
+        if (g_n == 0u) {
+            seed_mock();
+        }
+        return;
+    }
+    g_drv = 1u;
+    g_net.radio_ok = 1u;
+    g_net.mock = 0u;
+    copy_str(g_net.znp_ver, sizeof(g_net.znp_ver), "ZNP");
+    (void)vfs_mkdir(ZB_HOME_DIR);
+    (void)vfs_mkdir("/user/home/zb");
+    zb_core_set_auto_permit_join_on_form(false);
+    zb_core_apply_default_network_config(cfg_zb_channel(), 0u, 5);
+    zb_core_set_event_callback(on_driver_event);
+    zb_device_manager_register_event_notify_callback(on_driver_event);
+    (void)zb_core_request_start();
+    log_write(LOG_INFO, "zb", "znp %s", g_net.znp_ver);
+}
+
 static void znp_loop(void *arg)
 {
     (void)arg;
@@ -602,6 +637,7 @@ static void znp_loop(void *arg)
 static void core_loop(void *arg)
 {
     (void)arg;
+    start_driver();
     for (;;) {
         zb_core_task();
         g_sync_acc += 10u;
@@ -688,31 +724,6 @@ static void on_driver_event(const s_zb_event_t *ev)
     }
 }
 
-static void driver_init(void)
-{
-    if (g_drv_inited == 0u) {
-        zb_core_init();
-        g_drv_inited = 1u;
-    }
-    if (zb_plat_serial_ok() == 0) {
-        g_drv = 0u;
-        return;
-    }
-    g_drv = 1u;
-    (void)vfs_mkdir(ZB_HOME_DIR);
-    (void)vfs_mkdir("/user/home/zb");
-    zb_core_set_auto_permit_join_on_form(false);
-    zb_core_apply_default_network_config(cfg_zb_channel(), 0u, 5);
-    zb_core_set_event_callback(on_driver_event);
-    zb_device_manager_register_event_notify_callback(on_driver_event);
-    (void)zb_core_request_start();
-    if (g_tasks == 0u) {
-        if (zb_os_task_create(znp_loop, "znp", ZB_ZNP_STACK, NULL, ZB_ZNP_PRIO, NULL) &&
-            zb_os_task_create(core_loop, "zb", ZB_CORE_STACK, NULL, ZB_CORE_PRIO, NULL)) {
-            g_tasks = 1u;
-        }
-    }
-}
 #endif
 
 void zb_host_reset(void)
@@ -727,6 +738,8 @@ void zb_host_reset(void)
     g_now_ms = 0u;
 #ifdef ZB_IOTDEV_DRIVER
     g_drv = 0u;
+    g_drv_inited = 0u;
+    g_tasks = 0u;
     g_sync_acc = 0u;
 #endif
 }
@@ -744,21 +757,14 @@ err_t zb_host_init(void)
     g_permit_acc = 0u;
     g_now_ms = 1u;
 #ifdef ZB_IOTDEV_DRIVER
-    driver_init();
-    if (g_drv != 0u) {
-        g_net.radio_ok = 1u;
-        g_net.mock = 0u;
-        copy_str(g_net.znp_ver, sizeof(g_net.znp_ver), "ZNP");
-        if (persist_load() == 0u) {
-            g_net.persist_ok = 0u;
-        }
-    } else {
-        g_net.radio_ok = 0u;
-        g_net.mock = 1u;
-        copy_str(g_net.znp_ver, sizeof(g_net.znp_ver), "none");
-        if (persist_load() == 0u) {
-            seed_mock();
-        }
+    /* Load the table only. zb_core_init() creates FreeRTOS objects; on
+     * Cortex-M that masks SysTick until vTaskStartScheduler(), so UART
+     * HAL_Delay in uart_open would hang if it ran here. */
+    g_net.radio_ok = 0u;
+    g_net.mock = 0u;
+    copy_str(g_net.znp_ver, sizeof(g_net.znp_ver), "ZNP");
+    if (persist_load() == 0u) {
+        g_net.persist_ok = 0u;
     }
 #else
     try_sys_ping();
@@ -773,6 +779,19 @@ err_t zb_host_init(void)
     log_write((g_net.radio_ok != 0u) ? LOG_INFO : LOG_WARN, "zb", "znp %s",
               g_net.znp_ver[0] != '\0' ? g_net.znp_ver : "?");
     return ERR_OK;
+}
+
+void zb_host_start(void)
+{
+#ifdef ZB_IOTDEV_DRIVER
+    if (g_ready == 0u || g_tasks != 0u) {
+        return;
+    }
+    if (zb_os_task_create(znp_loop, "znp", ZB_ZNP_STACK, NULL, ZB_ZNP_PRIO, NULL) &&
+        zb_os_task_create(core_loop, "zb", ZB_CORE_STACK, NULL, ZB_CORE_PRIO, NULL)) {
+        g_tasks = 1u;
+    }
+#endif
 }
 
 void zb_host_poll(uint32_t dt_ms)
