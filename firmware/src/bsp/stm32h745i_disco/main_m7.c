@@ -35,8 +35,10 @@ static void ui_task(void *arg)
     uint32_t blink_at = last_ms + 250u;
     uint8_t led_on = 0u;
     uint8_t ticked = 0u;
+    uint8_t drawn = 0u;
 
     (void)arg;
+    board_irq_lockdown();
     log_write(LOG_INFO, "ui", "task on");
     for (;;) {
         uint32_t now = board_millis();
@@ -48,10 +50,15 @@ static void ui_task(void *arg)
         shell_tick(dt);
         if (ticked == 0u) {
             ticked = 1u;
+            board_irq_lockdown();
             log_write(LOG_INFO, "ui", "tick");
         }
         if (g_ui_ok != 0u) {
             ui_backend_handler();
+        }
+        if (drawn == 0u) {
+            drawn = 1u;
+            log_write(LOG_INFO, "ui", "drawn hwm %u", (unsigned)uxTaskGetStackHighWaterMark(NULL));
         }
         wdog_kick();
         if ((int32_t)(now - blink_at) >= 0) {
@@ -457,7 +464,7 @@ int main(void)
      * API before vTaskStartScheduler() leaves SysTick masked on Cortex-M. */
     zb_host_start();
     attr.name = "ui";
-    attr.stack_bytes = 4096u;
+    attr.stack_bytes = 8192u;
     attr.priority = 3u;
     e = osal_thread_create(&ui, &attr, ui_task, NULL);
     log_err("rtos_ui", e);

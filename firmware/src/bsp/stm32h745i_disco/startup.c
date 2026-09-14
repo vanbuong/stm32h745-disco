@@ -110,10 +110,14 @@ static void fault_hex32(uint32_t v)
     }
 }
 
-__attribute__((used)) static void default_handler_c(uint32_t *frame)
+__attribute__((used, noinline, noreturn)) static void default_handler_c(uint32_t *frame)
 {
-    fault_puts("\r\nfault icsr ");
-    fault_hex32(SCB->ICSR);
+    uint32_t icsr = SCB->ICSR;
+
+    /* Print ICSR before any stacked-frame decode. A debugger halt on
+     * Default_Handler itself still shows this after one Continue. */
+    fault_puts("\r\nFAULT icsr ");
+    fault_hex32(icsr);
     fault_puts(" cfsr ");
     fault_hex32(SCB->CFSR);
     fault_puts(" hfsr ");

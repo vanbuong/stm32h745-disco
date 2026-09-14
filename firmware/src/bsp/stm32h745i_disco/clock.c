@@ -6,9 +6,10 @@ void board_irq_lockdown(void)
 {
     uint32_t i;
 
-    /* Vector table is the 16 Cortex-M exceptions. Any NVIC IRQ would
-     * fetch a handler past g_vectors and HardFault into Default_Handler. */
-    for (i = 0u; i < 128u; i++) {
+    /* Vector table is the 16 Cortex-M exceptions. STM32H745 IRQs run
+     * through WAKEUP_PIN (149). Masking only 0..127 left DMAMUX2..WAKEUP
+     * able to fetch a handler past g_vectors and HardFault here. */
+    for (i = 0u; i < 160u; i++) {
         NVIC_DisableIRQ((IRQn_Type)i);
         NVIC_ClearPendingIRQ((IRQn_Type)i);
     }

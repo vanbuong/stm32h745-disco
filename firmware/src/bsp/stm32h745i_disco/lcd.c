@@ -287,6 +287,10 @@ err_t board_disp_init(void)
     if (HAL_LTDC_ConfigLayer(&g_ltdc, &layer, 0u) != HAL_OK) {
         return ERR_IO;
     }
+    g_ltdc.Instance->IER = 0u;
+    HAL_NVIC_DisableIRQ(LTDC_IRQn);
+    HAL_NVIC_DisableIRQ(LTDC_ER_IRQn);
+    board_irq_lockdown();
 
     g_ready = 1u;
     board_disp_show(g_fb[0]);
@@ -370,9 +374,11 @@ void board_disp_show(const void *fb)
     }
     SCB_CleanDCache_by_Addr((uint32_t *)(uintptr_t)fb, (int32_t)BOARD_FB_BYTES);
     /* Poke SRCR so HAL_LTDC_Reload cannot arm LTDC_IT_RR (no IRQ vector). */
+    g_ltdc.Instance->IER = 0u;
     if (HAL_LTDC_SetAddress_NoReload(&g_ltdc, (uint32_t)(uintptr_t)fb, 0u) != HAL_OK) {
         return;
     }
+    g_ltdc.Instance->IER = 0u;
     g_ltdc.Instance->SRCR = LTDC_SRCR_VBR;
     {
         uint32_t t0 = HAL_GetTick();

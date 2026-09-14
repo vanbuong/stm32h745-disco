@@ -14,6 +14,7 @@
 #include <string.h>
 
 void board_console_puts(const char *s);
+void board_irq_lockdown(void);
 
 #define ETH_RX_BUF_SIZE 1536u
 #define ETH_RX_BUF_CNT ((uint32_t)ETH_RX_DESC_CNT)
@@ -177,19 +178,36 @@ static void apply_addr(void)
     netif_set_addr(&g_netif, &ip, &mask, &gw);
 }
 
+static void eth_irq_quiet(void)
+{
+    if (g_eth.Instance != NULL) {
+        g_eth.Instance->DMACIER = 0u;
+        g_eth.Instance->MACIER = 0u;
+    }
+    HAL_NVIC_DisableIRQ(ETH_IRQn);
+    HAL_NVIC_DisableIRQ(ETH_WKUP_IRQn);
+    board_irq_lockdown();
+}
+
 static int mac_speed(uint16_t mbps, uint8_t duplex, ETH_MACConfigTypeDef *cfg)
 {
+    int rc;
+
     if (HAL_ETH_GetMACConfig(&g_eth, cfg) != HAL_OK) {
         return -1;
     }
     cfg->Speed = (mbps >= 100u) ? ETH_SPEED_100M : ETH_SPEED_10M;
     cfg->DuplexMode = (duplex != 0u) ? ETH_FULLDUPLEX_MODE : ETH_HALFDUPLEX_MODE;
     (void)HAL_ETH_Stop(&g_eth);
+    eth_irq_quiet();
     if (HAL_ETH_SetMACConfig(&g_eth, cfg) != HAL_OK) {
         (void)HAL_ETH_Start(&g_eth);
+        eth_irq_quiet();
         return -1;
     }
-    return (HAL_ETH_Start(&g_eth) == HAL_OK) ? 0 : -1;
+    rc = (HAL_ETH_Start(&g_eth) == HAL_OK) ? 0 : -1;
+    eth_irq_quiet();
+    return rc;
 }
 
 u32_t sys_now(void)
@@ -219,7 +237,7 @@ int ethernetif_start(const uint8_t mac[6])
     if (HAL_ETH_Init(&g_eth) != HAL_OK) {
         return -1;
     }
-    HAL_NVIC_DisableIRQ(ETH_IRQn);
+    eth_irq_quiet();
     /* Do not HAL_ETH_Start until PHY link is up. DMA running on a down
      * link fills descriptors; the first UI poll then HardFaults. */
 
