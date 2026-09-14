@@ -604,7 +604,7 @@ Rejected paths: `..` segment, NUL, backslash, leading `//`, any canonical path o
 
 **FAT stays.** `/user` is a FAT volume on eMMC. littlefs is out: the board already has an eMMC FTL, and a later USB MSC LUN must be FAT so a PC can mount it. For small records that need power-loss safety, write `*.tmp`, `rename`, and `f_sync` — do not add a second filesystem.
 
-FatFs itself is not reentrant (`FF_FS_REENTRANT=0`). `vfs.c` takes one OSAL mutex around volume objects and fd/dir slots so `ui` and `zb` can share `/user`. Path helpers stay lock-free. `znp` does not call VFS.
+FatFs itself is not reentrant (`FF_FS_REENTRANT=0`). `vfs.c` takes one OSAL mutex around volume objects and fd/dir slots so `ui` and `zb` can share `/user`. Path helpers stay lock-free. `znp` does not call VFS. The mutex is created after the scheduler starts; boot VFS on `main` is single-threaded. Creating a FreeRTOS mutex before `vTaskStartScheduler()` masks SysTick on Cortex-M.
 
 ### 16.1 USB MSC (later)
 

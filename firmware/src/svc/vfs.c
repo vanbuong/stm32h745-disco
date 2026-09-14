@@ -27,18 +27,26 @@ static err_t vfs_lock(void)
 {
     err_t e;
 
+    /* Boot bring-up is single-threaded. Creating a FreeRTOS mutex here
+     * masks SysTick until the scheduler starts (vfs_ms 0, then hang). */
+    if (osal_scheduler_running() == 0u) {
+        return ERR_OK;
+    }
+    e = osal_mutex_ensure(&g_lock);
+    if (e != ERR_OK) {
+        return e;
+    }
     if (g_lock == NULL) {
-        e = osal_mutex_create(&g_lock);
-        if (e != ERR_OK) {
-            g_lock = NULL;
-            return e;
-        }
+        return ERR_IO;
     }
     return osal_mutex_lock(g_lock, OSAL_WAIT_FOREVER);
 }
 
 static void vfs_unlock(void)
 {
+    if (g_lock == NULL) {
+        return;
+    }
     (void)osal_mutex_unlock(g_lock);
 }
 

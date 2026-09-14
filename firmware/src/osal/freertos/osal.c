@@ -28,12 +28,23 @@ static TickType_t ticks_of(uint32_t timeout_ms)
     return pdMS_TO_TICKS(timeout_ms);
 }
 
+uint8_t osal_scheduler_running(void)
+{
+    return (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING) ? 1u : 0u;
+}
+
 err_t osal_mutex_create(osal_mutex_t **m)
 {
     osal_mutex_t *p;
 
     if (m == NULL) {
         return ERR_INVAL;
+    }
+    /* xSemaphoreCreateMutex() takes a critical section. On Cortex-M that
+     * raises BASEPRI; uxCriticalNesting is 0xaaaaaaaa until the scheduler
+     * starts, so EXIT never unmasks SysTick and HAL_Delay hangs. */
+    if (xTaskGetSchedulerState() != taskSCHEDULER_RUNNING) {
+        return ERR_BUSY;
     }
     p = (osal_mutex_t *)pvPortMalloc(sizeof(*p));
     if (p == NULL) {
@@ -45,6 +56,35 @@ err_t osal_mutex_create(osal_mutex_t **m)
         return ERR_NOMEM;
     }
     *m = p;
+    return ERR_OK;
+}
+
+err_t osal_mutex_ensure(osal_mutex_t **m)
+{
+    osal_mutex_t *p;
+    err_t e;
+
+    if (m == NULL) {
+        return ERR_INVAL;
+    }
+    if (*m != NULL) {
+        return ERR_OK;
+    }
+    if (xTaskGetSchedulerState() != taskSCHEDULER_RUNNING) {
+        return ERR_OK;
+    }
+    e = osal_mutex_create(&p);
+    if (e != ERR_OK) {
+        return e;
+    }
+    vTaskSuspendAll();
+    if (*m != NULL) {
+        (void)xTaskResumeAll();
+        osal_mutex_destroy(p);
+        return ERR_OK;
+    }
+    *m = p;
+    (void)xTaskResumeAll();
     return ERR_OK;
 }
 

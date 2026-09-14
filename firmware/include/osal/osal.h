@@ -26,9 +26,13 @@ typedef struct {
 } osal_thread_attr_t;
 
 err_t osal_mutex_create(osal_mutex_t **m);
+err_t osal_mutex_ensure(osal_mutex_t **m);
 err_t osal_mutex_lock(osal_mutex_t *m, uint32_t timeout_ms);
 err_t osal_mutex_unlock(osal_mutex_t *m);
 void osal_mutex_destroy(osal_mutex_t *m);
+
+/* 1 after vTaskStartScheduler(). FreeRTOS objects must not be created before. */
+uint8_t osal_scheduler_running(void);
 
 err_t osal_sem_create(osal_sem_t **s, uint32_t initial);
 err_t osal_sem_take(osal_sem_t *s, uint32_t timeout_ms);

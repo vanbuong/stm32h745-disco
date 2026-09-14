@@ -15,6 +15,11 @@ struct osal_sem {
     sem_t s;
 };
 
+uint8_t osal_scheduler_running(void)
+{
+    return 1u;
+}
+
 err_t osal_mutex_create(osal_mutex_t **m)
 {
     osal_mutex_t *p;
@@ -31,6 +36,27 @@ err_t osal_mutex_create(osal_mutex_t **m)
     }
     *m = p;
     return ERR_OK;
+}
+
+err_t osal_mutex_ensure(osal_mutex_t **m)
+{
+    static pthread_mutex_t gate = PTHREAD_MUTEX_INITIALIZER;
+    err_t e = ERR_OK;
+
+    if (m == NULL) {
+        return ERR_INVAL;
+    }
+    if (*m != NULL) {
+        return ERR_OK;
+    }
+    if (pthread_mutex_lock(&gate) != 0) {
+        return ERR_IO;
+    }
+    if (*m == NULL) {
+        e = osal_mutex_create(m);
+    }
+    (void)pthread_mutex_unlock(&gate);
+    return e;
 }
 
 err_t osal_mutex_lock(osal_mutex_t *m, uint32_t timeout_ms)

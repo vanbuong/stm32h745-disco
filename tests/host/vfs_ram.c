@@ -44,18 +44,21 @@ static err_t vfs_lock(void)
 {
     err_t e;
 
+    e = osal_mutex_ensure(&g_lock);
+    if (e != ERR_OK) {
+        return e;
+    }
     if (g_lock == NULL) {
-        e = osal_mutex_create(&g_lock);
-        if (e != ERR_OK) {
-            g_lock = NULL;
-            return e;
-        }
+        return ERR_IO;
     }
     return osal_mutex_lock(g_lock, OSAL_WAIT_FOREVER);
 }
 
 static void vfs_unlock(void)
 {
+    if (g_lock == NULL) {
+        return;
+    }
     (void)osal_mutex_unlock(g_lock);
 }
 
