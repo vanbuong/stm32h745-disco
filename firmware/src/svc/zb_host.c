@@ -32,7 +32,7 @@ static uint32_t g_permit_acc;
 static uint32_t g_now_ms;
 static uint8_t s_dev_file[DEV_HDR + (DEV_REC * HOME_DEV_MAX)];
 #ifdef ZB_IOTDEV_DRIVER
-#define ZB_ZNP_STACK 4096u
+#define ZB_ZNP_STACK 8192u
 #define ZB_CORE_STACK 8192u
 #define ZB_ZNP_PRIO 5u
 #define ZB_CORE_PRIO 4u

@@ -263,6 +263,11 @@ err_t board_disp_init(void)
     if (HAL_LTDC_Init(&g_ltdc) != HAL_OK) {
         return ERR_IO;
     }
+    /* HAL_LTDC_Init arms TE/FU. No LTDC vector; an IRQ would Default_Handler. */
+    g_ltdc.Instance->IER = 0u;
+    HAL_NVIC_DisableIRQ(LTDC_IRQn);
+    HAL_NVIC_DisableIRQ(LTDC_ER_IRQn);
+    board_irq_lockdown();
 
     layer.WindowX0 = 0u;
     layer.WindowX1 = BOARD_LCD_W;

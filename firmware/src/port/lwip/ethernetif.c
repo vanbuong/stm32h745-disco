@@ -13,6 +13,8 @@
 
 #include <string.h>
 
+void board_console_puts(const char *s);
+
 #define ETH_RX_BUF_SIZE 1536u
 #define ETH_RX_BUF_CNT ((uint32_t)ETH_RX_DESC_CNT)
 
@@ -38,6 +40,22 @@ static uint8_t g_started;
 static uint16_t g_mac_mbps;
 static uint8_t g_mac_duplex;
 static uint8_t g_mac_set;
+static uint8_t g_poll_log;
+
+static int rx_buf_ok(const uint8_t *p)
+{
+    uint32_t i;
+
+    if (p == NULL) {
+        return 0;
+    }
+    for (i = 0u; i < ETH_RX_BUF_CNT; i++) {
+        if (p == g_rx_buf[i]) {
+            return 1;
+        }
+    }
+    return 0;
+}
 
 static uint8_t *rx_take(void)
 {
@@ -76,7 +94,8 @@ void HAL_ETH_RxLinkCallback(void **p_start, void **p_end, uint8_t *buff, uint16_
 {
     struct pbuf *p;
 
-    if (p_start == NULL || p_end == NULL || buff == NULL || length == 0u) {
+    if (p_start == NULL || p_end == NULL || buff == NULL || length == 0u ||
+        length > ETH_RX_BUF_SIZE || rx_buf_ok(buff) == 0) {
         rx_give(buff);
         return;
     }
@@ -185,6 +204,7 @@ int ethernetif_start(const uint8_t mac[6])
     if (mac == NULL) {
         return -1;
     }
+    __HAL_RCC_D2SRAM3_CLK_ENABLE();
     memcpy(g_mac, mac, 6u);
     memset(g_rx_desc, 0, sizeof(g_rx_desc));
     memset(g_tx_desc, 0, sizeof(g_tx_desc));
@@ -199,9 +219,9 @@ int ethernetif_start(const uint8_t mac[6])
     if (HAL_ETH_Init(&g_eth) != HAL_OK) {
         return -1;
     }
-    if (HAL_ETH_Start(&g_eth) != HAL_OK) {
-        return -1;
-    }
+    HAL_NVIC_DisableIRQ(ETH_IRQn);
+    /* Do not HAL_ETH_Start until PHY link is up. DMA running on a down
+     * link fills descriptors; the first UI poll then HardFaults. */
 
     lwip_init();
     ip4_addr_set_zero(&z);
@@ -221,8 +241,12 @@ void ethernetif_poll(void)
     struct pbuf *p;
     unsigned n = 0u;
 
-    if (g_started == 0u) {
+    if (g_started == 0u || g_mac_set == 0u) {
         return;
+    }
+    if (g_poll_log == 0u) {
+        g_poll_log = 1u;
+        board_console_puts("eth poll\r\n");
     }
     while (n < 8u && HAL_ETH_ReadData(&g_eth, (void **)&p) == HAL_OK) {
         n++;
@@ -261,6 +285,7 @@ void ethernetif_set_link(int up, uint16_t speed_mbps, uint8_t duplex)
         g_mac_mbps = speed_mbps;
         g_mac_duplex = duplex;
         g_mac_set = 1u;
+        board_console_puts("eth mac\r\n");
     }
     if (netif_is_link_up(&g_netif) == 0u) {
         netif_set_link_up(&g_netif);

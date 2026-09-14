@@ -79,10 +79,75 @@ __attribute__((used)) void Reset_Startup(void)
     }
 }
 
-void Default_Handler(void)
+#if defined(CORE_CM7)
+static void fault_putc(char c)
 {
+    uint32_t n = 100000u;
+
+    while ((USART3->ISR & USART_ISR_TXE_TXFNF) == 0u && n > 0u) {
+        n--;
+    }
+    USART3->TDR = (uint8_t)c;
+}
+
+static void fault_puts(const char *s)
+{
+    if (s == NULL) {
+        return;
+    }
+    while (*s != '\0') {
+        fault_putc(*s++);
+    }
+}
+
+static void fault_hex32(uint32_t v)
+{
+    static const char hex[] = "0123456789ABCDEF";
+    int i;
+
+    for (i = 7; i >= 0; i--) {
+        fault_putc(hex[(v >> (uint32_t)(i * 4)) & 0xFu]);
+    }
+}
+
+__attribute__((used)) static void default_handler_c(uint32_t *frame)
+{
+    fault_puts("\r\nfault icsr ");
+    fault_hex32(SCB->ICSR);
+    fault_puts(" cfsr ");
+    fault_hex32(SCB->CFSR);
+    fault_puts(" hfsr ");
+    fault_hex32(SCB->HFSR);
+    fault_puts(" mmfar ");
+    fault_hex32(SCB->MMFAR);
+    fault_puts(" bfar ");
+    fault_hex32(SCB->BFAR);
+    if (frame != NULL) {
+        fault_puts(" pc ");
+        fault_hex32(frame[6]);
+        fault_puts(" lr ");
+        fault_hex32(frame[5]);
+    }
+    fault_puts("\r\n");
     for (;;) {
     }
+}
+#endif
+
+void Default_Handler(void) __attribute__((naked));
+void Default_Handler(void)
+{
+#if defined(CORE_CM7)
+    __asm volatile(".syntax unified\n"
+                   "tst lr, #4\n"
+                   "ite eq\n"
+                   "mrseq r0, msp\n"
+                   "mrsne r0, psp\n"
+                   "b default_handler_c\n");
+#else
+    for (;;) {
+    }
+#endif
 }
 
 __attribute__((section(".isr_vector"), used)) void (*const g_vectors[])(void) = {

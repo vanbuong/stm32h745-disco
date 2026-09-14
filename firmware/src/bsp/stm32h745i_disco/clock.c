@@ -2,6 +2,18 @@
 
 #include "cube.h"
 
+void board_irq_lockdown(void)
+{
+    uint32_t i;
+
+    /* Vector table is the 16 Cortex-M exceptions. Any NVIC IRQ would
+     * fetch a handler past g_vectors and HardFault into Default_Handler. */
+    for (i = 0u; i < 128u; i++) {
+        NVIC_DisableIRQ((IRQn_Type)i);
+        NVIC_ClearPendingIRQ((IRQn_Type)i);
+    }
+}
+
 #define D2_SYNC_MS 100u
 
 static uint32_t g_sysclk_hz = BOARD_HSI_HZ;

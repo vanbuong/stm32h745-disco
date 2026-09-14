@@ -71,6 +71,7 @@ void board_console_puts(const char *s);
 void board_console_put_hex32(uint32_t v);
 
 void board_mpu_init(void);
+void board_irq_lockdown(void);
 void board_cache_init(void);
 void board_cache_d_disable(void);
 void board_cache_d_enable(void);

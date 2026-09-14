@@ -67,6 +67,7 @@ void HAL_ETH_MspInit(ETH_HandleTypeDef *heth)
     cube_gpio_af(GPIOG, GPIO_PIN_11, GPIO_AF11_ETH, GPIO_NOPULL); /* TX_EN */
     cube_gpio_af(GPIOG, GPIO_PIN_12, GPIO_AF11_ETH, GPIO_NOPULL); /* TXD1 */
     cube_gpio_af(GPIOG, GPIO_PIN_13, GPIO_AF11_ETH, GPIO_NOPULL); /* TXD0 */
+    HAL_NVIC_DisableIRQ(ETH_IRQn);
 }
 
 static void mac_from_uid(uint8_t mac[6])

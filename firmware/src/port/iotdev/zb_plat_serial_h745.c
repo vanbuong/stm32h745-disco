@@ -21,12 +21,20 @@ static uint8_t g_open;
 void zb_plat_busy_wait_us(uint32_t us)
 {
     uint32_t ms;
+    uint32_t t0;
 
     if (us == 0u) {
         return;
     }
+    /* Busy-wait so the RESET pulse is not pre-empted. vTaskDelay here let
+     * the UI task run ETH/console mid-pulse and HardFault. */
     ms = (us + 999u) / 1000u;
-    zb_os_delay_ms(ms);
+    if (ms == 0u) {
+        ms = 1u;
+    }
+    t0 = board_millis();
+    while ((uint32_t)(board_millis() - t0) < ms) {
+    }
 }
 
 void zb_plat_serial_open(const s_zb_serial_cfg_t *cfg, zb_serial_rx_cb_t on_rx)

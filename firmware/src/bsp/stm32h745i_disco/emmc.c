@@ -181,6 +181,7 @@ static void mmc_fill_init(uint32_t div)
     g_mmc.Init.ClockPowerSave = SDMMC_CLOCK_POWER_SAVE_DISABLE;
     g_mmc.Init.BusWide = SDMMC_BUS_WIDE_8B;
     g_mmc.Init.HardwareFlowControl = SDMMC_HARDWARE_FLOW_CONTROL_DISABLE;
+    HAL_NVIC_DisableIRQ(SDMMC1_IRQn);
     g_mmc.Init.ClockDiv = div;
 }
 

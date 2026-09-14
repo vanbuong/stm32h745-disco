@@ -34,6 +34,7 @@ static void ui_task(void *arg)
     uint32_t last_ms = board_millis();
     uint32_t blink_at = last_ms + 250u;
     uint8_t led_on = 0u;
+    uint8_t ticked = 0u;
 
     (void)arg;
     log_write(LOG_INFO, "ui", "task on");
@@ -45,6 +46,10 @@ static void ui_task(void *arg)
         board_ipc_poll(now);
         shell_status_set_m4(board_ipc_peer_alive(now));
         shell_tick(dt);
+        if (ticked == 0u) {
+            ticked = 1u;
+            log_write(LOG_INFO, "ui", "tick");
+        }
         if (g_ui_ok != 0u) {
             ui_backend_handler();
         }
@@ -319,6 +324,7 @@ int main(void)
 
     board_cm4_wait_stop();
     HAL_Init();
+    board_irq_lockdown();
     led_init();
     board_console_init(0);
     log_init();

@@ -54,7 +54,7 @@ void board_mpu_init(void)
         mpu_fill(&r, (uint8_t)i, d->base, d->size_enc, d->attr, d->exec, MPU_REGION_FULL_ACCESS);
         HAL_MPU_ConfigRegion(&r);
     }
-    SCB->SHCSR |= SCB_SHCSR_MEMFAULTENA_Msk;
+    SCB->SHCSR |= SCB_SHCSR_MEMFAULTENA_Msk | SCB_SHCSR_BUSFAULTENA_Msk | SCB_SHCSR_USGFAULTENA_Msk;
     HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
 }
 

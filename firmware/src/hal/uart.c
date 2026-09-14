@@ -47,7 +47,22 @@ static void rx_put(uint8_t b)
     g_rx_n++;
 }
 
-void uart_rx_pump(void)
+static uint32_t uart_lock(void)
+{
+    uint32_t primask = __get_PRIMASK();
+
+    __disable_irq();
+    return primask;
+}
+
+static void uart_unlock(uint32_t primask)
+{
+    if (primask == 0u) {
+        __enable_irq();
+    }
+}
+
+static void uart_rx_pump_body(void)
 {
     if (g_open == 0u) {
         return;
@@ -69,6 +84,14 @@ void uart_rx_pump(void)
         }
         break;
     }
+}
+
+void uart_rx_pump(void)
+{
+    uint32_t lock = uart_lock();
+
+    uart_rx_pump_body();
+    uart_unlock(lock);
 }
 
 err_t uart_open(uart_id_t id, const uart_cfg_t *cfg)
@@ -155,6 +178,7 @@ err_t uart_read(uart_id_t id, void *data, size_t n, size_t *got, uint32_t timeou
 {
     uint8_t *p = data;
     uint32_t t0;
+    uint32_t lock;
     size_t n_got = 0u;
 
     if (got != NULL) {
@@ -165,9 +189,9 @@ err_t uart_read(uart_id_t id, void *data, size_t n, size_t *got, uint32_t timeou
     }
 
     t0 = HAL_GetTick();
-    uart_rx_pump();
+    lock = uart_lock();
     while (n_got < n) {
-        uart_rx_pump();
+        uart_rx_pump_body();
         if (g_rx_n > 0u) {
             p[n_got++] = g_rx[g_rx_head];
             g_rx_head = (uint16_t)((g_rx_head + 1u) % RX_RING);
@@ -177,7 +201,10 @@ err_t uart_read(uart_id_t id, void *data, size_t n, size_t *got, uint32_t timeou
         if (timeout_ms == 0u || (HAL_GetTick() - t0) >= timeout_ms) {
             break;
         }
+        uart_unlock(lock);
+        lock = uart_lock();
     }
+    uart_unlock(lock);
     if (got != NULL) {
         *got = n_got;
     }
