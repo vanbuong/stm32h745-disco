@@ -2,6 +2,8 @@
 
 #include "svc/vfs.h"
 
+#include <pthread.h>
+#include <sched.h>
 #include <string.h>
 
 static void expect_denied(const char *p)
@@ -145,10 +147,76 @@ static void test_selftest(void)
     TEST_ASSERT_EQUAL_UINT32(9u, st.size);
 }
 
+#define VFS_THR_ITERS 200
+
+static void *vfs_writer(void *arg)
+{
+    vfs_file_t fd;
+    size_t put;
+    int i;
+
+    (void)arg;
+    for (i = 0; i < VFS_THR_ITERS; i++) {
+        (void)vfs_mkdir("/user/thr");
+        if (vfs_open("/user/thr/w.bin", VFS_O_WR | VFS_O_CREAT | VFS_O_TRUNC, &fd) == ERR_OK) {
+            (void)vfs_write(fd, "ab", 2u, &put);
+            (void)vfs_close(fd);
+        }
+        (void)vfs_rename("/user/thr/w.bin", "/user/thr/x.bin");
+        (void)vfs_unlink("/user/thr/x.bin");
+        (void)sched_yield();
+    }
+    return NULL;
+}
+
+static void *vfs_reader(void *arg)
+{
+    vfs_file_t fd;
+    vfs_dir_t dir;
+    vfs_dirent_t ent;
+    vfs_stat_t st;
+    char buf[8];
+    size_t n;
+    int i;
+
+    (void)arg;
+    for (i = 0; i < VFS_THR_ITERS; i++) {
+        (void)vfs_stat("/user/hello.txt", &st);
+        if (vfs_open("/user/hello.txt", VFS_O_RD, &fd) == ERR_OK) {
+            (void)vfs_read(fd, buf, sizeof(buf), &n);
+            (void)vfs_close(fd);
+        }
+        if (vfs_opendir("/user", &dir) == ERR_OK) {
+            (void)vfs_readdir(dir, &ent);
+            (void)vfs_closedir(dir);
+        }
+        (void)vfs_mounted();
+        (void)sched_yield();
+    }
+    return NULL;
+}
+
+static void test_threads(void)
+{
+    pthread_t wr;
+    pthread_t rd;
+    vfs_stat_t st;
+
+    TEST_ASSERT_EQUAL_INT(ERR_OK, vfs_mount());
+    TEST_ASSERT_EQUAL_INT(0, pthread_create(&wr, NULL, vfs_writer, NULL));
+    TEST_ASSERT_EQUAL_INT(0, pthread_create(&rd, NULL, vfs_reader, NULL));
+    TEST_ASSERT_EQUAL_INT(0, pthread_join(wr, NULL));
+    TEST_ASSERT_EQUAL_INT(0, pthread_join(rd, NULL));
+    TEST_ASSERT_EQUAL_INT(1, vfs_mounted());
+    TEST_ASSERT_EQUAL_INT(ERR_OK, vfs_stat("/user/hello.txt", &st));
+    TEST_ASSERT_EQUAL_UINT32(6u, st.size);
+}
+
 void test_vfs_run(void)
 {
     UnitySetTestFile(__FILE__);
     RUN_TEST(test_jail);
     RUN_TEST(test_ram_ops);
     RUN_TEST(test_selftest);
+    RUN_TEST(test_threads);
 }

@@ -294,6 +294,9 @@
 /      must be added to the project. Samples are available in ffsystem.c.
 /
 /  The FF_FS_TIMEOUT defines timeout period in unit of O/S time tick.
+/
+/  This port keeps FF_FS_REENTRANT=0. firmware/src/svc/vfs.c takes one OSAL
+/  mutex around FatFs and the fd/dir slot tables so ui and zb can share /user.
 */
 
 

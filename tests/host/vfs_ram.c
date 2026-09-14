@@ -1,5 +1,7 @@
 #include "svc/vfs.h"
 
+#include "osal/osal.h"
+
 #include <string.h>
 
 /*
@@ -36,6 +38,26 @@ static ram_file_t g_files[4];
 static ram_dir_t g_dirs[2];
 static uint8_t g_mounted;
 static uint8_t g_inited;
+static osal_mutex_t *g_lock;
+
+static err_t vfs_lock(void)
+{
+    err_t e;
+
+    if (g_lock == NULL) {
+        e = osal_mutex_create(&g_lock);
+        if (e != ERR_OK) {
+            g_lock = NULL;
+            return e;
+        }
+    }
+    return osal_mutex_lock(g_lock, OSAL_WAIT_FOREVER);
+}
+
+static void vfs_unlock(void)
+{
+    (void)osal_mutex_unlock(g_lock);
+}
 
 static int add_node(int parent, const char *name, uint8_t is_dir, const char *payload)
 {
@@ -117,7 +139,7 @@ static err_t walk(const char *path, int *out)
     return ERR_OK;
 }
 
-err_t vfs_mount(void)
+static err_t mount_unlocked(void)
 {
     memset(g_nodes, 0, sizeof(g_nodes));
     memset(g_files, 0, sizeof(g_files));
@@ -142,28 +164,66 @@ err_t vfs_mount(void)
     return ERR_OK;
 }
 
+err_t vfs_mount(void)
+{
+    err_t e;
+
+    e = vfs_lock();
+    if (e != ERR_OK) {
+        return e;
+    }
+    e = mount_unlocked();
+    vfs_unlock();
+    return e;
+}
+
 err_t vfs_unmount(void)
 {
+    err_t e;
+
+    e = vfs_lock();
+    if (e != ERR_OK) {
+        return e;
+    }
     memset(g_files, 0, sizeof(g_files));
     memset(g_dirs, 0, sizeof(g_dirs));
     g_mounted = 0u;
+    vfs_unlock();
     return ERR_OK;
 }
 
 err_t vfs_remount(void)
 {
+    err_t e;
+
+    e = vfs_lock();
+    if (e != ERR_OK) {
+        return e;
+    }
     if (g_inited == 0u) {
-        return vfs_mount();
+        e = mount_unlocked();
+        vfs_unlock();
+        return e;
     }
     memset(g_files, 0, sizeof(g_files));
     memset(g_dirs, 0, sizeof(g_dirs));
     g_mounted = 1u;
+    vfs_unlock();
     return ERR_OK;
 }
 
 err_t vfs_format(void)
 {
-    return g_mounted ? ERR_OK : ERR_IO;
+    err_t e;
+    uint8_t mounted;
+
+    e = vfs_lock();
+    if (e != ERR_OK) {
+        return e;
+    }
+    mounted = g_mounted;
+    vfs_unlock();
+    return mounted ? ERR_OK : ERR_IO;
 }
 
 uint8_t vfs_formatted_on_mount(void)
@@ -173,7 +233,14 @@ uint8_t vfs_formatted_on_mount(void)
 
 int vfs_mounted(void)
 {
-    return g_mounted ? 1 : 0;
+    int m;
+
+    if (vfs_lock() != ERR_OK) {
+        return 0;
+    }
+    m = g_mounted ? 1 : 0;
+    vfs_unlock();
+    return m;
 }
 
 static err_t create_file(const char *path, int *out)
@@ -241,7 +308,12 @@ err_t vfs_open(const char *path, uint32_t flags, vfs_file_t *fd)
         return ERR_INVAL;
     }
     *fd = -1;
+    e = vfs_lock();
+    if (e != ERR_OK) {
+        return e;
+    }
     if (!g_mounted) {
+        vfs_unlock();
         return ERR_IO;
     }
     e = walk(path, &node);
@@ -249,9 +321,11 @@ err_t vfs_open(const char *path, uint32_t flags, vfs_file_t *fd)
         e = create_file(path, &node);
     }
     if (e != ERR_OK) {
+        vfs_unlock();
         return e;
     }
     if (g_nodes[node].is_dir != 0u) {
+        vfs_unlock();
         return ERR_INVAL;
     }
     if ((flags & VFS_O_TRUNC) != 0u) {
@@ -263,10 +337,12 @@ err_t vfs_open(const char *path, uint32_t flags, vfs_file_t *fd)
             g_files[i].node = node;
             g_files[i].pos = 0u;
             *fd = i;
+            vfs_unlock();
             return ERR_OK;
         }
     }
     (void)flags;
+    vfs_unlock();
     return ERR_BUSY;
 }
 
@@ -275,15 +351,22 @@ err_t vfs_read(vfs_file_t fd, void *buf, size_t n, size_t *got)
     ram_file_t *f;
     uint16_t remain;
     size_t take;
+    err_t e;
 
     if (got != NULL) {
         *got = 0u;
     }
+    e = vfs_lock();
+    if (e != ERR_OK) {
+        return e;
+    }
     if (fd < 0 || fd >= 4 || g_files[fd].used == 0u || buf == NULL) {
+        vfs_unlock();
         return ERR_INVAL;
     }
     f = &g_files[fd];
     if (f->pos >= g_nodes[f->node].len) {
+        vfs_unlock();
         return ERR_OK;
     }
     remain = (uint16_t)(g_nodes[f->node].len - f->pos);
@@ -296,6 +379,7 @@ err_t vfs_read(vfs_file_t fd, void *buf, size_t n, size_t *got)
     if (got != NULL) {
         *got = take;
     }
+    vfs_unlock();
     return ERR_OK;
 }
 
@@ -303,11 +387,17 @@ err_t vfs_write(vfs_file_t fd, const void *buf, size_t n, size_t *put)
 {
     ram_file_t *f;
     size_t take;
+    err_t e;
 
     if (put != NULL) {
         *put = 0u;
     }
+    e = vfs_lock();
+    if (e != ERR_OK) {
+        return e;
+    }
     if (fd < 0 || fd >= 4 || g_files[fd].used == 0u || buf == NULL) {
+        vfs_unlock();
         return ERR_INVAL;
     }
     f = &g_files[fd];
@@ -324,27 +414,45 @@ err_t vfs_write(vfs_file_t fd, const void *buf, size_t n, size_t *put)
     if (put != NULL) {
         *put = take;
     }
+    vfs_unlock();
     return (take == n) ? ERR_OK : ERR_NOSPC;
 }
 
 err_t vfs_seek(vfs_file_t fd, uint32_t off)
 {
+    err_t e;
+
+    e = vfs_lock();
+    if (e != ERR_OK) {
+        return e;
+    }
     if (fd < 0 || fd >= 4 || g_files[fd].used == 0u) {
+        vfs_unlock();
         return ERR_INVAL;
     }
     if (off > g_nodes[g_files[fd].node].len) {
+        vfs_unlock();
         return ERR_INVAL;
     }
     g_files[fd].pos = (uint16_t)off;
+    vfs_unlock();
     return ERR_OK;
 }
 
 err_t vfs_close(vfs_file_t fd)
 {
+    err_t e;
+
+    e = vfs_lock();
+    if (e != ERR_OK) {
+        return e;
+    }
     if (fd < 0 || fd >= 4 || g_files[fd].used == 0u) {
+        vfs_unlock();
         return ERR_INVAL;
     }
     g_files[fd].used = 0u;
+    vfs_unlock();
     return ERR_OK;
 }
 
@@ -357,12 +465,18 @@ err_t vfs_stat(const char *path, vfs_stat_t *st)
         return ERR_INVAL;
     }
     memset(st, 0, sizeof(*st));
+    e = vfs_lock();
+    if (e != ERR_OK) {
+        return e;
+    }
     e = walk(path, &node);
     if (e != ERR_OK) {
+        vfs_unlock();
         return e;
     }
     st->is_dir = g_nodes[node].is_dir;
     st->size = g_nodes[node].len;
+    vfs_unlock();
     return ERR_OK;
 }
 
@@ -376,14 +490,21 @@ err_t vfs_opendir(const char *path, vfs_dir_t *dir)
         return ERR_INVAL;
     }
     *dir = -1;
+    e = vfs_lock();
+    if (e != ERR_OK) {
+        return e;
+    }
     if (!g_mounted) {
+        vfs_unlock();
         return ERR_IO;
     }
     e = walk(path, &node);
     if (e != ERR_OK) {
+        vfs_unlock();
         return e;
     }
     if (g_nodes[node].is_dir == 0u) {
+        vfs_unlock();
         return ERR_INVAL;
     }
     for (i = 0; i < 2; i++) {
@@ -392,9 +513,11 @@ err_t vfs_opendir(const char *path, vfs_dir_t *dir)
             g_dirs[i].parent = node;
             g_dirs[i].next = 0;
             *dir = i;
+            vfs_unlock();
             return ERR_OK;
         }
     }
+    vfs_unlock();
     return ERR_BUSY;
 }
 
@@ -402,8 +525,14 @@ err_t vfs_readdir(vfs_dir_t dir, vfs_dirent_t *ent)
 {
     ram_dir_t *d;
     int k;
+    err_t e;
 
+    e = vfs_lock();
+    if (e != ERR_OK) {
+        return e;
+    }
     if (dir < 0 || dir >= 2 || g_dirs[dir].used == 0u || ent == NULL) {
+        vfs_unlock();
         return ERR_INVAL;
     }
     memset(ent, 0, sizeof(*ent));
@@ -414,19 +543,29 @@ err_t vfs_readdir(vfs_dir_t dir, vfs_dirent_t *ent)
             ent->is_dir = g_nodes[k].is_dir;
             ent->size = g_nodes[k].len;
             d->next = k + 1;
+            vfs_unlock();
             return ERR_OK;
         }
     }
     d->next = RAM_MAX;
+    vfs_unlock();
     return ERR_NOENT;
 }
 
 err_t vfs_closedir(vfs_dir_t dir)
 {
+    err_t e;
+
+    e = vfs_lock();
+    if (e != ERR_OK) {
+        return e;
+    }
     if (dir < 0 || dir >= 2 || g_dirs[dir].used == 0u) {
+        vfs_unlock();
         return ERR_INVAL;
     }
     g_dirs[dir].used = 0u;
+    vfs_unlock();
     return ERR_OK;
 }
 
@@ -442,26 +581,35 @@ err_t vfs_mkdir(const char *path)
     err_t e;
     size_t leaf_n;
 
-    if (!g_mounted) {
-        return ERR_IO;
-    }
     e = vfs_normalize(path, norm, sizeof(norm));
     if (e != ERR_OK) {
         return e;
     }
+    e = vfs_lock();
+    if (e != ERR_OK) {
+        return e;
+    }
+    if (!g_mounted) {
+        vfs_unlock();
+        return ERR_IO;
+    }
     if (walk(path, &dummy) == ERR_OK) {
+        vfs_unlock();
         return ERR_DENIED;
     }
     e = vfs_jail_rel(norm, rel, sizeof(rel));
     if (e != ERR_OK) {
+        vfs_unlock();
         return e;
     }
     slash = strrchr(rel, '/');
     if (slash == NULL || slash[1] == '\0') {
+        vfs_unlock();
         return ERR_INVAL;
     }
     leaf_n = strlen(slash + 1);
     if (leaf_n >= VFS_NAME_MAX) {
+        vfs_unlock();
         return ERR_NOSPC;
     }
     memcpy(leaf, slash + 1, leaf_n + 1u);
@@ -470,6 +618,7 @@ err_t vfs_mkdir(const char *path)
     } else {
         size_t pl = (size_t)(slash - rel);
         if (pl + 5u + 1u > VFS_PATH_MAX) {
+            vfs_unlock();
             return ERR_NOSPC;
         }
         memcpy(parent_abs, "/user", 5u);
@@ -477,27 +626,28 @@ err_t vfs_mkdir(const char *path)
         parent_abs[5u + pl] = '\0';
         e = walk(parent_abs, &parent);
         if (e != ERR_OK) {
+            vfs_unlock();
             return e;
         }
         if (g_nodes[parent].is_dir == 0u) {
+            vfs_unlock();
             return ERR_INVAL;
         }
     }
     if (add_node(parent, leaf, 1u, NULL) < 0) {
+        vfs_unlock();
         return ERR_NOSPC;
     }
+    vfs_unlock();
     return ERR_OK;
 }
 
-err_t vfs_unlink(const char *path)
+static err_t unlink_unlocked(const char *path)
 {
     int node;
     int i;
     err_t e;
 
-    if (!g_mounted) {
-        return ERR_IO;
-    }
     e = walk(path, &node);
     if (e != ERR_OK) {
         return e;
@@ -521,6 +671,23 @@ err_t vfs_unlink(const char *path)
     return ERR_OK;
 }
 
+err_t vfs_unlink(const char *path)
+{
+    err_t e;
+
+    e = vfs_lock();
+    if (e != ERR_OK) {
+        return e;
+    }
+    if (!g_mounted) {
+        vfs_unlock();
+        return ERR_IO;
+    }
+    e = unlink_unlocked(path);
+    vfs_unlock();
+    return e;
+}
+
 err_t vfs_rename(const char *from, const char *to)
 {
     int src;
@@ -534,36 +701,48 @@ err_t vfs_rename(const char *from, const char *to)
     size_t leaf_n;
     err_t e;
 
+    e = vfs_lock();
+    if (e != ERR_OK) {
+        return e;
+    }
     if (!g_mounted) {
+        vfs_unlock();
         return ERR_IO;
     }
     e = walk(from, &src);
     if (e != ERR_OK) {
+        vfs_unlock();
         return e;
     }
     if (src == 0) {
+        vfs_unlock();
         return ERR_DENIED;
     }
     if (walk(to, &dest) == ERR_OK) {
-        e = vfs_unlink(to);
+        e = unlink_unlocked(to);
         if (e != ERR_OK) {
+            vfs_unlock();
             return e;
         }
     }
     e = vfs_normalize(to, norm, sizeof(norm));
     if (e != ERR_OK) {
+        vfs_unlock();
         return e;
     }
     e = vfs_jail_rel(norm, rel, sizeof(rel));
     if (e != ERR_OK) {
+        vfs_unlock();
         return e;
     }
     slash = strrchr(rel, '/');
     if (slash == NULL || slash[1] == '\0') {
+        vfs_unlock();
         return ERR_INVAL;
     }
     leaf_n = strlen(slash + 1);
     if (leaf_n >= VFS_NAME_MAX) {
+        vfs_unlock();
         return ERR_NOSPC;
     }
     memcpy(leaf, slash + 1, leaf_n + 1u);
@@ -572,6 +751,7 @@ err_t vfs_rename(const char *from, const char *to)
     } else {
         size_t pl = (size_t)(slash - rel);
         if (pl + 5u + 1u > VFS_PATH_MAX) {
+            vfs_unlock();
             return ERR_NOSPC;
         }
         memcpy(parent_abs, "/user", 5u);
@@ -579,32 +759,45 @@ err_t vfs_rename(const char *from, const char *to)
         parent_abs[5u + pl] = '\0';
         e = walk(parent_abs, &parent);
         if (e != ERR_OK) {
+            vfs_unlock();
             return e;
         }
         if (g_nodes[parent].is_dir == 0u) {
+            vfs_unlock();
             return ERR_INVAL;
         }
     }
     g_nodes[src].parent = parent;
     memset(g_nodes[src].name, 0, sizeof(g_nodes[src].name));
     memcpy(g_nodes[src].name, leaf, leaf_n + 1u);
+    vfs_unlock();
     return ERR_OK;
 }
 
 void vfs_ram_set_mounted(int on)
 {
+    if (vfs_lock() != ERR_OK) {
+        return;
+    }
     g_mounted = (on != 0) ? 1u : 0u;
+    vfs_unlock();
 }
 
 err_t vfs_ram_add_file(const char *name, const void *data, uint16_t n)
 {
     int i;
+    err_t e;
 
     if (name == NULL || data == NULL) {
         return ERR_INVAL;
     }
+    e = vfs_lock();
+    if (e != ERR_OK) {
+        return e;
+    }
     i = add_node(0, name, 0u, NULL);
     if (i < 0) {
+        vfs_unlock();
         return ERR_NOSPC;
     }
     if (n > RAM_CAP) {
@@ -612,5 +805,6 @@ err_t vfs_ram_add_file(const char *name, const void *data, uint16_t n)
     }
     memcpy(g_nodes[i].data, data, n);
     g_nodes[i].len = n;
+    vfs_unlock();
     return ERR_OK;
 }

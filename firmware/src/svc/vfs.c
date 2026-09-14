@@ -1,6 +1,7 @@
 #include "svc/vfs.h"
 
 #include "ff.h"
+#include "osal/osal.h"
 
 #include <string.h>
 
@@ -18,6 +19,28 @@ static uint8_t g_fil_used[VFS_FILE_MAX];
 
 static DIR g_dir[VFS_DIR_MAX];
 static uint8_t g_dir_used[VFS_DIR_MAX];
+
+/* FatFs is not reentrant (FF_FS_REENTRANT=0). ui and zb share this volume. */
+static osal_mutex_t *g_lock;
+
+static err_t vfs_lock(void)
+{
+    err_t e;
+
+    if (g_lock == NULL) {
+        e = osal_mutex_create(&g_lock);
+        if (e != ERR_OK) {
+            g_lock = NULL;
+            return e;
+        }
+    }
+    return osal_mutex_lock(g_lock, OSAL_WAIT_FOREVER);
+}
+
+static void vfs_unlock(void)
+{
+    (void)osal_mutex_unlock(g_lock);
+}
 
 static err_t map_fr(FRESULT r)
 {
@@ -100,7 +123,35 @@ static int alloc_dir(void)
     return -1;
 }
 
-err_t vfs_format(void)
+static err_t mount_unlocked(void)
+{
+    FRESULT r;
+
+    if (g_mounted) {
+        return ERR_OK;
+    }
+    g_did_format = 0u;
+    r = f_mount(&g_fs, "0:", 1);
+    if (r != FR_OK) {
+        return map_fr(r);
+    }
+    g_mounted = 1u;
+    return ERR_OK;
+}
+
+static err_t unmount_unlocked(void)
+{
+    FRESULT r;
+
+    if (g_mounted == 0u) {
+        return ERR_OK;
+    }
+    r = f_mount(0, "0:", 0);
+    g_mounted = 0u;
+    return map_fr(r);
+}
+
+static err_t format_unlocked(void)
 {
     MKFS_PARM opt;
     FRESULT r;
@@ -126,53 +177,83 @@ err_t vfs_format(void)
     return ERR_OK;
 }
 
+err_t vfs_format(void)
+{
+    err_t e;
+
+    e = vfs_lock();
+    if (e != ERR_OK) {
+        return e;
+    }
+    e = format_unlocked();
+    vfs_unlock();
+    return e;
+}
+
 uint8_t vfs_formatted_on_mount(void)
 {
-    return g_did_format;
+    uint8_t v;
+
+    if (vfs_lock() != ERR_OK) {
+        return 0u;
+    }
+    v = g_did_format;
+    vfs_unlock();
+    return v;
 }
 
 err_t vfs_mount(void)
 {
-    FRESULT r;
+    err_t e;
 
-    if (g_mounted) {
-        return ERR_OK;
+    e = vfs_lock();
+    if (e != ERR_OK) {
+        return e;
     }
-    g_did_format = 0u;
-    r = f_mount(&g_fs, "0:", 1);
-    if (r != FR_OK) {
-        return map_fr(r);
-    }
-    g_mounted = 1u;
-    return ERR_OK;
+    e = mount_unlocked();
+    vfs_unlock();
+    return e;
 }
 
 int vfs_mounted(void)
 {
-    return g_mounted ? 1 : 0;
+    int m;
+
+    if (vfs_lock() != ERR_OK) {
+        return 0;
+    }
+    m = g_mounted ? 1 : 0;
+    vfs_unlock();
+    return m;
 }
 
 err_t vfs_unmount(void)
 {
-    FRESULT r;
+    err_t e;
 
-    if (g_mounted == 0u) {
-        return ERR_OK;
+    e = vfs_lock();
+    if (e != ERR_OK) {
+        return e;
     }
-    r = f_mount(0, "0:", 0);
-    g_mounted = 0u;
-    return map_fr(r);
+    e = unmount_unlocked();
+    vfs_unlock();
+    return e;
 }
 
 err_t vfs_remount(void)
 {
     err_t e;
 
-    e = vfs_unmount();
+    e = vfs_lock();
     if (e != ERR_OK) {
         return e;
     }
-    return vfs_mount();
+    e = unmount_unlocked();
+    if (e == ERR_OK) {
+        e = mount_unlocked();
+    }
+    vfs_unlock();
+    return e;
 }
 
 err_t vfs_open(const char *path, uint32_t flags, vfs_file_t *fd)
@@ -186,9 +267,6 @@ err_t vfs_open(const char *path, uint32_t flags, vfs_file_t *fd)
         return ERR_INVAL;
     }
     *fd = -1;
-    if (!g_mounted) {
-        return ERR_IO;
-    }
     e = to_fat(path, fat, sizeof(fat));
     if (e != ERR_OK) {
         return e;
@@ -208,74 +286,116 @@ err_t vfs_open(const char *path, uint32_t flags, vfs_file_t *fd)
     if ((flags & VFS_O_TRUNC) != 0u) {
         mode |= FA_CREATE_ALWAYS;
     }
+    e = vfs_lock();
+    if (e != ERR_OK) {
+        return e;
+    }
+    if (!g_mounted) {
+        vfs_unlock();
+        return ERR_IO;
+    }
     slot = alloc_fil();
     if (slot < 0) {
+        vfs_unlock();
         return ERR_BUSY;
     }
     e = map_fr(f_open(&g_fil[slot], fat, mode));
     if (e != ERR_OK) {
         g_fil_used[slot] = 0u;
+        vfs_unlock();
         return e;
     }
     *fd = slot;
+    vfs_unlock();
     return ERR_OK;
 }
 
 err_t vfs_read(vfs_file_t fd, void *buf, size_t n, size_t *got)
 {
     UINT br = 0;
+    err_t e;
 
     if (got != NULL) {
         *got = 0u;
     }
+    e = vfs_lock();
+    if (e != ERR_OK) {
+        return e;
+    }
     if (fd < 0 || fd >= VFS_FILE_MAX || g_fil_used[fd] == 0u || buf == NULL) {
+        vfs_unlock();
         return ERR_INVAL;
     }
     if (map_fr(f_read(&g_fil[fd], buf, (UINT)n, &br)) != ERR_OK) {
+        vfs_unlock();
         return ERR_IO;
     }
     if (got != NULL) {
         *got = (size_t)br;
     }
+    vfs_unlock();
     return ERR_OK;
 }
 
 err_t vfs_write(vfs_file_t fd, const void *buf, size_t n, size_t *put)
 {
     UINT bw = 0;
+    err_t e;
 
     if (put != NULL) {
         *put = 0u;
     }
+    e = vfs_lock();
+    if (e != ERR_OK) {
+        return e;
+    }
     if (fd < 0 || fd >= VFS_FILE_MAX || g_fil_used[fd] == 0u || buf == NULL) {
+        vfs_unlock();
         return ERR_INVAL;
     }
     if (map_fr(f_write(&g_fil[fd], buf, (UINT)n, &bw)) != ERR_OK) {
+        vfs_unlock();
         return ERR_IO;
     }
     if (put != NULL) {
         *put = (size_t)bw;
     }
+    vfs_unlock();
     return ERR_OK;
 }
 
 err_t vfs_seek(vfs_file_t fd, uint32_t off)
 {
+    err_t e;
+
+    e = vfs_lock();
+    if (e != ERR_OK) {
+        return e;
+    }
     if (fd < 0 || fd >= VFS_FILE_MAX || g_fil_used[fd] == 0u) {
+        vfs_unlock();
         return ERR_INVAL;
     }
-    return map_fr(f_lseek(&g_fil[fd], off));
+    e = map_fr(f_lseek(&g_fil[fd], off));
+    vfs_unlock();
+    return e;
 }
 
 err_t vfs_close(vfs_file_t fd)
 {
     err_t e;
 
+    e = vfs_lock();
+    if (e != ERR_OK) {
+        return e;
+    }
     if (fd < 0 || fd >= VFS_FILE_MAX || g_fil_used[fd] == 0u) {
+        vfs_unlock();
         return ERR_INVAL;
     }
     e = map_fr(f_close(&g_fil[fd]));
     g_fil_used[fd] = 0u;
+    vfs_unlock();
     return e;
 }
 
@@ -289,19 +409,26 @@ err_t vfs_stat(const char *path, vfs_stat_t *st)
         return ERR_INVAL;
     }
     memset(st, 0, sizeof(*st));
-    if (!g_mounted) {
-        return ERR_IO;
-    }
     e = to_fat(path, fat, sizeof(fat));
     if (e != ERR_OK) {
         return e;
     }
+    e = vfs_lock();
+    if (e != ERR_OK) {
+        return e;
+    }
+    if (!g_mounted) {
+        vfs_unlock();
+        return ERR_IO;
+    }
     e = map_fr(f_stat(fat, &info));
     if (e != ERR_OK) {
+        vfs_unlock();
         return e;
     }
     st->is_dir = ((info.fattrib & AM_DIR) != 0u) ? 1u : 0u;
     st->size = (uint32_t)info.fsize;
+    vfs_unlock();
     return ERR_OK;
 }
 
@@ -315,23 +442,31 @@ err_t vfs_opendir(const char *path, vfs_dir_t *dir)
         return ERR_INVAL;
     }
     *dir = -1;
-    if (!g_mounted) {
-        return ERR_IO;
-    }
     e = to_fat(path, fat, sizeof(fat));
     if (e != ERR_OK) {
         return e;
     }
+    e = vfs_lock();
+    if (e != ERR_OK) {
+        return e;
+    }
+    if (!g_mounted) {
+        vfs_unlock();
+        return ERR_IO;
+    }
     slot = alloc_dir();
     if (slot < 0) {
+        vfs_unlock();
         return ERR_BUSY;
     }
     e = map_fr(f_opendir(&g_dir[slot], fat));
     if (e != ERR_OK) {
         g_dir_used[slot] = 0u;
+        vfs_unlock();
         return e;
     }
     *dir = slot;
+    vfs_unlock();
     return ERR_OK;
 }
 
@@ -340,7 +475,12 @@ err_t vfs_readdir(vfs_dir_t dir, vfs_dirent_t *ent)
     FILINFO info;
     err_t e;
 
+    e = vfs_lock();
+    if (e != ERR_OK) {
+        return e;
+    }
     if (dir < 0 || dir >= VFS_DIR_MAX || g_dir_used[dir] == 0u || ent == NULL) {
+        vfs_unlock();
         return ERR_INVAL;
     }
     memset(ent, 0, sizeof(*ent));
@@ -348,9 +488,11 @@ err_t vfs_readdir(vfs_dir_t dir, vfs_dirent_t *ent)
         memset(&info, 0, sizeof(info));
         e = map_fr(f_readdir(&g_dir[dir], &info));
         if (e != ERR_OK) {
+            vfs_unlock();
             return e;
         }
         if (info.fname[0] == '\0' || (uint8_t)info.fname[0] == 0xFFu) {
+            vfs_unlock();
             return ERR_NOENT;
         }
         if ((info.fattrib & 0x08u) != 0u) {
@@ -365,6 +507,7 @@ err_t vfs_readdir(vfs_dir_t dir, vfs_dirent_t *ent)
     ent->name[VFS_NAME_MAX - 1u] = '\0';
     ent->is_dir = ((info.fattrib & AM_DIR) != 0u) ? 1u : 0u;
     ent->size = (uint32_t)info.fsize;
+    vfs_unlock();
     return ERR_OK;
 }
 
@@ -372,11 +515,17 @@ err_t vfs_closedir(vfs_dir_t dir)
 {
     err_t e;
 
+    e = vfs_lock();
+    if (e != ERR_OK) {
+        return e;
+    }
     if (dir < 0 || dir >= VFS_DIR_MAX || g_dir_used[dir] == 0u) {
+        vfs_unlock();
         return ERR_INVAL;
     }
     e = map_fr(f_closedir(&g_dir[dir]));
     g_dir_used[dir] = 0u;
+    vfs_unlock();
     return e;
 }
 
@@ -385,14 +534,21 @@ err_t vfs_mkdir(const char *path)
     char fat[VFS_PATH_MAX + 4];
     err_t e;
 
-    if (!g_mounted) {
-        return ERR_IO;
-    }
     e = to_fat(path, fat, sizeof(fat));
     if (e != ERR_OK) {
         return e;
     }
-    return map_fr(f_mkdir(fat));
+    e = vfs_lock();
+    if (e != ERR_OK) {
+        return e;
+    }
+    if (!g_mounted) {
+        vfs_unlock();
+        return ERR_IO;
+    }
+    e = map_fr(f_mkdir(fat));
+    vfs_unlock();
+    return e;
 }
 
 err_t vfs_unlink(const char *path)
@@ -400,14 +556,21 @@ err_t vfs_unlink(const char *path)
     char fat[VFS_PATH_MAX + 4];
     err_t e;
 
-    if (!g_mounted) {
-        return ERR_IO;
-    }
     e = to_fat(path, fat, sizeof(fat));
     if (e != ERR_OK) {
         return e;
     }
-    return map_fr(f_unlink(fat));
+    e = vfs_lock();
+    if (e != ERR_OK) {
+        return e;
+    }
+    if (!g_mounted) {
+        vfs_unlock();
+        return ERR_IO;
+    }
+    e = map_fr(f_unlink(fat));
+    vfs_unlock();
+    return e;
 }
 
 err_t vfs_rename(const char *from, const char *to)
@@ -416,9 +579,6 @@ err_t vfs_rename(const char *from, const char *to)
     char fat_to[VFS_PATH_MAX + 4];
     err_t e;
 
-    if (!g_mounted) {
-        return ERR_IO;
-    }
     e = to_fat(from, fat_from, sizeof(fat_from));
     if (e != ERR_OK) {
         return e;
@@ -427,5 +587,15 @@ err_t vfs_rename(const char *from, const char *to)
     if (e != ERR_OK) {
         return e;
     }
-    return map_fr(f_rename(fat_from, fat_to));
+    e = vfs_lock();
+    if (e != ERR_OK) {
+        return e;
+    }
+    if (!g_mounted) {
+        vfs_unlock();
+        return ERR_IO;
+    }
+    e = map_fr(f_rename(fat_from, fat_to));
+    vfs_unlock();
+    return e;
 }
